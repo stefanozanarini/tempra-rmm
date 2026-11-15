@@ -385,7 +385,7 @@
 {{else}}
 <p><span class="badge chk-warning">{{t "nessun utente collegato"}}</span> {{t "Nessun utente risulta collegato: la sessione probabilmente fallirà."}}</p>
 {{end}}
-<form method="post" action="/agents/{{.Data.Agent.ID}}/screen" class="inline">
+<form method="post" action="/agents/{{.Data.Agent.ID}}/screen" class="inline" target="_blank">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
   <label>{{t "Durata"}} <select name="minutes"><option value="15">15 min</option><option value="30" selected>30 min</option><option value="60">60 min</option></select></label>
   <button class="primary">🖥️ {{t "Apri il controllo remoto"}}</button>
