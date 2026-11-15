@@ -62,7 +62,7 @@ form.search input { min-width:280px; }
 /* A vivid green with a halo: the online dot must stand out from the offline grey in both themes. */
 .dot.online { background:#22c55e; box-shadow:0 0 0 2px rgba(34,197,94,.25), 0 0 6px rgba(34,197,94,.7); }
 /* Status dot, and below it, only when relevant, the remote-control icon. */
-.dotcol { display:inline-flex; flex-direction:column; align-items:center; gap:8px; vertical-align:middle; width:14px; }
+.dotcol { display:inline-flex; flex-direction:column; align-items:center; gap:8px; vertical-align:middle; width:18px; }
 .dotcol a { font-size:12px; line-height:1; text-decoration:none; }
 .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 .grid2 dl.facts { grid-template-columns:160px 1fr; }
@@ -311,7 +311,8 @@ table.query-fields code { white-space:nowrap; }
 .query-examples li { margin:6px 0; }
 /* Agents list: resizable columns. */
 table.agents th { position:relative; }
-table.agents td { overflow:hidden; text-overflow:ellipsis; }
+/* Only once a column was resized: text cut to the width chosen. */
+table.agents.resized td { overflow:hidden; text-overflow:ellipsis; }
 .col-grip { position:absolute; top:0; right:-3px; width:7px; height:100%; cursor:col-resize; z-index:2; touch-action:none; }
 .col-grip:hover, body.resizing .col-grip:active { background:var(--accent); opacity:.5; }
 body.resizing { cursor:col-resize; user-select:none; }
@@ -345,3 +346,4 @@ table.hbars.criteria thead th { font-weight:600; color:var(--muted); }
 table.hbars.criteria td.num { white-space:nowrap; }
 table.changes { font-size:13px; margin-top:6px; }
 table.changes td:first-child { white-space:nowrap; }
+.line.st-good { stroke:var(--st-good); } .line.cat-1 { stroke:var(--cat-1); }

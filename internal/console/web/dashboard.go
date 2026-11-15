@@ -39,6 +39,8 @@ type dashData struct {
 	Bars                                     []barChart
 	Jobs                                     *lineChart // outcome of the jobs, nil without jobs
 	JobFails                                 barChart
+	Presence                                 *lineChart // availability, nil before the first sample
+	ServerDown                               barChart
 	Changes                                  *changesView // recent software changes
 }
 
@@ -698,6 +700,9 @@ func (s *Server) dashboard(r *http.Request, lang, t, site, group string) (*dashD
 		names[a.ID] = a.Host.Hostname
 	}
 	if err := s.activityCharts(ctx, lang, t, d, allow, names); err != nil {
+		return nil, err
+	}
+	if err := s.availabilityCharts(ctx, lang, t, d, agents, allow); err != nil {
 		return nil, err
 	}
 	return d, nil

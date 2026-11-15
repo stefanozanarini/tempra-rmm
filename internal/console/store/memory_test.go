@@ -1193,3 +1193,40 @@ func testDashStats(t *testing.T, s Store) {
 		t.Fatalf("limit: %+v", one)
 	}
 }
+
+func TestPresence(t *testing.T) { testPresence(t, NewMemory()) }
+
+func testPresence(t *testing.T, s Store) {
+	ctx := context.Background()
+	tenant := Tenant{ID: ids.NewUUID(), Name: "t"}
+	if err := s.CreateTenant(ctx, tenant); err != nil {
+		t.Fatal(err)
+	}
+	a1, a2 := ids.NewUUID(), ids.NewUUID()
+	day := time.Date(2026, 11, 14, 8, 0, 0, 0, time.UTC)
+	for i := 0; i < 4; i++ {
+		if err := s.RecordPresence(ctx, tenant.ID, map[string]bool{a1: true, a2: i == 0}, day.Add(time.Duration(i)*15*time.Minute)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s.RecordPresence(ctx, tenant.ID, map[string]bool{a1: false}, day.AddDate(0, 0, 1))
+	got, err := s.ListPresence(ctx, tenant.ID, day)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("presence: %+v", got)
+	}
+	for _, p := range got {
+		want := map[string][2]int{a1: {4, 4}, a2: {4, 1}}[p.AgentID]
+		if p.Day.Equal(dayOf(day)) && (p.Samples != want[0] || p.Online != want[1]) {
+			t.Fatalf("day 1 %+v", p)
+		}
+		if p.Day.Equal(dayOf(day.AddDate(0, 0, 1))) && (p.AgentID != a1 || p.Samples != 1 || p.Online != 0) {
+			t.Fatalf("day 2 %+v", p)
+		}
+	}
+	if later, _ := s.ListPresence(ctx, tenant.ID, day.AddDate(0, 0, 1)); len(later) != 1 {
+		t.Fatalf("since: %+v", later)
+	}
+}

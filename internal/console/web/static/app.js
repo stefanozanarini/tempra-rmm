@@ -181,6 +181,7 @@
     }
     t.style.tableLayout = "fixed";
     t.style.width = total + "px";
+    t.classList.add("resized");
   }
   function load(t) {
     try {
@@ -205,6 +206,7 @@
         Array.prototype.forEach.call(t.tHead.rows[0].cells, function (c) { c.style.width = ""; });
         t.style.tableLayout = "";
         t.style.width = "";
+        t.classList.remove("resized");
       });
       grip.addEventListener("pointerdown", function (ev) {
         ev.preventDefault();

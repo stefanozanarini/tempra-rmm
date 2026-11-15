@@ -63,17 +63,27 @@ func TestConsoleDashboard(t *testing.T) {
 			e.store.PutCheck(ctx, store.Check{TenantID: e.tenant, AgentID: id, CheckID: "inventory/battery", Status: store.CheckOK, UpdatedAt: now})
 		}
 	}
+	// Availability: two samples, PC-01 offline, a server offline once.
+	srv := e.addWindowsAgent(t, "SRV-01")
+	e.store.UpdateAgentSeen(ctx, e.tenant, srv, &store.HostInfo{Hostname: "SRV-01", OS: "windows", OSFamily: "server", AgentVersion: "1.0.2"}, now, nil)
+	for i := 0; i < 2; i++ {
+		e.store.RecordPresence(ctx, e.tenant, map[string]bool{ids[0]: false, ids[1]: true, ids[2]: true, srv: i == 1}, now)
+	}
 	c, _ := e.login(t, admin)
 	_, body := get(t, c, e.console.URL+"/reports")
 	if dir := os.Getenv("DASH_HTML"); dir != "" {
 		os.WriteFile(dir, []byte(body), 0o644)
+	}
+	if strings.Contains(body, "Nessun server offline nel periodo.") {
+		t.Fatal("server offline not charted")
 	}
 	for _, want := range []string{`class="donut"`, "Tipi di dispositivo", "Portatili", "Windows 11 Pro 24H2", "30–60 giorni", "Libero: meno del 10%",
 		"Non cifrato", "Assente o disattivato", `href="/patches?show=missing"`, "1.0.2",
 		"Computer più indietro con gli aggiornamenti", `href="/reports?software=Java&amp;tab=computers"`, "2 versioni", "Software più installati",
 		"Applicazioni da aggiornare", `href="/patches/app?id=PuTTY.PuTTY"`,
 		"Salute dei dischi", "Da tenere d&#39;occhio", "Età dell&#39;hardware", "oltre 5 anni", "Hardware sotto i requisiti", "RAM sotto 8 GB",
-		"disco meccanico (HDD)", "Nessun job negli ultimi 30 giorni.", "Modifiche software recenti", "Notepad&#43;&#43; 8.7", "installata"} {
+		"disco meccanico (HDD)", "Nessun job negli ultimi 30 giorni.", "Modifiche software recenti", "Notepad&#43;&#43; 8.7", "installata",
+		"Disponibilità", "Online almeno una volta", "3 visti", "Server offline più a lungo", "SRV-01"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("dashboard lacks %q: %s", want, body)
 		}

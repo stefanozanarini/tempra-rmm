@@ -251,6 +251,20 @@ func run(log *slog.Logger) error {
 			}
 		}
 	}()
+	// Availability: whether each approved agent is online, at startup and
+	// every 15 minutes.
+	go func() {
+		t := time.NewTicker(15 * time.Minute)
+		defer t.Stop()
+		for {
+			srv.RunPresence(ctx)
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+			}
+		}
+	}()
 	// Permanent workflow assignments: dispatch runs on the computers of
 	// their group that are due (new members, or a reassessment interval
 	// elapsed). Shortly after startup, then every 15 minutes.

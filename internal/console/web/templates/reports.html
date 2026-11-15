@@ -98,6 +98,8 @@
 {{range .Bars}}{{template "hbars" .}}{{end}}
 </div>
 <div class="viz-grid charts2">
+{{with .Presence}}{{template "linechart" .}}{{else}}<section class="viz"><h3>{{t "Disponibilità"}}</h3><p class="muted">{{t "La console controlla ogni 15 minuti quali computer sono online: il grafico si riempie dal primo controllo."}}</p></section>{{end}}
+{{template "hbars" .ServerDown}}
 {{with .Jobs}}{{template "linechart" .}}{{else}}<section class="viz"><h3>{{t "Esito dei job"}}</h3><p class="muted">{{t "Nessun job negli ultimi 30 giorni."}}</p></section>{{end}}
 {{template "hbars" .JobFails}}
 {{with .Changes}}
