@@ -27,6 +27,9 @@ const (
 	// (internal/console/assignreq): distinct from DomainJob and
 	// DomainPolicy so a signed assignment can never be replayed as either.
 	DomainAssignment Domain = "openrmm/assignment/v1"
+	// DomainProfile signs a version of a provisioning profile
+	// (internal/console/profilereq), for the same reason.
+	DomainProfile Domain = "openrmm/profile/v1"
 )
 
 // MaxPayload bounds the payload size accepted for verification.

@@ -1,0 +1,86 @@
+{{define "content"}}
+{{with .Data}}
+{{with .Error}}<p class="flash error">{{.}}</p>{{end}}
+{{if not .New}}
+<p>{{tf "Versione %d" .P.Version}} · <span class="muted">{{tf "salvata da %s il %s" .P.Author (fmtTime .P.UpdatedAt)}}{{with .P.Comment}} — {{.}}{{end}}</span>
+  · <a href="/provisioning">{{t "Tutti i profili"}}</a></p>
+{{if ne .P.Version .Latest}}<p class="flash">{{tf "Stai guardando la versione %d. Salvando crei la versione %d a partire da questa." .P.Version (add .Latest 1)}}</p>{{end}}
+
+<div class="wf-top">
+<section>
+<h2>{{t "Approvazione"}}</h2>
+{{if .Approved}}
+<p><span class="badge succeeded">{{tf "versione %d approvata" .Approved}}</span> <span class="muted">{{tf "fino al %s" (fmtTime .ApprovedExpires)}}</span></p>
+<p class="muted small">{{tf "Le nuove esecuzioni usano la versione %d." .Approved}}{{if ne .Approved .Latest}} {{tf "La versione %d non è ancora approvata." .Latest}}{{end}}</p>
+{{else}}<p class="muted">{{t "Nessuna versione approvata: il profilo non può ancora essere avviato."}}</p>{{end}}
+{{if and $.IsAdmin (ne .Approved .Latest)}}
+<form method="post" action="/provisioning/profiles/{{.P.ID}}/approve" class="stack">
+  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <input type="hidden" name="version" value="{{.Latest}}">
+  <label>{{t "Validità dell'approvazione"}} <select name="validity_days">{{range assignmentValidities}}<option value="{{.Days}}"{{if eq .Days 90}} selected{{end}}>{{t .Label}}</option>{{end}}</select></label>
+  {{template "ttl" "1440"}}
+  <p class="muted small">{{tf "Approvi con MFA la versione %d: ogni passo è fissato al modulo, ai parametri e ai pacchetti attuali. Finché l'approvazione è valida gli operatori possono avviarla senza una nuova MFA." .Latest}}</p>
+  <button class="primary">{{tf "Approva la versione %d…" .Latest}}</button>
+</form>
+{{end}}
+{{if and $.CanRun .Approved}}
+<p class="muted small">{{t "Per avviarlo seleziona i computer nella lista agenti e scegli \"Avvia provisioning\" in \"Azioni sui selezionati\"."}} <a href="/agents">{{t "Lista agenti"}}</a></p>
+{{end}}
+</section>
+<section>
+<h2>{{t "Versioni"}}</h2>
+<ul class="wf-revs">{{range .Versions}}<li{{if eq .Version $.Data.P.Version}} class="current"{{end}}><a href="/provisioning/profiles/{{.ID}}?v={{.Version}}">{{tf "Versione %d" .Version}}</a>{{if .ApprovedAt}} <span class="badge succeeded">{{t "approvata"}}</span>{{end}}
+  <span class="muted small">{{fmtTime .UpdatedAt}} · {{.Author}}{{with .Comment}} — {{.}}{{end}}</span></li>{{end}}</ul>
+</section>
+</div>
+{{end}}
+
+<form method="post" action="/provisioning/profiles/{{if .New}}new{{else}}{{.P.ID}}{{end}}" class="stack wide">
+  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <label>{{t "Nome"}} <input name="name" value="{{.P.Name}}" required maxlength="64" placeholder="{{t "PC amministrazione"}}"></label>
+  <label>{{t "Descrizione"}} <input name="description" value="{{.P.Description}}" maxlength="1000"></label>
+
+  <h2>{{t "Passi"}}</h2>
+  <p class="muted">{{t "Eseguiti in ordine, uno alla volta: il passo successivo parte quando il computer ha riportato l'esito del precedente. Dopo un riavvio la sequenza riprende quando l'agente si riconnette. Salvando, ogni workflow viene fissato alla sua ultima revisione. Per togliere un passo scegli \"—\" come tipo; per spostarlo cambia il numero d'ordine."}}</p>
+  <table>
+  <thead><tr><th class="num">{{t "Ordine"}}</th><th>{{t "Tipo"}}</th><th>{{t "Workflow"}}</th><th>{{t "Nome del passo"}}</th><th>{{t "Se fallisce"}}</th></tr></thead>
+  <tbody>
+  {{range $i, $s := .Steps}}{{template "prof-step" (dict "I" $i "S" $s.Step "Name" $s.WorkflowName "Latest" $s.Latest "D" $.Data)}}{{end}}
+  {{range .Blank}}{{template "prof-step" (dict "I" . "S" nil "D" $.Data)}}{{end}}
+  </tbody>
+  </table>
+  {{if not .Workflows}}<p class="muted small">{{t "Non ci sono ancora workflow: creali in Software › Workflow."}} <a href="/workflows">{{t "Workflow"}}</a></p>{{end}}
+
+  {{if $.CanRun}}
+  <label>{{t "Commento alla versione"}} <input name="comment" maxlength="1000" placeholder="{{t "cosa cambia rispetto alla versione precedente"}}"></label>
+  <div class="actions">
+    <button class="primary">{{if .New}}{{t "Crea il profilo"}}{{else}}{{tf "Salva come versione %d" (add .Latest 1)}}{{end}}</button>
+    {{if not .New}}<button name="delete" value="1" class="danger" formnovalidate>{{t "Elimina il profilo"}}</button>{{end}}
+  </div>
+  {{end}}
+</form>
+
+{{if .Runs}}
+<h2>{{tf "Esecuzioni (%d)" (len .Runs)}}</h2>
+{{template "run-table" .Runs}}
+{{end}}
+{{end}}
+{{end}}
+
+{{/* A step row: dict "I" index, "S" provisioning.Step or nil (blank row), "Name" and "Latest" of its workflow, "D" the page data. */}}
+{{define "prof-step"}}{{$s := .S}}{{$p := printf "s.%d" .I}}
+<tr>
+  <td class="num"><input name="{{$p}}.order" value="{{add .I 1}}" size="3" inputmode="numeric" aria-label="{{t "Ordine"}}"></td>
+  <td><select name="{{$p}}.type" aria-label="{{t "Tipo"}}">
+    <option value="">—</option>
+    {{range .D.StepTypes}}<option value="{{.}}"{{if and $s (eq . $s.Type)}} selected{{end}}>{{provStepLabel .}}</option>{{end}}
+  </select></td>
+  <td><select name="{{$p}}.workflow" aria-label="{{t "Workflow"}}">
+    <option value="">—</option>
+    {{range .D.Workflows}}<option value="{{.ID}}"{{if and $s (eq .ID $s.WorkflowID)}} selected{{end}}>{{.Name}}</option>{{end}}
+  </select>
+  {{if and $s $s.Revision}}<br><span class="muted small">{{tf "revisione %d" $s.Revision}}{{with .Latest}} · {{tf "disponibile la %d: salva per usarla" .}}{{end}}</span>{{end}}</td>
+  <td><input name="{{$p}}.name" value="{{if $s}}{{$s.Name}}{{end}}" maxlength="128"></td>
+  <td><label class="check"><input type="checkbox" name="{{$p}}.continue" value="1"{{if and $s $s.ContinueOnError}} checked{{end}}> {{t "continua"}}</label></td>
+</tr>
+{{end}}

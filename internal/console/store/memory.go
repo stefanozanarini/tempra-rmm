@@ -43,6 +43,8 @@ type Memory struct {
 	groups      map[string]Group        // tenant/id
 	workflows   map[string]*memWorkflow // tenant/id
 	assignments map[string]Assignment   // tenant/id
+	profiles    map[string]*memProfile  // tenant/id
+	runs        map[string]ProvisioningRun
 	vulnFeeds   map[string]VulnFeed
 }
 

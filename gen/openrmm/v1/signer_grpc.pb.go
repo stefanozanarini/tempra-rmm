@@ -25,6 +25,8 @@ const (
 	SignerService_SignCollect_FullMethodName       = "/openrmm.v1.SignerService/SignCollect"
 	SignerService_SignAssignment_FullMethodName    = "/openrmm.v1.SignerService/SignAssignment"
 	SignerService_SignAssignmentRun_FullMethodName = "/openrmm.v1.SignerService/SignAssignmentRun"
+	SignerService_SignProfile_FullMethodName       = "/openrmm.v1.SignerService/SignProfile"
+	SignerService_SignProfileRun_FullMethodName    = "/openrmm.v1.SignerService/SignProfileRun"
 )
 
 // SignerServiceClient is the client API for SignerService service.
@@ -61,6 +63,14 @@ type SignerServiceClient interface {
 	// verifies its own earlier signature over the assignment instead of a
 	// fresh id_token. It refuses once the assignment has expired.
 	SignAssignmentRun(ctx context.Context, in *SignAssignmentRunRequest, opts ...grpc.CallOption) (*SignJobResponse, error)
+	// SignProfile signs a version of a provisioning profile, approved once by
+	// an administrator with a fresh MFA sign-in whose nonce is the profile's
+	// fingerprint. Every step pins an exact module version and parameters.
+	SignProfile(ctx context.Context, in *SignProfileRequest, opts ...grpc.CallOption) (*SignProfileResponse, error)
+	// SignProfileRun issues the signed jobs of one step of an already-approved
+	// profile on the targets the console names, without an operator, like
+	// SignAssignmentRun. It refuses once the approval has expired.
+	SignProfileRun(ctx context.Context, in *SignProfileRunRequest, opts ...grpc.CallOption) (*SignJobResponse, error)
 }
 
 type signerServiceClient struct {
@@ -131,6 +141,26 @@ func (c *signerServiceClient) SignAssignmentRun(ctx context.Context, in *SignAss
 	return out, nil
 }
 
+func (c *signerServiceClient) SignProfile(ctx context.Context, in *SignProfileRequest, opts ...grpc.CallOption) (*SignProfileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SignProfileResponse)
+	err := c.cc.Invoke(ctx, SignerService_SignProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *signerServiceClient) SignProfileRun(ctx context.Context, in *SignProfileRunRequest, opts ...grpc.CallOption) (*SignJobResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SignJobResponse)
+	err := c.cc.Invoke(ctx, SignerService_SignProfileRun_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SignerServiceServer is the server API for SignerService service.
 // All implementations must embed UnimplementedSignerServiceServer
 // for forward compatibility.
@@ -165,6 +195,14 @@ type SignerServiceServer interface {
 	// verifies its own earlier signature over the assignment instead of a
 	// fresh id_token. It refuses once the assignment has expired.
 	SignAssignmentRun(context.Context, *SignAssignmentRunRequest) (*SignJobResponse, error)
+	// SignProfile signs a version of a provisioning profile, approved once by
+	// an administrator with a fresh MFA sign-in whose nonce is the profile's
+	// fingerprint. Every step pins an exact module version and parameters.
+	SignProfile(context.Context, *SignProfileRequest) (*SignProfileResponse, error)
+	// SignProfileRun issues the signed jobs of one step of an already-approved
+	// profile on the targets the console names, without an operator, like
+	// SignAssignmentRun. It refuses once the approval has expired.
+	SignProfileRun(context.Context, *SignProfileRunRequest) (*SignJobResponse, error)
 	mustEmbedUnimplementedSignerServiceServer()
 }
 
@@ -192,6 +230,12 @@ func (UnimplementedSignerServiceServer) SignAssignment(context.Context, *SignAss
 }
 func (UnimplementedSignerServiceServer) SignAssignmentRun(context.Context, *SignAssignmentRunRequest) (*SignJobResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SignAssignmentRun not implemented")
+}
+func (UnimplementedSignerServiceServer) SignProfile(context.Context, *SignProfileRequest) (*SignProfileResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SignProfile not implemented")
+}
+func (UnimplementedSignerServiceServer) SignProfileRun(context.Context, *SignProfileRunRequest) (*SignJobResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SignProfileRun not implemented")
 }
 func (UnimplementedSignerServiceServer) mustEmbedUnimplementedSignerServiceServer() {}
 func (UnimplementedSignerServiceServer) testEmbeddedByValue()                       {}
@@ -322,6 +366,42 @@ func _SignerService_SignAssignmentRun_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SignerService_SignProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SignProfileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SignerServiceServer).SignProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SignerService_SignProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SignerServiceServer).SignProfile(ctx, req.(*SignProfileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SignerService_SignProfileRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SignProfileRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SignerServiceServer).SignProfileRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SignerService_SignProfileRun_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SignerServiceServer).SignProfileRun(ctx, req.(*SignProfileRunRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SignerService_ServiceDesc is the grpc.ServiceDesc for SignerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -352,6 +432,14 @@ var SignerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SignAssignmentRun",
 			Handler:    _SignerService_SignAssignmentRun_Handler,
+		},
+		{
+			MethodName: "SignProfile",
+			Handler:    _SignerService_SignProfile_Handler,
+		},
+		{
+			MethodName: "SignProfileRun",
+			Handler:    _SignerService_SignProfileRun_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

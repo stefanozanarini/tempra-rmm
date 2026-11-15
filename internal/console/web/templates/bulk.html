@@ -93,6 +93,16 @@
   <button class="primary">{{t "Approva ed esegui"}}</button>
 </form>
 {{end}}
+{{if .Profiles}}
+<h2 id="provisioning">{{t "Avvia provisioning"}}</h2>
+<form method="post" action="/provisioning/start" class="stack">
+  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+  {{range .Agents}}<input type="hidden" name="agent" value="{{.ID}}">{{end}}
+  <label>{{t "Profilo"}} <select name="profile">{{range .Profiles}}<option value="{{.ID}}">{{.Name}} · {{tf "versione %d" .Version}}</option>{{end}}</select></label>
+  <p class="muted">{{t "Esegue i passi del profilo uno dopo l'altro, con la versione approvata da un amministratore: non serve una nuova MFA."}}</p>
+  <button class="primary">{{t "Avvia provisioning"}}</button>
+</form>
+{{end}}
 {{if .Packages}}
 <h2>{{t "Installa software"}}</h2>
 <form method="post" action="/agents/bulk" class="stack">

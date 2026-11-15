@@ -42,6 +42,7 @@ import (
 	"github.com/stefanozanarini/tempra-rmm/internal/console/assignreq"
 	"github.com/stefanozanarini/tempra-rmm/internal/console/authn"
 	"github.com/stefanozanarini/tempra-rmm/internal/console/jobreq"
+	"github.com/stefanozanarini/tempra-rmm/internal/console/profilereq"
 	"github.com/stefanozanarini/tempra-rmm/internal/ids"
 	"github.com/stefanozanarini/tempra-rmm/internal/policy"
 	"github.com/stefanozanarini/tempra-rmm/internal/signing"
@@ -285,6 +286,109 @@ func (s *Server) SignAssignmentRun(_ context.Context, req *openrmmv1.SignAssignm
 		return nil, status.Error(codes.Internal, "built an invalid job: "+err.Error())
 	}
 	return s.issue(jr, fmt.Sprintf("automatic (workflow assignment, workflow %s rev. %d)", r.GetWorkflowId(), r.GetRevision()), now)
+}
+
+// SignProfile verifies an administrator's fresh MFA approval of a version
+// of a provisioning profile and signs it. Like SignAssignment, the
+// signature is then reused by SignProfileRun, without an operator, until
+// it expires.
+func (s *Server) SignProfile(ctx context.Context, req *openrmmv1.SignProfileRequest) (*openrmmv1.SignProfileResponse, error) {
+	r := req.GetRequest()
+	deny := func(reason string, err error) (*openrmmv1.SignProfileResponse, error) {
+		s.log.Warn("profile signature refused", "reason", reason, "err", err, "tenant", r.GetTenantId(),
+			"profile", r.GetProfileId())
+		return nil, status.Error(codes.PermissionDenied, reason)
+	}
+	now := s.now()
+	if err := profilereq.Validate(r, now); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	claims, v, err := s.verify(ctx, req.GetIdToken())
+	if err != nil {
+		return deny("operator authentication rejected", err)
+	}
+	if err := v.CheckFresh(claims, now); err != nil {
+		return deny("authentication too old", err)
+	}
+	if !profilereq.CheckAuthNonce(claims.Nonce, r) {
+		return deny("authentication was not issued for this profile", authn.ErrNonce)
+	}
+	// A profile runs unattended for its whole validity, so it needs the
+	// Admin role, like a permanent assignment.
+	if !claims.HasRole(authn.RoleAdmin) {
+		return deny("only administrators may approve a provisioning profile", authn.ErrNoRole)
+	}
+	if !v.MayManage(claims, r.GetTenantId()) {
+		return deny("operator may not manage this tenant", authn.ErrNoTenant)
+	}
+	if err := s.used.add(claims.Nonce, now.Add(2*time.Hour), now); err != nil {
+		return deny("authentication already used", err)
+	}
+	payload, err := proto.Marshal(r)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "encode profile")
+	}
+	env, err := proto.Marshal(&openrmmv1.SignedEnvelope{KeyId: s.signer.KeyID(), Payload: payload,
+		Signature: s.signer.Sign(signing.DomainProfile, payload)})
+	if err != nil {
+		return nil, status.Error(codes.Internal, "encode envelope")
+	}
+	op := operatorOf(claims, v)
+	s.log.Info("profile signed", "profile", r.GetProfileId(), "version", r.GetVersion(), "tenant", r.GetTenantId(),
+		"steps", len(r.GetSteps()), "operator", op, "expires_unix", r.GetExpiresUnix())
+	return &openrmmv1.SignProfileResponse{Envelope: env, Operator: op, ExpiresUnix: r.GetExpiresUnix()}, nil
+}
+
+// SignProfileRun issues the signed jobs of one step of an already-approved
+// profile, without an operator: it verifies its own earlier signature over
+// the profile and that the approval has not expired. The console decides
+// which step is due on which computers; this call cannot change what a step
+// runs, only the targets and a ttl capped by the profile.
+func (s *Server) SignProfileRun(_ context.Context, req *openrmmv1.SignProfileRunRequest) (*openrmmv1.SignJobResponse, error) {
+	deny := func(reason string, err error) (*openrmmv1.SignJobResponse, error) {
+		s.log.Warn("profile run refused", "reason", reason, "err", err)
+		return nil, status.Error(codes.PermissionDenied, reason)
+	}
+	env := &openrmmv1.SignedEnvelope{}
+	if err := proto.Unmarshal(req.GetProfileEnvelope(), env); err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid profile envelope")
+	}
+	if err := s.signer.Verify(signing.DomainProfile, env.GetKeyId(), env.GetPayload(), env.GetSignature()); err != nil {
+		return deny("profile envelope does not carry a valid signature of this signer", err)
+	}
+	r := &openrmmv1.ProfileRequest{}
+	if err := proto.Unmarshal(env.GetPayload(), r); err != nil {
+		return nil, status.Error(codes.Internal, "decode profile")
+	}
+	now := s.now()
+	if err := profilereq.Validate(r, now); err != nil {
+		return deny("signed profile no longer valid", err)
+	}
+	if now.Unix() >= r.GetExpiresUnix() {
+		return deny("profile approval expired", fmt.Errorf("expired at %d", r.GetExpiresUnix()))
+	}
+	i := int(req.GetStep())
+	if i < 0 || i >= len(r.GetSteps()) {
+		return nil, status.Error(codes.InvalidArgument, "no such step")
+	}
+	if err := assignreq.ValidateTargets(req.GetAgentIds(), profilereq.MaxAgents); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	ttl := req.GetTtlSeconds()
+	if ttl < 60 || ttl > r.GetMaxTtlSeconds() {
+		return nil, status.Error(codes.InvalidArgument, "ttl must be between 1 minute and the profile's maximum")
+	}
+	st := r.GetSteps()[i]
+	jr := &openrmmv1.JobRequest{TenantId: r.GetTenantId(), AgentIds: req.GetAgentIds(), Module: st.GetModule(),
+		ModuleVersion: st.GetModuleVersion(), ModuleSha256: st.GetModuleSha256(), Action: st.GetAction(),
+		ParamsJson: st.GetParamsJson(), TtlSeconds: ttl, RequestNonce: jobreq.NewRequestNonce(), Packages: st.GetPackages()}
+	if len(jr.AgentIds) == 1 {
+		jr.AgentId, jr.AgentIds = jr.AgentIds[0], nil
+	}
+	if err := jobreq.Validate(jr); err != nil {
+		return nil, status.Error(codes.Internal, "built an invalid job: "+err.Error())
+	}
+	return s.issue(jr, fmt.Sprintf("automatic (provisioning profile %s v%d, step %d)", r.GetProfileId(), r.GetVersion(), i+1), now)
 }
 
 // usedTokens remembers consumed step-up nonces until their tokens expire.

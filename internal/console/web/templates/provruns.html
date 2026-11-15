@@ -1,0 +1,10 @@
+{{define "content"}}
+{{with .Data}}
+<nav class="tabs">
+  <a href="/provisioning">{{t "Profili"}}</a>
+  <a href="/provisioning/runs" class="current">{{t "Esecuzioni"}}</a>
+</nav>
+{{if .Runs}}{{template "run-table" .Runs}}
+{{else}}<p class="muted">{{t "Nessun provisioning eseguito. Selezionali nella lista agenti e scegli \"Avvia provisioning\" in \"Azioni sui selezionati\"."}}</p>{{end}}
+{{end}}
+{{end}}

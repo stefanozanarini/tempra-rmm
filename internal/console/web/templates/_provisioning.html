@@ -1,0 +1,18 @@
+{{define "run-state"}}{{if eq . "succeeded"}}<span class="badge succeeded">{{runStateLabel .}}</span>{{else if eq . "running"}}<span class="badge running">{{runStateLabel .}}</span>{{else if eq . "canceled"}}<span class="badge expired">{{runStateLabel .}}</span>{{else}}<span class="badge failed">{{runStateLabel .}}</span>{{end}}{{end}}
+
+{{define "run-counts"}}{{with .}}{{with index . "succeeded"}}<span class="badge succeeded" title="{{t "completato"}}">✓ {{.}}</span> {{end}}{{with index . "running"}}<span class="badge running" title="{{t "in corso"}}">… {{.}}</span> {{end}}{{with index . "failed"}}<span class="badge failed" title="{{t "non riuscito"}}">✕ {{.}}</span>{{end}}{{else}}<span class="muted">{{t "mai eseguito"}}</span>{{end}}{{end}}
+
+{{/* Runs table: a []runView. */}}
+{{define "run-table"}}
+<table>
+<thead><tr><th>{{t "Computer"}}</th><th>{{t "Profilo"}}</th><th>{{t "Avanzamento"}}</th><th>{{t "Stato"}}</th><th>{{t "Avviato"}}</th><th>{{t "Aggiornato"}}</th></tr></thead>
+<tbody>{{range .}}<tr>
+  <td>{{if .Hostname}}<a href="/agents/{{.AgentID}}">{{.Hostname}}</a>{{else}}<code>{{short .AgentID}}</code>{{end}}</td>
+  <td><a href="/provisioning/profiles/{{.ProfileID}}?v={{.Version}}">{{.ProfileName}}</a> <span class="muted small">{{tf "v%d" .Version}}</span></td>
+  <td><a href="/provisioning/runs/{{.ID}}">{{if ge .Step .Steps}}{{tf "%d di %d passi" .Steps .Steps}}{{else}}{{tf "passo %d di %d" (add .Step 1) .Steps}}{{end}}</a></td>
+  <td>{{template "run-state" .State}}{{with .Error}} <span class="muted small">{{runError .}}</span>{{end}}</td>
+  <td>{{fmtTime .CreatedAt}}<br><span class="muted small">{{.CreatedBy}}</span></td>
+  <td>{{fmtTime .UpdatedAt}}</td>
+</tr>{{end}}</tbody>
+</table>
+{{end}}

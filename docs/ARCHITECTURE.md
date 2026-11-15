@@ -437,6 +437,17 @@ Browse the folders of one or more endpoints, download and upload files, from the
 - **Path**: the same stream as the shell (agent → relay → core → broker → web console); inside it, JSON control messages and binary chunks of 256 KB. The console asks, the agent answers; downloads are paced by credits (16 chunks in flight), so nothing is dropped by the gateway. The web console holds one connection per session and serves plain HTTP requests: folder listings, downloads streamed to the browser, uploads read once and passed to every selected agent at the same time (nothing is stored on the console), the same path from several agents as a zip with a folder per computer.
 - **Audit**: every download (also in a zip), upload and new folder with agent, path, size and SHA-256; the job result records counts and bytes.
 
+### 8.13 Provisioning profiles ✅ (first version)
+
+Menu **Provisioning**: what to do on a freshly installed computer once its agent is enrolled — install software and the antivirus, run custom scripts, reboot — as an ordered sequence.
+
+- A **profile** is a list of up to 30 steps: a **workflow** (software distribution workflow, pinned to the revision current when the profile is saved) or a **reboot**. A step may continue on failure. Every save is a new **version**; versions are never changed afterwards.
+- An **Admin approves a version once with MFA** (nonce `profile.<hash>`, `internal/console/profilereq`), for 30 to 365 days: the signer signs the whole profile (domain `openrmm/profile/v1`), each step pinned to module version, manifest hash, parameters and packages. Like a permanent workflow assignment, `SignProfileRun` then issues the job of one step for the computers the console names, without an operator, until the approval expires; it can never change what a step runs.
+- An **Operator starts** the newest approved version on approved agents from the agent list (bulk action *Start provisioning*), with no new MFA. One run at a time per computer.
+- **The console orchestrates**, the agent is unchanged: a run dispatches its next step only when the agent has reported the previous one (checked every minute and right after a start). A reboot step reboots at once (one minute of notice, so the result is reported) and the run resumes when the agent opens a new session; if it does not come back within 2 hours the run fails. A job not picked up before it expires (24 hours by default) fails its step.
+- **Runs** page: progress step by step with the job of each, *retry from the failed step* and *cancel* (a step already sent still completes). Starts, approvals, results and every job are audited.
+- 📋 Next: start automatically at enrollment through a dedicated enrollment token and signed MSI per profile; **offline domain join** (`djoin /provision` on a domain controller's agent, the blob passed to the new computer: no AD credentials on the console) with renaming from a naming pattern; ready-made workflows for Microsoft 365 Apps (Office Deployment Tool) and antivirus.
+
 ### 8.10 Further proposed plugins 📋
 
 | Priority | Plugin | Purpose |
@@ -576,6 +587,7 @@ The console matches computers and agents by host name and shows:
 | 9 | `firmware`: BIOS, firmware and drivers through Dell Command Update, Lenovo System Update and HP Image Assistant, in the Patch dashboard | ✅ (to be validated on real endpoints) |
 | 10 | Interactive shell: MFA per session, opt-in local policy, ConPTY, xterm.js, every line audited | ✅ (to be validated on real Windows) |
 | 11 | Builder service: signing key on the console encrypted with a passphrase, dedicated CA or enterprise CA from the console, signed MSIs preconfigured with gateway, root certificate, keys and token | ✅ |
+| 12 | Provisioning profiles: ordered workflow and reboot steps for new computers, approved once with MFA, orchestrated by the console (§8.13) | ✅ first version (enrollment trigger and offline domain join 📋) |
 | Later | Further plugins (§8.10), Linux agent packages | 📋 |
 
 ---
@@ -627,3 +639,4 @@ The console matches computers and agents by host name and shows:
 | 2026-10-20 | The Authenticode key may live on the console, in a separate **builder** container, **encrypted with a passphrase** asked at each use (with MFA for builds); the console builds **signed MSIs preconfigured** with gateway, root certificate, public keys and a non-auto-approving enrollment token. Internal PCs reach the gateway in the DMZ through split DNS |
 | 2026-10-20 | **Module and agent release keys in the builder**, encrypted with the same passphrase as the Authenticode key, created from the console; modules and releases published from the console after MFA and the passphrase. Offline keys remain supported. First installation: `OPENRMM_MFA_CLAIM=none` added for directories that enforce MFA themselves (Entra omits `amr` from v2.0 ID tokens unless requested) |
 | 2026-10-20 | **Automatic collection** instead of a baseline policy to write: the console keeps it per tenant and the signer signs it without MFA only when it matches the fixed list of read-only collections; the console image ships the agent and the modules, published with MFA and the passphrase only. Policies move under Settings as an advanced option |
+| 2026-11-15 | **Provisioning** as its own menu: profiles of steps orchestrated by the console with ordinary signed jobs (no agent change), approved per version like permanent assignments; started manually or (next) by a per-profile enrollment token; domain join through **offline domain join**, so the console keeps no AD credentials; Microsoft 365 limited to installing the apps |

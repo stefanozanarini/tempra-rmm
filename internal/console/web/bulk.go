@@ -35,6 +35,8 @@ type bulkData struct {
 	// (?workflow=).
 	Workflows []store.Workflow
 	Workflow  string
+	// Profiles: the provisioning profiles with an approved version.
+	Profiles []store.Profile
 }
 
 // selectedAgents returns the active agents listed in the "agent" values.
@@ -174,6 +176,10 @@ func (s *Server) handleBulkForm(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		d.Workflow = q.Get("workflow")
+	}
+	if d.Profiles, err = s.approvedProfiles(r.Context(), t); err != nil {
+		s.fail(w, r, err)
+		return
 	}
 	title := s.Tf(r, "Azioni su %d agenti", len(agents))
 	if group != nil {

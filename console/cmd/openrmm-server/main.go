@@ -267,6 +267,21 @@ func run(log *slog.Logger) error {
 		}
 	}()
 
+	// Provisioning runs: dispatch the next step of every run whose previous
+	// step has finished. Every minute, so a run moves on quickly.
+	go func() {
+		t := time.NewTicker(time.Minute)
+		defer t.Stop()
+		for {
+			srv.RunProvisioning(ctx)
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+			}
+		}
+	}()
+
 	hs := &http.Server{
 		Addr:              env("OPENRMM_HTTP_LISTEN", ":8080"),
 		Handler:           srv.Handler(),

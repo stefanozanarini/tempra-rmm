@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -483,26 +484,24 @@ func (s *Server) handleSaveWorkflow(w http.ResponseWriter, r *http.Request) {
 	s.flash(w, r, s.Tf(r, "Workflow %s salvato: revisione %d.", d.W.Name, rev), "/workflows/"+id)
 }
 
-// workflowJob builds the job running the latest revision of a workflow on
-// targets.
-func (s *Server) workflowJob(r *http.Request, t, id string, targets []string) (*openrmmv1.JobRequest, string) {
-	wf, err := s.store.GetWorkflow(r.Context(), t, id, 0)
-	if err != nil {
-		return nil, s.T(r, "Workflow non trovato.")
-	}
+// Errors of workflowParams.
+var (
+	errWorkflowInvalid = errors.New("invalid workflow")
+	errPackageMissing  = errors.New("a package of the workflow is no longer in the library")
+)
+
+// workflowParams returns the parameters and packages of a job running the
+// revision wf of a workflow.
+func (s *Server) workflowParams(ctx context.Context, t string, wf store.Workflow) ([]byte, []*openrmmv1.PackageRef, error) {
 	doc, err := workflow.Parse(wf.Document)
 	if err != nil {
-		return nil, s.Tf(r, "Workflow non valido: %v", err)
-	}
-	man, mod, err := s.publishedModule(r.Context(), workflow.ModuleID)
-	if err != nil {
-		return nil, s.T(r, "Pubblica prima il modulo workflow dalla pagina Moduli.")
+		return nil, nil, fmt.Errorf("%w: %v", errWorkflowInvalid, err)
 	}
 	var refs []*openrmmv1.PackageRef
 	for _, sha := range doc.Packages() {
-		p, err := s.store.GetPackage(r.Context(), t, sha)
+		p, err := s.store.GetPackage(ctx, t, sha)
 		if err != nil {
-			return nil, s.T(r, "Un pacchetto del workflow non è più nella libreria.")
+			return nil, nil, errPackageMissing
 		}
 		b, _ := hex.DecodeString(p.SHA256)
 		refs = append(refs, &openrmmv1.PackageRef{Sha256: b, FileName: p.FileName, Size: p.Size})
@@ -514,8 +513,34 @@ func (s *Server) workflowJob(r *http.Request, t, id string, targets []string) (*
 		}
 	}
 	raw, err := json.Marshal(workflow.Params{WorkflowID: wf.ID, Name: wf.Name, Revision: wf.Revision, Workflow: *doc})
+	return raw, refs, err
+}
+
+// workflowParamsMessage explains an error of workflowParams to the operator.
+func (s *Server) workflowParamsMessage(r *http.Request, err error) string {
+	switch {
+	case errors.Is(err, errPackageMissing):
+		return s.T(r, "Un pacchetto del workflow non è più nella libreria.")
+	case errors.Is(err, errWorkflowInvalid):
+		return s.Tf(r, "Workflow non valido: %v", strings.TrimPrefix(err.Error(), errWorkflowInvalid.Error()+": "))
+	}
+	return err.Error()
+}
+
+// workflowJob builds the job running the latest revision of a workflow on
+// targets.
+func (s *Server) workflowJob(r *http.Request, t, id string, targets []string) (*openrmmv1.JobRequest, string) {
+	wf, err := s.store.GetWorkflow(r.Context(), t, id, 0)
 	if err != nil {
-		return nil, err.Error()
+		return nil, s.T(r, "Workflow non trovato.")
+	}
+	man, mod, err := s.publishedModule(r.Context(), workflow.ModuleID)
+	if err != nil {
+		return nil, s.T(r, "Pubblica prima il modulo workflow dalla pagina Moduli.")
+	}
+	raw, refs, err := s.workflowParams(r.Context(), t, wf)
+	if err != nil {
+		return nil, s.workflowParamsMessage(r, err)
 	}
 	req := &openrmmv1.JobRequest{TenantId: t, Module: man.ID, ModuleVersion: man.Version, ModuleSha256: mod.ManifestSHA256,
 		Action: workflow.Action, ParamsJson: raw, TtlSeconds: ttlFrom(r), RequestNonce: jobreq.NewRequestNonce(), Packages: refs}

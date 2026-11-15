@@ -80,6 +80,8 @@ type Server struct {
 	// refreshed: finished jobs whose refresh was attempted (RunRefreshes),
 	// so that a refused collection is not retried every 30 seconds.
 	refreshed sync.Map
+	// provMu serializes provisioning runs advancing (provisioning.go).
+	provMu sync.Mutex
 	// vulns: the loaded vulnerability extracts (vulns.go).
 	vulns    vulnCache
 	store    store.Store
@@ -265,10 +267,18 @@ func funcs(lang string) template.FuncMap {
 		},
 		"div": func(a, b int) int { return a / b },
 		// Workflow editor: labels and the blank rows added by the editor.
-		"wfStepLabel": func(k string) string { return tr(lang, wfStepLabels[k]) },
-		"wfRuleLabel": func(k string) string { return tr(lang, wfRuleLabels[k]) },
-		"blankStep":   func() workflow.Step { return workflow.Step{Type: workflow.StepInstall} },
-		"blankRule":   func() workflow.Rule { return workflow.Rule{Type: workflow.RuleApp, Op: workflow.OpExists} },
+		"wfStepLabel":   func(k string) string { return tr(lang, wfStepLabels[k]) },
+		"wfRuleLabel":   func(k string) string { return tr(lang, wfRuleLabels[k]) },
+		"provStepLabel": func(k string) string { return tr(lang, provStepLabels[k]) },
+		"runStateLabel": func(k string) string { return tr(lang, runStateLabels[k]) },
+		"runError": func(k string) string {
+			if l, ok := runErrorLabels[k]; ok {
+				return tr(lang, l)
+			}
+			return k
+		},
+		"blankStep": func() workflow.Step { return workflow.Step{Type: workflow.StepInstall} },
+		"blankRule": func() workflow.Rule { return workflow.Rule{Type: workflow.RuleApp, Op: workflow.OpExists} },
 		// in: whether v is one of the space-separated words of list.
 		"in": func(v, list string) bool { return slices.Contains(strings.Fields(list), v) },
 		// qs builds a query string from key/value pairs, skipping empty values.
@@ -399,6 +409,16 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /workflows/{id}", s.role(authn.RoleOperator, s.handleSaveWorkflow))
 	mux.Handle("POST /workflows/{id}/assignments", s.role(authn.RoleAdmin, s.handleCreateAssignment))
 	mux.Handle("POST /workflows/{id}/assignments/{aid}", s.role(authn.RoleAdmin, s.handleSetAssignmentActive))
+	mux.Handle("GET /provisioning", s.auth(s.handleProfiles))
+	mux.Handle("GET /provisioning/profiles/new", s.role(authn.RoleOperator, s.handleProfile))
+	mux.Handle("POST /provisioning/profiles/new", s.role(authn.RoleOperator, s.handleSaveProfile))
+	mux.Handle("POST /provisioning/start", s.role(authn.RoleOperator, s.handleStartProvisioning))
+	mux.Handle("GET /provisioning/runs", s.auth(s.handleRuns))
+	mux.Handle("GET /provisioning/runs/{id}", s.auth(s.handleRun))
+	mux.Handle("POST /provisioning/runs/{id}", s.role(authn.RoleOperator, s.handleRunAction))
+	mux.Handle("GET /provisioning/profiles/{id}", s.auth(s.handleProfile))
+	mux.Handle("POST /provisioning/profiles/{id}", s.role(authn.RoleOperator, s.handleSaveProfile))
+	mux.Handle("POST /provisioning/profiles/{id}/approve", s.role(authn.RoleAdmin, s.handleApproveProfile))
 	mux.Handle("GET /groups", s.auth(s.handleGroups))
 	mux.Handle("POST /groups", s.role(authn.RoleOperator, s.handleCreateGroup))
 	mux.Handle("POST /groups/agents", s.role(authn.RoleOperator, s.handleGroupAgents))

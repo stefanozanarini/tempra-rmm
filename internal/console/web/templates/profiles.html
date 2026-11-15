@@ -1,0 +1,27 @@
+{{define "content"}}
+{{with .Data}}
+<nav class="tabs">
+  <a href="/provisioning" class="current">{{t "Profili"}}</a>
+  <a href="/provisioning/runs">{{t "Esecuzioni"}}</a>
+</nav>
+<div class="toolbar">
+  <p class="muted">{{t "Un profilo di provisioning è una sequenza di passi (workflow di installazione e script, riavvii) eseguita su un computer appena installato: ogni passo parte quando il precedente è terminato. Un amministratore approva ogni versione una volta con MFA; poi gli operatori la avviano sui computer dalla lista agenti."}}</p>
+  {{if $.CanRun}}<a class="button" href="/provisioning/profiles/new">{{t "Nuovo profilo"}}</a>{{end}}
+</div>
+{{if .Rows}}
+<table>
+<thead><tr><th>{{t "Nome"}}</th><th class="num">{{t "Versione"}}</th><th class="num">{{t "Passi"}}</th><th>{{t "Approvazione"}}</th><th>{{t "Modificato"}}</th><th>{{t "Esecuzioni"}}</th></tr></thead>
+<tbody>
+{{range .Rows}}<tr>
+  <td><a href="/provisioning/profiles/{{.ID}}">{{.Name}}</a>{{with .Description}}<br><span class="muted small">{{.}}</span>{{end}}</td>
+  <td class="num">{{.Version}}</td>
+  <td class="num">{{.Steps}}</td>
+  <td>{{if eq .Approved .Version}}<span class="badge succeeded">{{t "approvata"}}</span>{{else if .Approved}}<span class="badge pending">{{tf "in uso la versione %d" .Approved}}</span>{{else}}<span class="badge">{{t "da approvare"}}</span>{{end}}</td>
+  <td>{{fmtTime .UpdatedAt}}<br><span class="muted small">{{.Author}}</span></td>
+  <td>{{template "run-counts" .Counts}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}<p class="muted">{{t "Nessun profilo di provisioning."}}</p>{{end}}
+{{end}}
+{{end}}

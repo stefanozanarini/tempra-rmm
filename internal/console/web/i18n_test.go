@@ -114,6 +114,11 @@ func usedKeys(t *testing.T) map[string]bool {
 	for _, l := range wfRuleLabels {
 		keys[l] = keys[l] || false
 	}
+	for _, m := range []map[string]string{provStepLabels, runStateLabels, runErrorLabels} {
+		for _, l := range m {
+			keys[l] = keys[l] || false
+		}
+	}
 	for _, l := range dayNames {
 		keys[l] = keys[l] || false
 	}

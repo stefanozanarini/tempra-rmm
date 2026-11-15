@@ -2,8 +2,6 @@ package web
 
 import (
 	"context"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -63,10 +61,6 @@ func (s *Server) buildAssignmentRequest(r *http.Request, t, workflowID, groupID 
 	if err != nil {
 		return nil, err.Error()
 	}
-	doc, err := workflow.Parse(wf.Document)
-	if err != nil {
-		return nil, s.Tf(r, "Workflow non valido: %v", err)
-	}
 	if _, err := s.findGroup(r, t, groupID); err != nil {
 		return nil, s.T(r, "Gruppo non trovato.")
 	}
@@ -74,23 +68,9 @@ func (s *Server) buildAssignmentRequest(r *http.Request, t, workflowID, groupID 
 	if err != nil {
 		return nil, s.T(r, "Pubblica prima il modulo workflow dalla pagina Moduli.")
 	}
-	var refs []*openrmmv1.PackageRef
-	for _, sha := range doc.Packages() {
-		p, err := s.store.GetPackage(r.Context(), t, sha)
-		if err != nil {
-			return nil, s.T(r, "Un pacchetto del workflow non è più nella libreria.")
-		}
-		b, _ := hex.DecodeString(p.SHA256)
-		refs = append(refs, &openrmmv1.PackageRef{Sha256: b, FileName: p.FileName, Size: p.Size})
-		for i := range doc.Steps {
-			if doc.Steps[i].Package == sha && p.AllowUnsigned {
-				doc.Steps[i].AllowUnsigned = true
-			}
-		}
-	}
-	raw, err := json.Marshal(workflow.Params{WorkflowID: wf.ID, Name: wf.Name, Revision: wf.Revision, Workflow: *doc})
+	raw, refs, err := s.workflowParams(r.Context(), t, wf)
 	if err != nil {
-		return nil, err.Error()
+		return nil, s.workflowParamsMessage(r, err)
 	}
 	now := s.now()
 	req := &openrmmv1.AssignmentRequest{TenantId: t, WorkflowId: wf.ID, Revision: int32(wf.Revision), // #nosec G115 -- bounded revision counter

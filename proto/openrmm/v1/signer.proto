@@ -36,6 +36,14 @@ service SignerService {
   // verifies its own earlier signature over the assignment instead of a
   // fresh id_token. It refuses once the assignment has expired.
   rpc SignAssignmentRun(SignAssignmentRunRequest) returns (SignJobResponse);
+  // SignProfile signs a version of a provisioning profile, approved once by
+  // an administrator with a fresh MFA sign-in whose nonce is the profile's
+  // fingerprint. Every step pins an exact module version and parameters.
+  rpc SignProfile(SignProfileRequest) returns (SignProfileResponse);
+  // SignProfileRun issues the signed jobs of one step of an already-approved
+  // profile on the targets the console names, without an operator, like
+  // SignAssignmentRun. It refuses once the approval has expired.
+  rpc SignProfileRun(SignProfileRunRequest) returns (SignJobResponse);
 }
 
 message SignCollectRequest {
@@ -151,4 +159,56 @@ message SignAssignmentRunRequest {
   repeated string agent_ids = 2;
   // Capped by the assignment's max_ttl_seconds.
   int64 ttl_seconds = 3;
+}
+
+// ProfileStep is one job of a provisioning profile, pinned like a job.
+message ProfileStep {
+  string module = 1;
+  string module_version = 2;
+  bytes module_sha256 = 3;
+  string action = 4;
+  bytes params_json = 5;
+  repeated PackageRef packages = 6;
+}
+
+// ProfileRequest is what an administrator approves once: a version of a
+// provisioning profile, an ordered list of steps that the console runs one
+// after the other (SignProfileRun) on the computers it names later, until
+// the approval expires. The signer does not enforce the order: each step
+// is approved on its own terms. Its canonical hash is embedded in the nonce
+// of the step-up authentication.
+message ProfileRequest {
+  string tenant_id = 1;
+  string profile_id = 2;
+  int32 version = 3;
+  repeated ProfileStep steps = 4;
+  // Ceiling for the ttl_seconds of every job SignProfileRun issues.
+  int64 max_ttl_seconds = 5;
+  // SignProfileRun refuses once now is past this instant.
+  int64 expires_unix = 6;
+  // Random value chosen by the console per request.
+  bytes request_nonce = 7;
+}
+
+message SignProfileRequest {
+  ProfileRequest request = 1;
+  string id_token = 2;
+}
+
+message SignProfileResponse {
+  // Serialized SignedEnvelope carrying the canonical ProfileRequest.
+  bytes envelope = 1;
+  string operator = 2;
+  int64 expires_unix = 3;
+}
+
+message SignProfileRunRequest {
+  // Serialized SignedEnvelope as returned by SignProfile.
+  bytes profile_envelope = 1;
+  // Index of the step in ProfileRequest.steps.
+  int32 step = 2;
+  // 1 to profilereq.MaxAgents distinct agent UUIDs.
+  repeated string agent_ids = 3;
+  // Capped by the profile's max_ttl_seconds.
+  int64 ttl_seconds = 4;
 }

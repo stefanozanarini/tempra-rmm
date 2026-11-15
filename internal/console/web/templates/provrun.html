@@ -1,0 +1,38 @@
+{{define "content"}}
+{{with .Data}}
+{{$run := .Run}}
+<p><a href="/provisioning/runs">{{t "Tutte le esecuzioni"}}</a></p>
+<dl class="facts">
+  <dt>{{t "Computer"}}</dt><dd>{{if $run.Hostname}}<a href="/agents/{{$run.AgentID}}">{{$run.Hostname}}</a>{{else}}<code>{{$run.AgentID}}</code>{{end}}</dd>
+  <dt>{{t "Profilo"}}</dt><dd><a href="/provisioning/profiles/{{$run.ProfileID}}?v={{$run.Version}}">{{$run.ProfileName}}</a> · {{tf "versione %d" $run.Version}}</dd>
+  <dt>{{t "Stato"}}</dt><dd>{{template "run-state" $run.State}}{{with $run.Error}} {{runError .}}{{end}}</dd>
+  <dt>{{t "Avviato"}}</dt><dd>{{fmtTime $run.CreatedAt}} · {{$run.CreatedBy}}</dd>
+  {{with $run.FinishedAt}}<dt>{{t "Terminato"}}</dt><dd>{{fmtTime .}}</dd>{{end}}
+</dl>
+{{if $.CanRun}}
+<form method="post" action="/provisioning/runs/{{$run.ID}}" class="inline">
+  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+  {{if eq $run.State "failed"}}<button name="do" value="retry" class="primary">{{tf "Riprova dal passo %d" (add $run.Step 1)}}</button>{{end}}
+  {{if eq $run.State "running"}}<button name="do" value="cancel" class="danger">{{t "Annulla"}}</button>{{end}}
+</form>
+{{end}}
+
+<h2>{{t "Passi"}}</h2>
+<table>
+<thead><tr><th class="num">#</th><th>{{t "Passo"}}</th><th>{{t "Esito"}}</th><th>Job</th></tr></thead>
+<tbody>{{range $i, $s := .Steps}}<tr>
+  <td class="num">{{add $i 1}}</td>
+  <td>{{with .Name}}{{.}}{{else}}{{provStepLabel $s.Type}}{{end}}
+    {{if eq .Type "workflow"}}<br><span class="muted small"><a href="/workflows/{{.WorkflowID}}?rev={{.Revision}}">{{or .WorkflowName (short .WorkflowID)}}</a> · {{tf "revisione %d" .Revision}}</span>{{end}}
+    {{if .ContinueOnError}}<br><span class="muted small">{{t "continua anche se fallisce"}}</span>{{end}}</td>
+  <td>{{if eq .Outcome "ok"}}<span class="badge succeeded">{{t "completato"}}</span>
+    {{else if eq .Outcome "failed"}}<span class="badge failed">{{t "non riuscito"}}</span>
+    {{else if eq .Outcome "running"}}<span class="badge running">{{t "in corso"}}</span>
+    {{else if eq .Outcome "reboot"}}<span class="badge running">{{t "riavvio: in attesa che l'agente si riconnetta"}}</span>
+    {{else}}<span class="badge">{{t "in attesa"}}</span>{{end}}
+    {{with .Job}}{{with .Error}}<br><span class="muted small">{{.}}</span>{{end}}{{end}}</td>
+  <td>{{with .Job}}<a href="/jobs/{{.ID}}"><code>{{short .ID}}</code></a>{{end}}</td>
+</tr>{{end}}</tbody>
+</table>
+{{end}}
+{{end}}

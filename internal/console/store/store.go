@@ -133,6 +133,7 @@ type Store interface {
 	GroupStore
 	WorkflowStore
 	AssignmentStore
+	ProfileStore
 	VulnFeedStore
 }
 
