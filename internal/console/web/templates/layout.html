@@ -5,12 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 {{if .Refresh}}<meta http-equiv="refresh" content="{{.Refresh}}">{{end}}
 <title>{{.Title}} · Tempra RMM</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/app.js" defer></script>
 </head>
 <body>
 <header>
-  <a class="brand" href="/agents">{{if .HasLogo}}<img class="logo" src="/logo" alt="">{{end}}<span>Tempra RMM</span><span class="tagline"><b>T</b>EMPRA <b>E</b>ndpoint <b>M</b>onitoring, <b>P</b>atching &amp; <b>R</b>emote <b>A</b>dministration</span></a>
+  <a class="brand" href="/agents">{{if .HasLogo}}<img class="logo" src="/logo" alt="">{{end}}<img class="brandmark light" src="/static/logo-light.svg" alt="Tempra RMM"><img class="brandmark dark" src="/static/logo-dark.svg" alt="Tempra RMM"><span class="tagline"><b>T</b>EMPRA <b>E</b>ndpoint <b>M</b>onitoring, <b>P</b>atching &amp; <b>R</b>emote <b>A</b>dministration</span></a>
   {{if .Operator}}
   <nav class="main">
     <details class="menu"><summary>{{t "Agenti"}}</summary><div>
