@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/stefanozanarini/tempra-rmm/internal/console/authn"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -190,7 +191,7 @@ func TestConsoleUpload(t *testing.T) {
 	}
 	// Operators cannot upload.
 	op := admin
-	op.OID, op.Roles = ids.NewUUID(), []string{"OpenRMM.Operator"}
+	op.OID, op.Roles = ids.NewUUID(), []string{authn.AppOperator}
 	oc, ocsrf := e.login(t, op)
 	if code, _ := upload(t, oc, e.console.URL+"/packages/upload", [][2]string{{"csrf", ocsrf}, {"name", "x"}, {"version", "1"}}, file); code != 403 {
 		t.Fatalf("operator upload: %d", code)

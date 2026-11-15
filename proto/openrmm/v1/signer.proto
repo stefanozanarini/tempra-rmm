@@ -87,6 +87,10 @@ message JobRequest {
   // agent_ids targets several agents with one approval (one job each);
   // agent_id is then empty.
   repeated string agent_ids = 11;
+  // Required OS family of the targets ("client" or "server"; empty: any),
+  // copied into every job: the agent refuses a job for another family. An
+  // operator whose app roles cover only one family must set it to that one.
+  string os_family = 12;
 }
 
 message SignJobRequest {
@@ -138,6 +142,9 @@ message AssignmentRequest {
   // agent ids on each SignAssignmentRun), but part of what the
   // administrator approves and later audits can see.
   string group_id = 13;
+  // Required OS family of the targets, copied into every job (as in
+  // JobRequest).
+  string os_family = 14;
 }
 
 message SignAssignmentRequest {
@@ -188,6 +195,9 @@ message ProfileRequest {
   int64 expires_unix = 6;
   // Random value chosen by the console per request.
   bytes request_nonce = 7;
+  // Required OS family of the targets, copied into every job (as in
+  // JobRequest).
+  string os_family = 8;
 }
 
 message SignProfileRequest {

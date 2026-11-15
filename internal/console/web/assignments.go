@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -106,17 +107,29 @@ func (s *Server) handleCreateAssignment(w http.ResponseWriter, r *http.Request) 
 	if err != nil || ttlMin < 5 || ttlMin > 48*60 {
 		ttlMin = int(assignmentRunTTL / time.Minute)
 	}
-	req, msg := s.buildAssignmentRequest(r, t, id, r.PostFormValue("group"), days, ttlMin)
+	sess := sessionFrom(r.Context())
+	a := s.access(r.Context(), sess)
+	group := r.PostFormValue("group")
+	// An administrator of some sites or groups may assign a workflow only
+	// to one of the groups of the role: the console alone resolves the
+	// group's members on every run.
+	if !a.Super() && (len(a.SiteIDs) > 0 || len(a.GroupIDs) > 0) && !slices.Contains(a.GroupIDs, group) {
+		s.flash(w, r, s.T(r, "Il tuo ruolo permette di assegnare un workflow solo ai gruppi che amministri."), back)
+		return
+	}
+	req, msg := s.buildAssignmentRequest(r, t, id, group, days, ttlMin)
 	if msg != "" {
 		s.flash(w, r, msg, back)
 		return
 	}
+	// The signer requires the OS family the administrator's app roles
+	// cover, and copies it into every job of the assignment.
+	req.OsFamily, _ = a.Family(authn.RoleAdmin)
 	raw, err := proto.Marshal(req)
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	sess := sessionFrom(r.Context())
 	p := &Pending{Purpose: "assignment", State: ids.NewSecret(24), Nonce: assignreq.AuthNonce(req),
 		CodeVerifier: oauth2.GenerateVerifier(), StartedAt: s.now(), AssignmentReq: raw, Return: back}
 	sess.data.Pending = p

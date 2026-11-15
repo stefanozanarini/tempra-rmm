@@ -1,0 +1,33 @@
+{{define "content"}}
+<p class="muted">{{t "I ruoli vengono dalle app role di Entra ID: OpenRMM.Admin (tutto), OpenRMM.Admin.Clients e .Servers, OpenRMM.Operator, OpenRMM.Operator.Clients e .Servers, OpenRMM.Reader. Un ambito limita un operatore, o i membri di un gruppo di sicurezza di Entra, ai computer di alcune sedi o gruppi. Senza ambito il ruolo vale su tutti i computer; con più ambiti valgono tutti insieme. Non vale per OpenRMM.Admin."}}</p>
+<table>
+<thead><tr><th>{{t "Utente o gruppo Entra"}}</th><th>{{t "Sedi"}}</th><th>{{t "Gruppi"}}</th><th>{{t "Modificato da"}}</th><th></th></tr></thead>
+<tbody>
+{{range .Data.Scopes}}<tr>
+  <td>{{.SubjectName}}<br><span class="muted small mono">{{.SubjectOID}}</span></td>
+  <td>{{if .Sites}}{{join .Sites ", "}}{{else}}<span class="muted">—</span>{{end}}</td>
+  <td>{{if .Groups}}{{join .Groups ", "}}{{else}}<span class="muted">—</span>{{end}}</td>
+  <td>{{.UpdatedBy}}<br><span class="muted small">{{fmtTime .UpdatedAt}}</span></td>
+  <td><a class="button small" href="/scopes?subject={{.SubjectOID}}#edit">{{t "Modifica"}}</a>
+    <form method="post" action="/scopes" class="inline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="subject" value="{{.SubjectOID}}"><button name="do" value="delete" class="danger small">{{t "Elimina"}}</button></form></td>
+</tr>{{else}}<tr><td colspan="5" class="muted">{{t "Nessun ambito: ogni ruolo vale su tutti i computer."}}</td></tr>{{end}}
+</tbody>
+</table>
+
+{{with .Data}}
+<h2 id="edit">{{if .Edit.SubjectOID}}{{t "Modifica ambito"}}{{else}}{{t "Nuovo ambito"}}{{end}}</h2>
+<form method="post" action="/scopes" class="stack">
+  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <label>{{t "Nome"}} <input name="name" value="{{.Edit.SubjectName}}" maxlength="256" placeholder="{{t "IT Bologna"}}"></label>
+  <label>{{t "Object ID dell'utente o del gruppo di sicurezza (Entra ID)"}} <input name="subject" value="{{.Edit.SubjectOID}}" required pattern="[0-9a-fA-F-]{36}" spellcheck="false" class="mono"></label>
+  <p class="muted small">{{t "Per un gruppo, l'app di Entra deve emettere il claim groups (Token configuration → Add groups claim → Security groups)."}}</p>
+  <fieldset><legend>{{t "Computer"}}</legend>
+  <p class="muted small">{{t "Basta che il computer sia in una delle sedi o in uno dei gruppi scelti."}}</p>
+  {{range .Sites}}<label class="check"><input type="checkbox" name="site" value="{{.ID}}" {{if has $.Data.Edit.SiteIDs .ID}}checked{{end}}> {{t "Sede"}}: {{.Name}}</label>{{end}}
+  {{range .Groups}}<label class="check"><input type="checkbox" name="group" value="{{.ID}}" {{if has $.Data.Edit.GroupIDs .ID}}checked{{end}}> {{t "Gruppo"}}: {{.Name}}</label>{{end}}
+  {{if and (not .Sites) (not .Groups)}}<p class="muted">{{t "Nessuna sede né gruppo pubblico di computer."}}</p>{{end}}
+  </fieldset>
+  <button class="primary">{{t "Salva"}}</button>
+</form>
+{{end}}
+{{end}}

@@ -42,13 +42,21 @@ Then `deploy/setup-secrets.sh ~/client-secret.txt` and delete the file. Set a re
 
 ## 3. App roles
 
-**Manage → App roles → Create app role**, three times, allowed member types **Users/Groups**:
+**Manage → App roles → Create app role**, once per role you need, allowed member types **Users/Groups**:
 
 | Display name | Value | Allows |
 |---|---|---|
-| Tempra RMM Administrator | `OpenRMM.Admin` | Everything: revoke agents, tokens, settings, publishing, commands |
+| Tempra RMM Administrator | `OpenRMM.Admin` | Everything: settings, tokens, policies, agent versions, sites, scopes, publishing, and all the below on every computer |
+| Tempra RMM PC administrator | `OpenRMM.Admin.Clients` | On client computers: commands, approving and revoking agents, permanent workflow assignments, provisioning; the package library |
+| Tempra RMM server administrator | `OpenRMM.Admin.Servers` | The same on servers |
 | Tempra RMM Operator | `OpenRMM.Operator` | View everything, approve new agents and run commands |
+| Tempra RMM PC operator | `OpenRMM.Operator.Clients` | The same on client computers only |
+| Tempra RMM server operator | `OpenRMM.Operator.Servers` | The same on servers only |
 | Tempra RMM Reader | `OpenRMM.Reader` | Read only |
+
+Roles add up: `OpenRMM.Admin.Clients` with `OpenRMM.Operator.Servers` administers PCs and runs commands on servers; both `Admin.Clients` and `Admin.Servers` administer every computer without the console-wide settings of `OpenRMM.Admin`. Anybody with a role can read everything. The limit to clients or servers is enforced by the signing service and by the agents from version 1.1.8 (older agents only receive commands from roles that cover both).
+
+**Sites and groups.** A role can further be limited to the computers of some sites or computer groups: on the console, **Scopes** (OpenRMM.Admin only), for a user or for an Entra security group, by object id. For groups, add the groups claim: **Token configuration → Add groups claim → Security groups** (ID token). Scopes are checked by the console only.
 
 The **Value** must be exactly as above. An app created from *Enterprise applications* may also list `User` and `msiam_access`: leave them, but never assign them (they give no access to the console).
 
@@ -97,7 +105,7 @@ Open the console address and sign in. If access is refused, `docker compose logs
 | Entra error *AADSTS7000215* (invalid client secret) | The *Secret ID* was copied instead of the *Value*, or the secret expired |
 | Entra page *Approval required* / *Need admin approval* | Admin consent of step 5 not granted yet |
 | Entra error *AADSTS50105* (not assigned) | User not assigned in step 5 |
-| Console: no role | Assigned with `User`/`msiam_access` instead of an Tempra RMM role |
+| Console: no role | Assigned with `User`/`msiam_access` instead of a Tempra RMM role |
 | Console: MFA required, log `amr=[]` | Optional claim `amr` missing (step 1, *Token configuration*) |
 | Console: MFA required, `amr` without `mfa` | The user signed in without MFA (enable MFA for that user), or `acrs:c1` without the policy of step 6 or the `acrs` optional claim |
 
@@ -109,7 +117,7 @@ For every command, `openrmm-signer` checks on its own, without trusting the cons
 - issuer, audience (the application ID) and expiry;
 - MFA, according to `OPENRMM_MFA_CLAIM`;
 - that the authentication is at most 10 minutes old;
-- the `OpenRMM.Operator` or `OpenRMM.Admin` role;
+- a role that allows the command on the computers it targets (`OpenRMM.Operator`, `OpenRMM.Admin` or their `.Clients`/`.Servers` variants); for a role limited to clients or servers, that the command is limited to them too (the agent checks it again);
 - that the operator's directory may manage that tenant;
 - that the token `nonce` is the exact fingerprint of the command: agent, module, version, action, parameters, validity;
 - that the token has not been used before.

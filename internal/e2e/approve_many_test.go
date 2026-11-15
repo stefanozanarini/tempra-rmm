@@ -41,7 +41,7 @@ func TestApproveSelectedAgents(t *testing.T) {
 		}
 	}
 	// Operators approve too; readers cannot.
-	op := opIdentity{OID: ids.NewUUID(), Name: "Op", Username: "op@cliente.it", Roles: []string{authn.RoleOperator}, AMR: []string{"pwd", "mfa"}}
+	op := opIdentity{OID: ids.NewUUID(), Name: "Op", Username: "op@cliente.it", Roles: []string{authn.AppOperator}, AMR: []string{"pwd", "mfa"}}
 	oc, ocsrf := e.login(t, op)
 	if _, body := get(t, oc, e.console.URL+"/agents"); !strings.Contains(body, `action="/agents/approve"`) {
 		t.Fatal("operator cannot select pending agents")
@@ -53,7 +53,7 @@ func TestApproveSelectedAgents(t *testing.T) {
 		t.Errorf("operator revoked an approved agent: %d", code)
 	}
 	e2 := pending("SRV-E")
-	rd := opIdentity{OID: ids.NewUUID(), Name: "Reader", Username: "rd@cliente.it", Roles: []string{authn.RoleReader}, AMR: []string{"pwd", "mfa"}}
+	rd := opIdentity{OID: ids.NewUUID(), Name: "Reader", Username: "rd@cliente.it", Roles: []string{authn.AppReader}, AMR: []string{"pwd", "mfa"}}
 	rc, rcsrf := e.login(t, rd)
 	if code, _, _ := post(t, rc, e.console.URL+"/agents/approve", url.Values{"csrf": {rcsrf}, "do": {"approve"}, "agent": {e2}}); code != 403 {
 		t.Errorf("reader approval: %d", code)

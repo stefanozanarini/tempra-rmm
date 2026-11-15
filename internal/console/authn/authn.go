@@ -22,13 +22,6 @@ import (
 	"github.com/stefanozanarini/tempra-rmm/internal/ids"
 )
 
-// Roles are Entra app roles assigned to operators (or to groups of them).
-const (
-	RoleAdmin    = "OpenRMM.Admin"
-	RoleOperator = "OpenRMM.Operator"
-	RoleReader   = "OpenRMM.Reader"
-)
-
 // Config describes the identity provider and the policy applied to tokens.
 type Config struct {
 	// Issuer, e.g. https://login.microsoftonline.com/<tenant-id>/v2.0
@@ -47,8 +40,9 @@ type Config struct {
 	// MaxAuthAge bounds how old an authentication may be when it approves a
 	// job (step-up).
 	MaxAuthAge time.Duration
-	// MaxRole, when set, caps the roles taken from tokens: a customer
-	// console may delegate less than Admin to a central console's operators.
+	// MaxRole, when set, caps the roles taken from tokens (a level: see
+	// roles.go): a customer console may delegate less than superadmin to a
+	// central console's operators.
 	MaxRole string
 }
 
@@ -79,12 +73,13 @@ func FromEnv() (Config, error) {
 // FederationFromEnv reads the identity provider of a central console whose
 // operators may manage this console through a federation link. ok is false
 // when it is not configured. The tenant map names the local tenant(s) the
-// central directory may manage; MaxRole defaults to Admin.
+// central directory may manage; MaxRole defaults to superadmin.
 //
 //	OPENRMM_FEDERATION_ISSUER, OPENRMM_FEDERATION_CLIENT_ID
 //	OPENRMM_FEDERATION_MFA_CLAIM    as OPENRMM_MFA_CLAIM, default "amr"
 //	OPENRMM_FEDERATION_TENANT_MAP   <central entra tid>=<local tenant>
-//	OPENRMM_FEDERATION_MAX_ROLE     OpenRMM.Admin | OpenRMM.Operator | OpenRMM.Reader
+//	OPENRMM_FEDERATION_MAX_ROLE     superadmin | admin | operator | reader
+//	                                (or OpenRMM.Admin | OpenRMM.Operator | OpenRMM.Reader)
 func FederationFromEnv() (c Config, ok bool, err error) {
 	c = Config{
 		Issuer:     os.Getenv("OPENRMM_FEDERATION_ISSUER"),
@@ -100,7 +95,10 @@ func FederationFromEnv() (c Config, ok bool, err error) {
 		c.MFAClaim = "amr"
 	}
 	if c.MaxRole == "" {
-		c.MaxRole = RoleAdmin
+		c.MaxRole = RoleSuperadmin
+	}
+	if l, ok := maxRoleNames[c.MaxRole]; ok {
+		c.MaxRole = l
 	}
 	if c.TenantMap, err = ParseTenantMap(os.Getenv("OPENRMM_FEDERATION_TENANT_MAP")); err != nil {
 		return c, false, fmt.Errorf("federation: %w", err)
@@ -109,23 +107,6 @@ func FederationFromEnv() (c Config, ok bool, err error) {
 		return c, false, fmt.Errorf("federation: %w", err)
 	}
 	return c, true, nil
-}
-
-// roleRank orders the roles.
-var roleRank = map[string]int{RoleReader: 1, RoleOperator: 2, RoleAdmin: 3}
-
-// capRoles lowers roles above max to max.
-func capRoles(roles []string, max string) []string {
-	var out []string
-	for _, r := range roles {
-		if roleRank[r] > roleRank[max] {
-			r = max
-		}
-		if !slices.Contains(out, r) {
-			out = append(out, r)
-		}
-	}
-	return out
 }
 
 // IssuerOf returns the unverified iss claim of a JWT, to pick the verifier
@@ -197,6 +178,9 @@ type Claims struct {
 	Name     string   `json:"name"`
 	Username string   `json:"preferred_username"`
 	Roles    []string `json:"roles"`
+	// Groups are the object ids of the operator's security groups, when
+	// the application asks for the groups claim (scopes by group).
+	Groups   []string `json:"groups"`
 	AMR      []string `json:"amr"`
 	ACRS     []string `json:"acrs"`
 	Nonce    string   `json:"nonce"`
@@ -211,16 +195,6 @@ func (c *Claims) Operator() string {
 		who = c.Name
 	}
 	return fmt.Sprintf("%s (oid %s)", who, c.ObjectID)
-}
-
-// HasRole reports whether the operator has any of roles.
-func (c *Claims) HasRole(roles ...string) bool {
-	for _, r := range roles {
-		if slices.Contains(c.Roles, r) {
-			return true
-		}
-	}
-	return false
 }
 
 // Verifier validates id_tokens.
@@ -270,10 +244,7 @@ func (v *Verifier) Verify(ctx context.Context, rawIDToken string) (*Claims, erro
 	if _, ok := v.cfg.TenantMap[c.TenantID]; !ok {
 		return nil, ErrNoTenant
 	}
-	if v.cfg.MaxRole != "" {
-		c.Roles = capRoles(c.Roles, v.cfg.MaxRole)
-	}
-	if !c.HasRole(RoleAdmin, RoleOperator, RoleReader) {
+	if v.Access(&c).Role() == "" {
 		return nil, ErrNoRole
 	}
 	if err := v.checkMFA(&c); err != nil {
@@ -340,11 +311,10 @@ func (s Set) For(rawIDToken string) *Verifier {
 	return nil
 }
 
-// CapRoles applies the configured maximum role to roles asserted by a
-// central console (the same cap Verify applies to tokens).
-func (v *Verifier) CapRoles(roles []string) []string {
-	if v.cfg.MaxRole == "" {
-		return roles
-	}
-	return capRoles(roles, v.cfg.MaxRole)
-}
+// Access returns what the operator's app roles allow, capped by the
+// configured maximum role.
+func (v *Verifier) Access(c *Claims) Access { return AccessOf(c.Roles, v.cfg.MaxRole) }
+
+// AccessOf applies the configured maximum role to app roles asserted by a
+// central console (the same cap Access applies to tokens).
+func (v *Verifier) AccessOf(appRoles []string) Access { return AccessOf(appRoles, v.cfg.MaxRole) }

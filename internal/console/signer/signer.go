@@ -5,12 +5,17 @@
 //   - was issued with multi-factor authentication, recently,
 //   - has a nonce equal to the canonical hash of this exact request,
 //   - has never been used before,
-//   - belongs to an operator with the Operator or Admin role, allowed on
-//     the request's tenant.
+//   - belongs to an operator allowed on the request's tenant, with an app
+//     role that permits the request.
 //
 // The token may come from the console's own directory or, when federation
 // is configured on the signer, from the central console's directory (with
 // its roles capped by the federation's maximum role).
+//
+// App roles may be limited to client or server computers
+// (OpenRMM.Operator.Clients, OpenRMM.Admin.Servers...): the signer then
+// requires that limit in the request and copies it into every job, and the
+// agent refuses a job for another OS family.
 //
 // A permanent workflow assignment (SignAssignment, SignAssignmentRun) is the
 // one case where a job runs on the signer's own say-so afterwards: an
@@ -103,18 +108,19 @@ func (s *Server) SignJob(ctx context.Context, req *openrmmv1.SignJobRequest) (*o
 	if !jobreq.CheckAuthNonce(claims.Nonce, r) {
 		return deny("authentication was not issued for this request", authn.ErrNonce)
 	}
-	if !claims.HasRole(authn.RoleOperator, authn.RoleAdmin) {
-		return deny("operator may not run jobs", authn.ErrNoRole)
-	}
 	if !v.MayManage(claims, r.GetTenantId()) {
 		return deny("operator may not manage this tenant", authn.ErrNoTenant)
+	}
+	a := v.Access(claims)
+	if err := allowFamily(a, authn.RoleOperator, r.GetOsFamily()); err != nil {
+		return deny("operator may not run jobs on these computers", err)
 	}
 	// One authentication approves one job.
 	if err := s.used.add(claims.Nonce, now.Add(2*time.Hour), now); err != nil {
 		return deny("authentication already used", err)
 	}
 
-	return s.issue(r, operatorOf(claims, v), now)
+	return s.issue(r, operatorOf(claims, v)+" as "+describe(a), now)
 }
 
 // issue signs one job per target of r.
@@ -126,6 +132,7 @@ func (s *Server) issue(r *openrmmv1.JobRequest, op string, now time.Time) (*open
 			JobId: ids.NewUUID(), TenantId: r.GetTenantId(), AgentId: agent,
 			Module: r.GetModule(), ModuleVersion: r.GetModuleVersion(), ModuleSha256: r.GetModuleSha256(),
 			Action: r.GetAction(), ParamsJson: r.GetParamsJson(), Packages: r.GetPackages(),
+			OsFamily: r.GetOsFamily(),
 			// The window starts a minute early for clock skew and lasts
 			// exactly ttl: agents refuse windows longer than 48 hours (24 before 1.1.2).
 			NotBeforeUnix: now.Add(-time.Minute).Unix(), ExpiresUnix: now.Add(-time.Minute).Add(ttl).Unix(),
@@ -213,12 +220,13 @@ func (s *Server) SignAssignment(ctx context.Context, req *openrmmv1.SignAssignme
 		return deny("authentication was not issued for this assignment", authn.ErrNonce)
 	}
 	// A permanent assignment runs unattended for its whole validity, so it
-	// needs the Admin role, like a policy.
-	if !claims.HasRole(authn.RoleAdmin) {
-		return deny("only administrators may approve a permanent assignment", authn.ErrNoRole)
-	}
+	// needs the Admin role.
 	if !v.MayManage(claims, r.GetTenantId()) {
 		return deny("operator may not manage this tenant", authn.ErrNoTenant)
+	}
+	a := v.Access(claims)
+	if err := allowFamily(a, authn.RoleAdmin, r.GetOsFamily()); err != nil {
+		return deny("only administrators of these computers may approve a permanent assignment", err)
 	}
 	if err := s.used.add(claims.Nonce, now.Add(2*time.Hour), now); err != nil {
 		return deny("authentication already used", err)
@@ -232,7 +240,7 @@ func (s *Server) SignAssignment(ctx context.Context, req *openrmmv1.SignAssignme
 	if err != nil {
 		return nil, status.Error(codes.Internal, "encode envelope")
 	}
-	op := operatorOf(claims, v)
+	op := operatorOf(claims, v) + " as " + describe(a)
 	s.log.Info("assignment signed", "workflow", r.GetWorkflowId(), "revision", r.GetRevision(), "tenant", r.GetTenantId(),
 		"operator", op, "expires_unix", r.GetExpiresUnix())
 	return &openrmmv1.SignAssignmentResponse{Envelope: env, Operator: op, ExpiresUnix: r.GetExpiresUnix()}, nil
@@ -278,7 +286,8 @@ func (s *Server) SignAssignmentRun(_ context.Context, req *openrmmv1.SignAssignm
 	}
 	jr := &openrmmv1.JobRequest{TenantId: r.GetTenantId(), AgentIds: req.GetAgentIds(), Module: r.GetModule(),
 		ModuleVersion: r.GetModuleVersion(), ModuleSha256: r.GetModuleSha256(), Action: r.GetAction(),
-		ParamsJson: r.GetParamsJson(), TtlSeconds: ttl, RequestNonce: jobreq.NewRequestNonce(), Packages: r.GetPackages()}
+		ParamsJson: r.GetParamsJson(), TtlSeconds: ttl, RequestNonce: jobreq.NewRequestNonce(), Packages: r.GetPackages(),
+		OsFamily: r.GetOsFamily()}
 	if len(jr.AgentIds) == 1 {
 		jr.AgentId, jr.AgentIds = jr.AgentIds[0], nil
 	}
@@ -315,11 +324,12 @@ func (s *Server) SignProfile(ctx context.Context, req *openrmmv1.SignProfileRequ
 	}
 	// A profile runs unattended for its whole validity, so it needs the
 	// Admin role, like a permanent assignment.
-	if !claims.HasRole(authn.RoleAdmin) {
-		return deny("only administrators may approve a provisioning profile", authn.ErrNoRole)
-	}
 	if !v.MayManage(claims, r.GetTenantId()) {
 		return deny("operator may not manage this tenant", authn.ErrNoTenant)
+	}
+	a := v.Access(claims)
+	if err := allowFamily(a, authn.RoleAdmin, r.GetOsFamily()); err != nil {
+		return deny("only administrators of these computers may approve a provisioning profile", err)
 	}
 	if err := s.used.add(claims.Nonce, now.Add(2*time.Hour), now); err != nil {
 		return deny("authentication already used", err)
@@ -333,7 +343,7 @@ func (s *Server) SignProfile(ctx context.Context, req *openrmmv1.SignProfileRequ
 	if err != nil {
 		return nil, status.Error(codes.Internal, "encode envelope")
 	}
-	op := operatorOf(claims, v)
+	op := operatorOf(claims, v) + " as " + describe(a)
 	s.log.Info("profile signed", "profile", r.GetProfileId(), "version", r.GetVersion(), "tenant", r.GetTenantId(),
 		"steps", len(r.GetSteps()), "operator", op, "expires_unix", r.GetExpiresUnix())
 	return &openrmmv1.SignProfileResponse{Envelope: env, Operator: op, ExpiresUnix: r.GetExpiresUnix()}, nil
@@ -381,7 +391,8 @@ func (s *Server) SignProfileRun(_ context.Context, req *openrmmv1.SignProfileRun
 	st := r.GetSteps()[i]
 	jr := &openrmmv1.JobRequest{TenantId: r.GetTenantId(), AgentIds: req.GetAgentIds(), Module: st.GetModule(),
 		ModuleVersion: st.GetModuleVersion(), ModuleSha256: st.GetModuleSha256(), Action: st.GetAction(),
-		ParamsJson: st.GetParamsJson(), TtlSeconds: ttl, RequestNonce: jobreq.NewRequestNonce(), Packages: st.GetPackages()}
+		ParamsJson: st.GetParamsJson(), TtlSeconds: ttl, RequestNonce: jobreq.NewRequestNonce(), Packages: st.GetPackages(),
+		OsFamily: r.GetOsFamily()}
 	if len(jr.AgentIds) == 1 {
 		jr.AgentId, jr.AgentIds = jr.AgentIds[0], nil
 	}
@@ -476,11 +487,14 @@ func (s *Server) SignPolicy(ctx context.Context, req *openrmmv1.SignPolicyReques
 	if subtle.ConstantTimeCompare([]byte(claims.Nonce), []byte(policy.AuthNonce(raw))) != 1 {
 		return deny("authentication was not issued for this policy", authn.ErrNonce)
 	}
-	if !claims.HasRole(authn.RoleAdmin) {
-		return deny("only administrators may approve policies", authn.ErrNoRole)
-	}
+	// A policy applies to every computer of the tenant, whatever its OS
+	// family, site or group.
 	if !v.MayManage(claims, p.TenantID) {
 		return deny("operator may not manage this tenant", authn.ErrNoTenant)
+	}
+	a := v.Access(claims)
+	if !a.Super() {
+		return deny("only administrators (OpenRMM.Admin) may approve policies", authn.ErrNoRole)
 	}
 	if err := s.used.add(claims.Nonce, now.Add(2*time.Hour), now); err != nil {
 		return deny("authentication already used", err)
@@ -552,4 +566,25 @@ func operatorOf(c *authn.Claims, v *authn.Verifier) string {
 		return c.Operator() + " [central console]"
 	}
 	return c.Operator()
+}
+
+// allowFamily requires min on the computers of the requested OS family: a
+// request for any family needs min on both.
+func allowFamily(a authn.Access, min, requested string) error {
+	fam, ok := a.Family(min)
+	if !ok {
+		return authn.ErrNoRole
+	}
+	if fam != "" && requested != fam {
+		return fmt.Errorf("%w: the operator's role covers only %s computers, the request is for %q", authn.ErrNoRole, fam, requested)
+	}
+	return nil
+}
+
+// describe names the operator's levels for the signer's log.
+func describe(a authn.Access) string {
+	if a.Clients == a.Servers {
+		return a.Clients
+	}
+	return "clients:" + a.Clients + " servers:" + a.Servers
 }

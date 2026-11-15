@@ -18,7 +18,6 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"github.com/stefanozanarini/tempra-rmm/internal/console/authn"
 	"github.com/stefanozanarini/tempra-rmm/internal/console/store"
 	"github.com/stefanozanarini/tempra-rmm/internal/federation"
 	"github.com/stefanozanarini/tempra-rmm/internal/ids"
@@ -100,7 +99,7 @@ func (s *Server) openLink(r *http.Request, sess *session) (store.FederationLink,
 func (s *Server) assertion(r *http.Request, sess *session) string {
 	op := sess.data.Operator
 	return federation.Operator{ObjectID: op.ObjectID, TenantID: op.TenantID, Name: op.Name, Username: op.Username,
-		Roles: op.Roles, Session: sess.data.FedKey, Lang: langOf(r, sess), Theme: sess.data.Theme}.Encode()
+		Roles: op.Roles, Groups: op.Groups, Session: sess.data.FedKey, Lang: langOf(r, sess), Theme: sess.data.Theme}.Encode()
 }
 
 // forwarded response headers; the security headers are the central
@@ -219,7 +218,7 @@ func (s *Server) federationPage(w http.ResponseWriter, r *http.Request, d federa
 			d.Links = append(d.Links, v)
 		}
 	}
-	if s.fedVerifier != nil && hasRole(sess.data.Operator, authn.RoleAdmin) {
+	if s.fedVerifier != nil && s.access(r.Context(), sess).Super() {
 		d.Customer = true
 		cfg := s.fedVerifier.Config()
 		d.Issuer, d.MaxRole = cfg.Issuer, cfg.MaxRole
@@ -432,11 +431,9 @@ func (s *Server) LinkHandler() http.Handler {
 			http.Error(w, "invalid operator", http.StatusForbidden)
 			return
 		}
-		tenants := s.fedVerifier.Config().TenantMap[a.TenantID]
-		roles := s.fedVerifier.CapRoles(a.Roles)
 		op := &Operator{ObjectID: a.ObjectID, TenantID: a.TenantID, Name: a.Name, Username: a.Username,
-			Roles: roles, Tenants: tenants, Federated: true}
-		if len(tenants) == 0 || !hasRole(op, authn.RoleReader) {
+			Roles: a.Roles, Groups: a.Groups, Tenants: s.fedVerifier.Config().TenantMap[a.TenantID], Federated: true}
+		if len(op.Tenants) == 0 || s.fedVerifier.AccessOf(op.Roles).Role() == "" {
 			s.log.Warn("central operator refused", "operator", a.Username, "tid", a.TenantID)
 			http.Error(w, tr(a.Lang, "accesso negato: directory non autorizzata"), http.StatusForbidden)
 			return
@@ -468,9 +465,7 @@ func (s *Server) fedSession(ctx context.Context, a federation.Operator, op *Oper
 		sess.data.Operator.ObjectID == op.ObjectID && s.now().Sub(sess.data.CreatedAt) <= absoluteMaxAge
 	if !reuse {
 		sess.data = SessionData{CSRF: ids.NewSecret(32), CreatedAt: s.now()}
-		for _, t := range op.Tenants {
-			s.audit(ctx, t, op, "operator.login", op.ObjectID, map[string]any{"roles": op.Roles, "via": "central console"})
-		}
+		s.auditLogin(ctx, op)
 	}
 	sess.data.Operator = op
 	if !slices.Contains(op.Tenants, sess.data.Tenant) {

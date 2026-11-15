@@ -70,7 +70,7 @@ func TestProvisioningProfile(t *testing.T) {
 
 	// Only an administrator may approve it.
 	op := admin
-	op.OID, op.Roles = ids.NewUUID(), []string{authn.RoleOperator}
+	op.OID, op.Roles = ids.NewUUID(), []string{authn.AppOperator}
 	oc, ocsrf := e.login(t, op)
 	if code, _, _ := post(t, oc, e.console.URL+"/provisioning/profiles/"+profileID+"/approve",
 		url.Values{"csrf": {ocsrf}, "version": {"1"}, "validity_days": {"90"}, "ttl_minutes": {"1440"}}); code != http.StatusForbidden {

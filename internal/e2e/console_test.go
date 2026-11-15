@@ -51,7 +51,7 @@ import (
 // opIdentity is who the fake identity provider signs in.
 type opIdentity struct {
 	OID, Name, Username string
-	Roles, AMR          []string
+	Roles, AMR, Groups  []string
 }
 
 // fakeIdP is a minimal OIDC provider: discovery, JWKS, authorize (signs the
@@ -119,7 +119,7 @@ func newIdP(t *testing.T, tid, clientID string) *fakeIdP {
 		sig, _ := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: key}, (&jose.SignerOptions{}).WithHeader("kid", "k1"))
 		raw, _ := jwt.Signed(sig).Claims(map[string]any{
 			"iss": p.srv.URL, "aud": clientID, "sub": "sub-" + user.OID, "oid": user.OID, "tid": tid,
-			"name": user.Name, "preferred_username": user.Username, "roles": user.Roles, "amr": user.AMR,
+			"name": user.Name, "preferred_username": user.Username, "roles": user.Roles, "groups": user.Groups, "amr": user.AMR,
 			"nonce": req.nonce, "iat": now.Unix(), "exp": now.Add(time.Hour).Unix(), "auth_time": now.Unix(),
 		}).Serialize()
 		p.mu.Lock()
@@ -157,7 +157,7 @@ type consoleEnv struct {
 }
 
 var admin = opIdentity{OID: ids.NewUUID(), Name: "Mario Rossi", Username: "mario@cliente.it",
-	Roles: []string{authn.RoleAdmin}, AMR: []string{"pwd", "mfa"}}
+	Roles: []string{authn.AppAdmin}, AMR: []string{"pwd", "mfa"}}
 
 // consoleOpt adjusts a console before it starts (federation tests).
 type consoleOpt func(cfg *web.Config, sg *signer.Server, tenant string)
@@ -410,7 +410,7 @@ func TestConsoleRequiresRole(t *testing.T) {
 func TestReaderCannotApproveOrRun(t *testing.T) {
 	e := startConsole(t)
 	reader := admin
-	reader.OID, reader.Roles = ids.NewUUID(), []string{authn.RoleReader}
+	reader.OID, reader.Roles = ids.NewUUID(), []string{authn.AppReader}
 	c, csrf := e.login(t, reader)
 	agentURL := e.console.URL + "/agents/" + e.agentID
 	if code, _, _ := post(t, c, agentURL+"/approve", url.Values{"csrf": {csrf}}); code != http.StatusForbidden {
@@ -481,7 +481,7 @@ func TestSignerVerifiesIndependently(t *testing.T) {
 	}
 	// Readers cannot approve jobs.
 	reader := admin
-	reader.Roles = []string{authn.RoleReader}
+	reader.Roles = []string{authn.AppReader}
 	req3 := proto.Clone(req).(*openrmmv1.JobRequest)
 	req3.RequestNonce = jobreq.NewRequestNonce()
 	if _, err := e.signer.SignJob(ctx, &openrmmv1.SignJobRequest{Request: req3, IdToken: e.tokenFor(t, reader, jobreq.AuthNonce(req3))}); status.Code(err) != codes.PermissionDenied {
@@ -617,7 +617,7 @@ func TestConsoleRefusesAdHocModulesInPolicies(t *testing.T) {
 func TestOperatorCannotEditPolicies(t *testing.T) {
 	e := startConsole(t)
 	op := admin
-	op.OID, op.Roles = ids.NewUUID(), []string{authn.RoleOperator}
+	op.OID, op.Roles = ids.NewUUID(), []string{authn.AppOperator}
 	c, csrf := e.login(t, op)
 	if code, _ := get(t, c, e.console.URL+"/policies/new"); code != http.StatusForbidden {
 		t.Fatalf("operator opened the policy editor: %d", code)
@@ -636,7 +636,7 @@ func TestRefusedStepUpShowsMessage(t *testing.T) {
 	c, csrf := e.login(t, admin)
 	noMFA.AMR = []string{"pwd", "mfa"}
 	// The step-up is done by an operator whose role was removed meanwhile.
-	noMFA.Roles = []string{authn.RoleReader}
+	noMFA.Roles = []string{authn.AppReader}
 	e.idp.signIn(noMFA)
 	code, body, final := post(t, c, e.console.URL+"/agents/"+e.agentID+"/jobs",
 		url.Values{"csrf": {csrf}, "target": {"sysinfo|1.0.0|info"}, "ttl_minutes": {"60"}})

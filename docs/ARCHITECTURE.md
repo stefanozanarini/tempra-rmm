@@ -272,7 +272,7 @@ Set by MSI or GPO, never by the console: `AllowAdHocScripts` (default on), `MaxC
 ### 6.6 Operator authentication ✅
 
 - Entra ID only (OIDC authorization code + PKCE); the console never sees passwords.
-- App roles `OpenRMM.Admin`, `OpenRMM.Operator`, `OpenRMM.Reader`; assignment required.
+- App roles `OpenRMM.Admin`, `OpenRMM.Operator`, `OpenRMM.Reader`, and `OpenRMM.Admin`/`OpenRMM.Operator` limited to `.Clients` or `.Servers`; assignment required. A limit to clients or servers is checked by the signer from the token, written into the signed job and checked again by the agent. Scopes (sites, computer groups) set on the console for a user or an Entra group are checked by the console only.
 - MFA proven by the `amr` claim, or by a Conditional Access authentication context (`acrs`, recommended with Entra ID P1) required at sign-in and for every command.
 - **Per-command step-up:** every command an operator launches requires a fresh sign-in (`prompt=login`) bound to that command, by the same operator.
 - Server-side sessions (only hashes stored), id rotated at login, idle and absolute expiry, CSRF token and Origin check, strict CSP.

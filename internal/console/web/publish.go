@@ -154,7 +154,7 @@ func keyIDOf(pub string) string {
 
 func (s *Server) publishData(r *http.Request, kind string) publishView {
 	sess := sessionFrom(r.Context())
-	v := publishView{ConsoleAdmin: s.consoleAdmin(sess.data.Operator), Platforms: releasePlatforms}
+	v := publishView{ConsoleAdmin: s.consoleAdmin(r.Context(), sess), Platforms: releasePlatforms}
 	if !v.ConsoleAdmin {
 		return v
 	}
@@ -227,8 +227,7 @@ func (s *Server) startPublish(kind string) ctxHandler {
 // next, so neither sits in the session.
 func (s *Server) completePublish(w http.ResponseWriter, r *http.Request, sess *session, p *Pending, c *authn.Claims, v *authn.Verifier) {
 	op, lang := sess.data.Operator, langOf(r, sess)
-	if op == nil || c.ObjectID != op.ObjectID || c.TenantID != op.TenantID || c.Nonce != p.Nonce || !c.HasRole(authn.RoleAdmin) ||
-		!s.consoleAdmin(op) {
+	if op == nil || c.ObjectID != op.ObjectID || c.TenantID != op.TenantID || c.Nonce != p.Nonce || !s.consoleAdmin(r.Context(), sess) {
 		http.Error(w, tr(lang, "l'approvazione deve essere fatta dallo stesso operatore"), http.StatusForbidden)
 		return
 	}

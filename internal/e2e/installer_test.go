@@ -177,7 +177,7 @@ func TestConsoleInstallerWithDedicatedCA(t *testing.T) {
 
 	// Operators download, but cannot build.
 	op := admin
-	op.OID, op.Roles = ids.NewUUID(), []string{authn.RoleOperator}
+	op.OID, op.Roles = ids.NewUUID(), []string{authn.AppOperator}
 	oc, ocsrf := e.login(t, op)
 	if code, body := get(t, oc, e.console.URL+"/agent-installer/"+list[0].ID+"/msi"); code != 200 || body != fakeMSI {
 		t.Fatalf("download: %d %q", code, body)

@@ -350,6 +350,9 @@ func (s *Server) handleEditGroup(w http.ResponseWriter, r *http.Request) {
 	}
 	op := sessionFrom(r.Context()).data.Operator
 	back := "/groups/" + g.ID
+	if s.guardScopeChange(w, r, t, g.ID, back) {
+		return
+	}
 	switch r.PostFormValue("do") {
 	case "rename":
 		name, ok := groupName(r.PostFormValue("name"))
@@ -467,6 +470,9 @@ func (s *Server) handleGroupAgents(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		s.fail(w, r, err)
+		return
+	}
+	if s.guardScopeChange(w, r, t, g.ID, "/groups/"+g.ID) {
 		return
 	}
 	r.PostForm.Del("names")

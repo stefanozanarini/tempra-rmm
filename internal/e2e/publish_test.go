@@ -217,7 +217,7 @@ func TestConsolePublishWithBuilderKeys(t *testing.T) {
 
 	// Operators cannot publish.
 	op := admin
-	op.OID, op.Roles = ids.NewUUID(), []string{authn.RoleOperator}
+	op.OID, op.Roles = ids.NewUUID(), []string{authn.AppOperator}
 	oc, ocsrf := e.login(t, op)
 	if code, _, _ := post(t, oc, e.console.URL+"/modules/publish", url.Values{"csrf": {ocsrf}}); code != http.StatusForbidden {
 		t.Fatalf("operator started a publication: %d", code)

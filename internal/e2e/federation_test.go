@@ -64,7 +64,7 @@ func withCentral(t *testing.T, central *consoleEnv, maxRole string) consoleOpt {
 var bundleRe = regexp.MustCompile(`ormm-link-1\.[A-Za-z0-9_-]+`)
 
 var mspAdmin = opIdentity{OID: ids.NewUUID(), Name: "Luca Bianchi", Username: "luca@msp.it",
-	Roles: []string{authn.RoleAdmin}, AMR: []string{"pwd", "mfa"}}
+	Roles: []string{authn.AppAdmin}, AMR: []string{"pwd", "mfa"}}
 
 // link creates a link on central, joins it from customer and opens it.
 func link(t *testing.T, central, customer *consoleEnv, hub *federation.Hub) (*http.Client, string, store.FederationLink) {

@@ -50,4 +50,4 @@ Trust, in short: a central console that is compromised could read the customer's
 
 ## Entra ID of the provider
 
-The central console's application registration needs, besides its own redirect URI, nothing more: step-up sign-ins for customer commands happen on the central console (`/auth/callback`) with the same application. The app roles assigned to provider operators (OpenRMM.Admin, Operator, Reader) apply to customer consoles too, capped by each customer's maximum role.
+The central console's application registration needs, besides its own redirect URI, nothing more: step-up sign-ins for customer commands happen on the central console (`/auth/callback`) with the same application. The app roles assigned to provider operators (OpenRMM.Admin, Operator, Reader and their `.Clients`/`.Servers` variants) apply to customer consoles too, capped by each customer's maximum role (`OPENRMM_FEDERATION_MAX_ROLE`: `OpenRMM.Admin`, `OpenRMM.Operator`, `OpenRMM.Reader`, or superadmin, admin, operator, reader). A customer's Scopes page can limit them to some sites or groups like local operators.

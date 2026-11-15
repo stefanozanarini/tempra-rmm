@@ -13,6 +13,7 @@ import (
 	"time"
 
 	openrmmv1 "github.com/stefanozanarini/tempra-rmm/gen/openrmm/v1"
+	"github.com/stefanozanarini/tempra-rmm/internal/console/authn"
 	"github.com/stefanozanarini/tempra-rmm/internal/console/jobreq"
 	"github.com/stefanozanarini/tempra-rmm/internal/console/store"
 	"github.com/stefanozanarini/tempra-rmm/internal/console/wingetcat"
@@ -279,6 +280,10 @@ func (s *Server) handleApprove(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	if err := s.checkScope(r, t, s.access(r.Context(), sessionFrom(r.Context())), authn.RoleOperator, []string{id}); err != nil {
+		s.flash(w, r, s.scopeMessage(r, err), "/agents/"+id)
+		return
+	}
 	switch err := s.store.ApproveAgent(r.Context(), t, id, "operator:"+op.Username, s.now()); {
 	case errors.Is(err, store.ErrNotPending):
 		s.flash(w, r, s.T(r, "L'agente non è in attesa di approvazione."), "/agents/"+id)
@@ -314,13 +319,22 @@ func (s *Server) handleApproveMany(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, s.T(r, "richiesta non valida"), http.StatusBadRequest)
 		return
 	}
-	done := 0
+	in, err := s.scope(r, t, s.access(r.Context(), sessionFrom(r.Context())), authn.RoleOperator)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	done, skipped := 0, 0
 	for _, id := range selected {
 		if !ids.IsUUID(id) {
 			continue
 		}
 		a, err := s.store.GetAgent(r.Context(), t, id)
 		if err != nil || a.Status != store.AgentPending {
+			continue
+		}
+		if !in(a) {
+			skipped++
 			continue
 		}
 		if approve {
@@ -341,11 +355,14 @@ func (s *Server) handleApproveMany(w http.ResponseWriter, r *http.Request) {
 		}
 		done++
 	}
-	if approve {
-		s.flash(w, r, s.Tf(r, "%d agenti approvati.", done), "/agents")
-	} else {
-		s.flash(w, r, s.Tf(r, "%d agenti rifiutati e revocati.", done), "/agents")
+	msg := s.Tf(r, "%d agenti approvati.", done)
+	if !approve {
+		msg = s.Tf(r, "%d agenti rifiutati e revocati.", done)
 	}
+	if skipped > 0 {
+		msg += " " + s.Tf(r, "%d esclusi perché il tuo ruolo non li comprende.", skipped)
+	}
+	s.flash(w, r, msg, "/agents")
 }
 
 func (s *Server) handleRevoke(w http.ResponseWriter, r *http.Request) {
@@ -359,6 +376,10 @@ func (s *Server) handleRevoke(w http.ResponseWriter, r *http.Request) {
 	a, err := s.store.GetAgent(r.Context(), t, id)
 	if err != nil {
 		http.NotFound(w, r)
+		return
+	}
+	if err := s.checkScope(r, t, s.access(r.Context(), sessionFrom(r.Context())), authn.RoleAdmin, []string{id}); err != nil {
+		s.flash(w, r, s.scopeMessage(r, err), "/agents/"+id)
 		return
 	}
 	if err := s.store.SetAgentStatus(r.Context(), t, id, store.AgentRevoked); err != nil {

@@ -108,13 +108,13 @@ func TestConsoleSitesPanelNotesAndTheme(t *testing.T) {
 
 	// Only admins manage sites; notes need an operator.
 	op := admin
-	op.OID, op.Roles = ids.NewUUID(), []string{authn.RoleOperator}
+	op.OID, op.Roles = ids.NewUUID(), []string{authn.AppOperator}
 	oc, ocsrf := e.login(t, op)
 	if code, _, _ := post(t, oc, e.console.URL+"/sites", url.Values{"csrf": {ocsrf}, "name": {"Roma"}, "subnets": {"10.9.0.0/16"}}); code != http.StatusForbidden {
 		t.Fatalf("operator saved a site: %d", code)
 	}
 	reader := admin
-	reader.OID, reader.Roles = ids.NewUUID(), []string{authn.RoleReader}
+	reader.OID, reader.Roles = ids.NewUUID(), []string{authn.AppReader}
 	rc, rcsrf := e.login(t, reader)
 	if code, _, _ := post(t, rc, e.console.URL+"/agents/"+bo+"/notes", url.Values{"csrf": {rcsrf}, "body": {"x"}}); code != http.StatusForbidden {
 		t.Fatalf("reader added a note: %d", code)

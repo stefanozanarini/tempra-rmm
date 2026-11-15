@@ -1725,7 +1725,10 @@ type Job struct {
 	Nonce         []byte                 `protobuf:"bytes,11,opt,name=nonce,proto3" json:"nonce,omitempty"`
 	// Packages the agent downloads into the work directory before running
 	// the module (e.g. an MSI to install).
-	Packages      []*PackageRef `protobuf:"bytes,12,rep,name=packages,proto3" json:"packages,omitempty"`
+	Packages []*PackageRef `protobuf:"bytes,12,rep,name=packages,proto3" json:"packages,omitempty"`
+	// client or server: the agent refuses the job on a computer of another
+	// family (agents from 1.1.8). Empty: any.
+	OsFamily      string `protobuf:"bytes,13,opt,name=os_family,json=osFamily,proto3" json:"os_family,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1842,6 +1845,13 @@ func (x *Job) GetPackages() []*PackageRef {
 		return x.Packages
 	}
 	return nil
+}
+
+func (x *Job) GetOsFamily() string {
+	if x != nil {
+		return x.OsFamily
+	}
+	return ""
 }
 
 type JobUpdate struct {
@@ -2045,7 +2055,7 @@ const file_openrmm_v1_agent_proto_rawDesc = "" +
 	"\x0eSignedEnvelope\x12\x15\n" +
 	"\x06key_id\x18\x01 \x01(\tR\x05keyId\x12\x18\n" +
 	"\apayload\x18\x02 \x01(\fR\apayload\x12\x1c\n" +
-	"\tsignature\x18\x03 \x01(\fR\tsignature\"\x86\x03\n" +
+	"\tsignature\x18\x03 \x01(\fR\tsignature\"\xa3\x03\n" +
 	"\x03Job\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x19\n" +
@@ -2060,7 +2070,8 @@ const file_openrmm_v1_agent_proto_rawDesc = "" +
 	"\fexpires_unix\x18\n" +
 	" \x01(\x03R\vexpiresUnix\x12\x14\n" +
 	"\x05nonce\x18\v \x01(\fR\x05nonce\x122\n" +
-	"\bpackages\x18\f \x03(\v2\x16.openrmm.v1.PackageRefR\bpackages\"\xd4\x02\n" +
+	"\bpackages\x18\f \x03(\v2\x16.openrmm.v1.PackageRefR\bpackages\x12\x1b\n" +
+	"\tos_family\x18\r \x01(\tR\bosFamily\"\xd4\x02\n" +
 	"\tJobUpdate\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x121\n" +
 	"\x05state\x18\x02 \x01(\x0e2\x1b.openrmm.v1.JobUpdate.StateR\x05state\x12\x1f\n" +

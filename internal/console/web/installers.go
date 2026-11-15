@@ -141,7 +141,7 @@ func (s *Server) handleInstallers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	st := s.builderStatus(ctx)
 	d := installersData{Builder: s.builder != nil, Missing: s.installSettings(st).missing(), MinPass: codesign.MinPassphrase,
-		ConsoleAdmin: s.consoleAdmin(sessionFrom(ctx).data.Operator)}
+		ConsoleAdmin: s.consoleAdmin(ctx, sessionFrom(ctx))}
 	if st != nil {
 		d.BuilderUp, d.Signing = true, st
 		if ch, err := codesign.ParseChain([]byte(st.GetChainPem()), s.now()); err == nil {
@@ -247,11 +247,16 @@ func (s *Server) passphrase(w http.ResponseWriter, r *http.Request) (string, boo
 	return p, true
 }
 
-// consoleAdmin tells whether op manages console-wide settings, such as the
-// signing key every tenant's installers are signed with: an Admin of one of
-// the console's own directories, never through a federation link.
-func (s *Server) consoleAdmin(op *Operator) bool {
-	if op == nil || op.Federated || !hasRole(op, authn.RoleAdmin) {
+// consoleAdmin tells whether the request's operator manages console-wide
+// settings, such as the signing key every tenant's installers are signed
+// with: a superadministrator from one of the console's own directories,
+// never through a federation link.
+func (s *Server) consoleAdmin(ctx context.Context, sess *session) bool {
+	if sess == nil {
+		return false
+	}
+	op := sess.data.Operator
+	if op == nil || op.Federated || !s.access(ctx, sess).Super() {
 		return false
 	}
 	dirs := s.consoleAdminDirs
@@ -275,9 +280,9 @@ func (s *Server) consoleAdmin(op *Operator) bool {
 
 // console requires a console administrator.
 func (s *Server) console(h ctxHandler) http.Handler {
-	return s.role(authn.RoleAdmin, func(w http.ResponseWriter, r *http.Request) {
+	return s.role(authn.RoleSuperadmin, func(w http.ResponseWriter, r *http.Request) {
 		op := sessionFrom(r.Context()).data.Operator
-		if !s.consoleAdmin(op) {
+		if !s.consoleAdmin(r.Context(), sessionFrom(r.Context())) {
 			s.log.Warn("forbidden: console-wide setting", "operator", op.Username, "path", r.URL.Path)
 			http.Error(w, s.T(r, "permesso negato"), http.StatusForbidden)
 			return
@@ -448,7 +453,7 @@ func (s *Server) handleBuildInstaller(w http.ResponseWriter, r *http.Request) {
 // it never sits in the session.
 func (s *Server) completeInstaller(w http.ResponseWriter, r *http.Request, sess *session, p *Pending, c *authn.Claims, v *authn.Verifier) {
 	op, lang := sess.data.Operator, langOf(r, sess)
-	if op == nil || c.ObjectID != op.ObjectID || c.TenantID != op.TenantID || c.Nonce != p.Nonce || !c.HasRole(authn.RoleAdmin) {
+	if op == nil || c.ObjectID != op.ObjectID || c.TenantID != op.TenantID || c.Nonce != p.Nonce || !s.access(r.Context(), sess).Super() {
 		http.Error(w, tr(lang, "l'approvazione deve essere fatta dallo stesso operatore"), http.StatusForbidden)
 		return
 	}

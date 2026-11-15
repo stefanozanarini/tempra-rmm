@@ -19,6 +19,7 @@ import (
 	"time"
 
 	openrmmv1 "github.com/stefanozanarini/tempra-rmm/gen/openrmm/v1"
+	"github.com/stefanozanarini/tempra-rmm/internal/console/jobreq"
 	"github.com/stefanozanarini/tempra-rmm/internal/ids"
 	"github.com/stefanozanarini/tempra-rmm/internal/modules"
 	"github.com/stefanozanarini/tempra-rmm/internal/pkgref"
@@ -50,6 +51,9 @@ func Validate(r *openrmmv1.ProfileRequest, now time.Time) error {
 	}
 	if !ids.IsUUID(r.GetProfileId()) {
 		return errors.New("profile must be a UUID")
+	}
+	if !jobreq.ValidOSFamily(r.GetOsFamily()) {
+		return errors.New("os family must be client, server or empty")
 	}
 	if r.GetVersion() < 1 {
 		return errors.New("version must be positive")
@@ -136,6 +140,9 @@ func Hash(r *openrmmv1.ProfileRequest) []byte {
 	u64(uint64(r.GetMaxTtlSeconds())) // #nosec G115 -- validated positive
 	u64(uint64(r.GetExpiresUnix()))   // #nosec G115 -- validated positive
 	field(r.GetRequestNonce())
+	if f := r.GetOsFamily(); f != "" {
+		field([]byte(f))
+	}
 	sum := sha256.Sum256(b.Bytes())
 	return sum[:]
 }

@@ -55,8 +55,21 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, s.oauth.AuthCodeURL(p.State, s.authOptions(p, false)...), http.StatusSeeOther)
 }
 
-// startStepUp sends the operator to the identity provider to approve req.
+// startStepUp sends the operator to the identity provider to approve req,
+// once its targets are checked against the operator's role.
 func (s *Server) startStepUp(w http.ResponseWriter, r *http.Request, sess *session, req *openrmmv1.JobRequest, ret string) {
+	a := s.access(r.Context(), sess)
+	if req.GetTenantId() != sess.data.Tenant || !a.atLeast(authn.RoleOperator) {
+		http.Error(w, s.T(r, "permesso negato"), http.StatusForbidden)
+		return
+	}
+	if err := s.checkScope(r, req.GetTenantId(), a, authn.RoleOperator, jobreq.Targets(req)); err != nil {
+		s.flashTo(w, r, sess, s.scopeMessage(r, err), ret)
+		return
+	}
+	// The signer requires the OS family the operator's app roles cover in
+	// the request, and the agents enforce it.
+	req.OsFamily, _ = a.Family(authn.RoleOperator)
 	s.capLegacyTTL(r.Context(), req)
 	raw, err := proto.Marshal(req)
 	if err != nil {
@@ -149,8 +162,6 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, authn.ErrNoMFA):
 			msg = tr(lang, "accesso negato: è richiesta l'autenticazione a più fattori")
-		case errors.Is(err, authn.ErrNoRole):
-			msg = tr(lang, "accesso negato: nessun ruolo Tempra RMM assegnato")
 		case errors.Is(err, authn.ErrNoTenant):
 			msg = tr(lang, "accesso negato: directory non autorizzata")
 		}
@@ -186,7 +197,7 @@ func (s *Server) completeLogin(w http.ResponseWriter, r *http.Request, old *sess
 	s.destroy(r.Context(), w, old)
 	sess := s.newSession()
 	sess.data.Operator = &Operator{ObjectID: c.ObjectID, TenantID: c.TenantID, Name: c.Name, Username: c.Username,
-		Roles: c.Roles, Tenants: tenants}
+		Roles: c.Roles, Groups: c.Groups, Tenants: tenants}
 	if len(tenants) > 0 {
 		sess.data.Tenant = tenants[0]
 	}
@@ -194,11 +205,26 @@ func (s *Server) completeLogin(w http.ResponseWriter, r *http.Request, old *sess
 		s.fail(w, r, err)
 		return
 	}
-	for _, t := range tenants {
-		s.audit(r.Context(), t, sess.data.Operator, "operator.login", c.ObjectID, map[string]any{"roles": c.Roles})
-	}
+	s.auditLogin(r.Context(), sess.data.Operator)
 	s.log.Info("operator login", "operator", c.Operator(), "roles", c.Roles)
 	http.Redirect(w, r, "/agents", http.StatusSeeOther)
+}
+
+// auditLogin records a sign-in on every tenant of the operator, with the
+// role and scope it gives there.
+func (s *Server) auditLogin(ctx context.Context, op *Operator) {
+	for _, t := range op.Tenants {
+		a, err := s.accessOf(ctx, op, t)
+		if err != nil {
+			s.log.Error("scope lookup failed", "err", err)
+		}
+		details := map[string]any{"roles": op.Roles, "clients": a.Clients, "servers": a.Servers,
+			"sites": a.SiteIDs, "groups": a.GroupIDs}
+		if op.Federated {
+			details["via"] = "central console"
+		}
+		s.audit(ctx, t, op, "operator.login", op.ObjectID, details)
+	}
 }
 
 func (s *Server) completeJob(w http.ResponseWriter, r *http.Request, sess *session, p *Pending, c *authn.Claims, rawToken string) {

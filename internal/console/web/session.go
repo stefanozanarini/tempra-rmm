@@ -24,12 +24,15 @@ const (
 
 // Operator is the authenticated operator of a session.
 type Operator struct {
-	ObjectID string   `json:"oid"`
-	TenantID string   `json:"tid"`
-	Name     string   `json:"name"`
-	Username string   `json:"username"`
-	Roles    []string `json:"roles"`
-	Tenants  []string `json:"tenants"`
+	ObjectID string `json:"oid"`
+	TenantID string `json:"tid"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	// Roles are the Entra app roles of the sign-in; Groups the object ids
+	// of the operator's security groups (for scopes).
+	Roles   []string `json:"roles"`
+	Groups  []string `json:"groups,omitempty"`
+	Tenants []string `json:"tenants"`
 	// Federated: a central console's operator, working over the link.
 	Federated bool `json:"federated,omitempty"`
 }
@@ -83,6 +86,9 @@ type SessionData struct {
 type session struct {
 	id   string
 	data SessionData
+	// access caches the operator's role on the session's tenant for the
+	// current request (see Server.access); never stored.
+	access *Access
 }
 
 type ctxKey struct{}

@@ -37,6 +37,9 @@ func Validate(r *openrmmv1.JobRequest) error {
 	if err := validateTargets(r); err != nil {
 		return err
 	}
+	if !ValidOSFamily(r.GetOsFamily()) {
+		return errors.New("os family must be client, server or empty")
+	}
 	if err := pkgref.Validate(r.GetPackages()); err != nil {
 		return err
 	}
@@ -133,9 +136,17 @@ func Hash(r *openrmmv1.JobRequest) []byte {
 	for _, a := range r.GetAgentIds() {
 		field([]byte(a))
 	}
+	// Appended only when set, so the hash of an unrestricted request is
+	// the same as before the field existed.
+	if f := r.GetOsFamily(); f != "" {
+		field([]byte(f))
+	}
 	sum := sha256.Sum256(b.Bytes())
 	return sum[:]
 }
+
+// ValidOSFamily accepts the OS families a request may be restricted to.
+func ValidOSFamily(f string) bool { return f == "" || f == "client" || f == "server" }
 
 // NewRequestNonce returns the random part of a request.
 func NewRequestNonce() []byte { return ids.Random(nonceRandLen) }

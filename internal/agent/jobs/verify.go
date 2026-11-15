@@ -43,6 +43,9 @@ type Verifier struct {
 	keys     *signing.Keyring
 	tenantID string
 	agentID  string
+	// osFamily is this computer's (client or server): a job limited to
+	// another family, or to any family when this one is unknown, is refused.
+	osFamily string
 
 	mu   sync.Mutex
 	path string
@@ -66,6 +69,9 @@ func NewVerifier(keys *signing.Keyring, tenantID, agentID, dataDir string) (*Ver
 	}
 	return v, nil
 }
+
+// SetOSFamily tells the verifier this computer's OS family.
+func (v *Verifier) SetOSFamily(f string) { v.osFamily = f }
 
 // Verify authenticates env and returns the job it carries. The nonce is
 // recorded and persisted before Verify returns, so a job is accepted at most
@@ -106,6 +112,12 @@ func (v *Verifier) Verify(env *openrmmv1.SignedEnvelope, now time.Time) (*openrm
 	}
 	if now.Add(-clockSkew).After(exp) {
 		return job, fmt.Errorf("%w: %s", ErrInvalid, "job expired")
+	}
+	// The signer limits the jobs of an operator who administers only
+	// clients or only servers; the console's word on this computer's
+	// family is not trusted.
+	if f := job.GetOsFamily(); f != "" && f != v.osFamily {
+		return job, fmt.Errorf("%w: job for %s computers, this one is %q", ErrInvalid, f, v.osFamily)
 	}
 	if err := v.remember(job.GetNonce(), exp.Add(clockSkew), now); err != nil {
 		if errors.Is(err, ErrReplay) {

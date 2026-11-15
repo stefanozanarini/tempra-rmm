@@ -250,7 +250,11 @@ type JobRequest struct {
 	Packages     []*PackageRef `protobuf:"bytes,10,rep,name=packages,proto3" json:"packages,omitempty"`
 	// agent_ids targets several agents with one approval (one job each);
 	// agent_id is then empty.
-	AgentIds      []string `protobuf:"bytes,11,rep,name=agent_ids,json=agentIds,proto3" json:"agent_ids,omitempty"`
+	AgentIds []string `protobuf:"bytes,11,rep,name=agent_ids,json=agentIds,proto3" json:"agent_ids,omitempty"`
+	// Required OS family of the targets ("client" or "server"; empty: any),
+	// copied into every job: the agent refuses a job for another family. An
+	// operator whose app roles cover only one family must set it to that one.
+	OsFamily      string `protobuf:"bytes,12,opt,name=os_family,json=osFamily,proto3" json:"os_family,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -360,6 +364,13 @@ func (x *JobRequest) GetAgentIds() []string {
 		return x.AgentIds
 	}
 	return nil
+}
+
+func (x *JobRequest) GetOsFamily() string {
+	if x != nil {
+		return x.OsFamily
+	}
+	return ""
 }
 
 type SignJobRequest struct {
@@ -580,7 +591,10 @@ type AssignmentRequest struct {
 	// no notion of groups or membership: the console alone resolves it to
 	// agent ids on each SignAssignmentRun), but part of what the
 	// administrator approves and later audits can see.
-	GroupId       string `protobuf:"bytes,13,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	GroupId string `protobuf:"bytes,13,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	// Required OS family of the targets, copied into every job (as in
+	// JobRequest).
+	OsFamily      string `protobuf:"bytes,14,opt,name=os_family,json=osFamily,proto3" json:"os_family,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -702,6 +716,13 @@ func (x *AssignmentRequest) GetRequestNonce() []byte {
 func (x *AssignmentRequest) GetGroupId() string {
 	if x != nil {
 		return x.GroupId
+	}
+	return ""
+}
+
+func (x *AssignmentRequest) GetOsFamily() string {
+	if x != nil {
+		return x.OsFamily
 	}
 	return ""
 }
@@ -984,7 +1005,10 @@ type ProfileRequest struct {
 	// SignProfileRun refuses once now is past this instant.
 	ExpiresUnix int64 `protobuf:"varint,6,opt,name=expires_unix,json=expiresUnix,proto3" json:"expires_unix,omitempty"`
 	// Random value chosen by the console per request.
-	RequestNonce  []byte `protobuf:"bytes,7,opt,name=request_nonce,json=requestNonce,proto3" json:"request_nonce,omitempty"`
+	RequestNonce []byte `protobuf:"bytes,7,opt,name=request_nonce,json=requestNonce,proto3" json:"request_nonce,omitempty"`
+	// Required OS family of the targets, copied into every job (as in
+	// JobRequest).
+	OsFamily      string `protobuf:"bytes,8,opt,name=os_family,json=osFamily,proto3" json:"os_family,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1066,6 +1090,13 @@ func (x *ProfileRequest) GetRequestNonce() []byte {
 		return x.RequestNonce
 	}
 	return nil
+}
+
+func (x *ProfileRequest) GetOsFamily() string {
+	if x != nil {
+		return x.OsFamily
+	}
+	return ""
 }
 
 type SignProfileRequest struct {
@@ -1272,7 +1303,7 @@ const file_openrmm_v1_signer_proto_rawDesc = "" +
 	"\bid_token\x18\x03 \x01(\tR\aidToken\"L\n" +
 	"\x12SignPolicyResponse\x12\x1a\n" +
 	"\benvelope\x18\x01 \x01(\fR\benvelope\x12\x1a\n" +
-	"\boperator\x18\x02 \x01(\tR\boperator\"\xf8\x02\n" +
+	"\boperator\x18\x02 \x01(\tR\boperator\"\x95\x03\n" +
 	"\n" +
 	"JobRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x19\n" +
@@ -1288,7 +1319,8 @@ const file_openrmm_v1_signer_proto_rawDesc = "" +
 	"\rrequest_nonce\x18\t \x01(\fR\frequestNonce\x122\n" +
 	"\bpackages\x18\n" +
 	" \x03(\v2\x16.openrmm.v1.PackageRefR\bpackages\x12\x1b\n" +
-	"\tagent_ids\x18\v \x03(\tR\bagentIds\"]\n" +
+	"\tagent_ids\x18\v \x03(\tR\bagentIds\x12\x1b\n" +
+	"\tos_family\x18\f \x01(\tR\bosFamily\"]\n" +
 	"\x0eSignJobRequest\x120\n" +
 	"\arequest\x18\x01 \x01(\v2\x16.openrmm.v1.JobRequestR\arequest\x12\x19\n" +
 	"\bid_token\x18\x02 \x01(\tR\aidToken\"\xae\x01\n" +
@@ -1301,7 +1333,7 @@ const file_openrmm_v1_signer_proto_rawDesc = "" +
 	"\tSignedJob\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x19\n" +
 	"\bagent_id\x18\x02 \x01(\tR\aagentId\x12\x1a\n" +
-	"\benvelope\x18\x03 \x01(\fR\benvelope\"\xc9\x03\n" +
+	"\benvelope\x18\x03 \x01(\fR\benvelope\"\xe6\x03\n" +
 	"\x11AssignmentRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
@@ -1318,7 +1350,8 @@ const file_openrmm_v1_signer_proto_rawDesc = "" +
 	" \x01(\x03R\rmaxTtlSeconds\x12!\n" +
 	"\fexpires_unix\x18\v \x01(\x03R\vexpiresUnix\x12#\n" +
 	"\rrequest_nonce\x18\f \x01(\fR\frequestNonce\x12\x19\n" +
-	"\bgroup_id\x18\r \x01(\tR\agroupId\"k\n" +
+	"\bgroup_id\x18\r \x01(\tR\agroupId\x12\x1b\n" +
+	"\tos_family\x18\x0e \x01(\tR\bosFamily\"k\n" +
 	"\x15SignAssignmentRequest\x127\n" +
 	"\arequest\x18\x01 \x01(\v2\x1d.openrmm.v1.AssignmentRequestR\arequest\x12\x19\n" +
 	"\bid_token\x18\x02 \x01(\tR\aidToken\"s\n" +
@@ -1338,7 +1371,7 @@ const file_openrmm_v1_signer_proto_rawDesc = "" +
 	"\x06action\x18\x04 \x01(\tR\x06action\x12\x1f\n" +
 	"\vparams_json\x18\x05 \x01(\fR\n" +
 	"paramsJson\x122\n" +
-	"\bpackages\x18\x06 \x03(\v2\x16.openrmm.v1.PackageRefR\bpackages\"\x85\x02\n" +
+	"\bpackages\x18\x06 \x03(\v2\x16.openrmm.v1.PackageRefR\bpackages\"\xa2\x02\n" +
 	"\x0eProfileRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
 	"\n" +
@@ -1347,7 +1380,8 @@ const file_openrmm_v1_signer_proto_rawDesc = "" +
 	"\x05steps\x18\x04 \x03(\v2\x17.openrmm.v1.ProfileStepR\x05steps\x12&\n" +
 	"\x0fmax_ttl_seconds\x18\x05 \x01(\x03R\rmaxTtlSeconds\x12!\n" +
 	"\fexpires_unix\x18\x06 \x01(\x03R\vexpiresUnix\x12#\n" +
-	"\rrequest_nonce\x18\a \x01(\fR\frequestNonce\"e\n" +
+	"\rrequest_nonce\x18\a \x01(\fR\frequestNonce\x12\x1b\n" +
+	"\tos_family\x18\b \x01(\tR\bosFamily\"e\n" +
 	"\x12SignProfileRequest\x124\n" +
 	"\arequest\x18\x01 \x01(\v2\x1a.openrmm.v1.ProfileRequestR\arequest\x12\x19\n" +
 	"\bid_token\x18\x02 \x01(\tR\aidToken\"p\n" +

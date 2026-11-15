@@ -110,7 +110,7 @@
 <p>{{th "Per Linux (Debian, Ubuntu, RHEL, Rocky, Alma, SUSE, con systemd): un unico file <code>.run</code> con la stessa configurazione. Copialo sul server e lancia <code>sudo sh openrmm-agent-….run</code>; si rimuove con <code>/opt/open-rmm/uninstall.sh</code>."}}</p>
 {{with .Missing}}<p><span class="badge chk-warning">{{t "da configurare"}}</span> {{t "Mancano nella configurazione della console:"}} {{range $i, $m := .}}{{if $i}}, {{end}}<code>{{$m}}</code>{{end}}.</p>{{end}}
 {{if .NeedKeys}}<p><span class="badge chk-warning">{{t "da configurare"}}</span> {{th "Crea prima le <a href=\"#release-keys\">chiavi di moduli e release</a>."}}</p>{{end}}
-{{if and $.IsAdmin .Builder .BuilderUp .Chain (not .Missing) (not .NeedKeys)}}
+{{if and $.IsSuper .Builder .BuilderUp .Chain (not .Missing) (not .NeedKeys)}}
 {{if .Approved}}
 <form method="post" action="/agent-installer/confirm" class="stack">
   <input type="hidden" name="csrf" value="{{$.CSRF}}">
@@ -135,14 +135,14 @@
 <tbody>{{range .List}}<tr>
   <td>{{.Version}}</td><td>{{platformName .Platform}}</td><td>{{fmtTime .CreatedAt}}<br><span class="muted">{{.CreatedBy}}</span></td><td>{{if .Signer}}{{.Signer}}{{else}}<span class="muted">{{t "non firmato"}}</span>{{end}}</td>
   <td>{{with .Token}}{{if .RevokedAt}}<span class="badge revoked">{{t "revocato"}}</span>{{else}}{{tf "valido fino al %s" (fmtTime .ExpiresAt)}} · {{tf "%d registrazioni" .Uses}}
-    {{if $.IsAdmin}}<form method="post" action="/tokens/{{.ID}}/revoke" class="inline">
+    {{if $.IsSuper}}<form method="post" action="/tokens/{{.ID}}/revoke" class="inline">
       <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="return" value="/agent-installer">
       <button class="link danger" title="{{t "Nessun nuovo PC potrà registrarsi con questo installer; i PC già registrati non ne risentono."}}">{{t "Revoca"}}</button></form>{{end}}{{end}}{{end}}</td>
   <td><code class="small">{{.SHA256}}</code></td>
   <td><a href="/agent-installer/{{.ID}}/download">{{t "Scarica"}}</a></td>
 </tr>{{end}}</tbody>
 </table>
-<p class="muted">{{t "Ogni installer contiene un proprio token di registrazione. Se un installer finisce in mani sbagliate, revocalo qui: i PC già registrati non ne risentono."}}{{if $.IsAdmin}} <a href="/tokens">{{t "Token per installazioni manuali"}}</a>{{end}}</p>
+<p class="muted">{{t "Ogni installer contiene un proprio token di registrazione. Se un installer finisce in mani sbagliate, revocalo qui: i PC già registrati non ne risentono."}}{{if $.IsSuper}} <a href="/tokens">{{t "Token per installazioni manuali"}}</a>{{end}}</p>
 {{end}}
 {{end}}
 {{end}}

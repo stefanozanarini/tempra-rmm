@@ -49,6 +49,8 @@ type Memory struct {
 	vulnHistory map[string]map[time.Time]VulnCounts
 	exposures   map[string][]exposureRow
 	presence    map[string]map[[2]string]*AgentPresence
+
+	scopes map[string]Scope // tenant/subject
 }
 
 func NewMemory() *Memory {

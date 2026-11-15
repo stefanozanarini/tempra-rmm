@@ -237,6 +237,9 @@ message Job {
   // Packages the agent downloads into the work directory before running
   // the module (e.g. an MSI to install).
   repeated PackageRef packages = 12;
+  // client or server: the agent refuses the job on a computer of another
+  // family (agents from 1.1.8). Empty: any.
+  string os_family = 13;
 }
 
 message JobUpdate {

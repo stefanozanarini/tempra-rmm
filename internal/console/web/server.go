@@ -280,7 +280,10 @@ func funcs(lang string) template.FuncMap {
 		"blankStep": func() workflow.Step { return workflow.Step{Type: workflow.StepInstall} },
 		"blankRule": func() workflow.Rule { return workflow.Rule{Type: workflow.RuleApp, Op: workflow.OpExists} },
 		// in: whether v is one of the space-separated words of list.
-		"in": func(v, list string) bool { return slices.Contains(strings.Fields(list), v) },
+		"in":   func(v, list string) bool { return slices.Contains(strings.Fields(list), v) },
+		"has":  func(list []string, v string) bool { return slices.Contains(list, v) },
+		"join": strings.Join,
+
 		// qs builds a query string from key/value pairs, skipping empty values.
 		"qs": func(kv ...string) string {
 			v := url.Values{}
@@ -351,9 +354,9 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /agents/{id}/revoke", s.role(authn.RoleAdmin, s.handleRevoke))
 	mux.Handle("POST /agents/{id}/jobs", s.role(authn.RoleOperator, s.handleRunJob))
 	mux.Handle("POST /agents/{id}/collect", s.role(authn.RoleOperator, s.handleCollect))
-	mux.Handle("POST /agents/{id}/ad-reader", s.role(authn.RoleAdmin, s.handleADReader))
-	mux.Handle("POST /agents/{id}/ring", s.role(authn.RoleAdmin, s.handleSetRing))
-	mux.Handle("POST /agents/ring", s.role(authn.RoleAdmin, s.handleSetRing))
+	mux.Handle("POST /agents/{id}/ad-reader", s.role(authn.RoleSuperadmin, s.handleADReader))
+	mux.Handle("POST /agents/{id}/ring", s.role(authn.RoleSuperadmin, s.handleSetRing))
+	mux.Handle("POST /agents/ring", s.role(authn.RoleSuperadmin, s.handleSetRing))
 	mux.Handle("POST /agents/{id}/firmware", s.role(authn.RoleOperator, s.handleFirmwareInstall))
 	mux.Handle("POST /agents/{id}/firmware-tool", s.role(authn.RoleOperator, s.handleFirmwareTool))
 	mux.Handle("POST /agents/{id}/shell", s.role(authn.RoleOperator, s.handleOpenShell))
@@ -376,15 +379,15 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /jobs/{id}", s.auth(s.handleJob))
 	mux.Handle("GET /modules", s.auth(s.handleModules))
 	mux.Handle("GET /updates", s.auth(s.handleUpdates))
-	mux.Handle("POST /updates/target", s.role(authn.RoleAdmin, s.handleSetTarget))
-	mux.Handle("POST /updates/auto-pilot", s.role(authn.RoleAdmin, s.handleAutoPilot))
+	mux.Handle("POST /updates/target", s.role(authn.RoleSuperadmin, s.handleSetTarget))
+	mux.Handle("POST /updates/auto-pilot", s.role(authn.RoleSuperadmin, s.handleAutoPilot))
 	mux.Handle("GET /reports", s.auth(s.handleReports))
 	mux.Handle("GET /reports/query", s.auth(s.handleReportQuery))
 	mux.Handle("GET /security", s.auth(s.handleSecurity))
 	mux.Handle("GET /security/vulnerabilities", s.auth(s.handleSecurityVulns))
-	mux.Handle("GET /tokens", s.role(authn.RoleAdmin, s.handleTokens))
-	mux.Handle("POST /tokens", s.role(authn.RoleAdmin, s.handleCreateToken))
-	mux.Handle("POST /tokens/{id}/revoke", s.role(authn.RoleAdmin, s.handleRevokeToken))
+	mux.Handle("GET /tokens", s.role(authn.RoleSuperadmin, s.handleTokens))
+	mux.Handle("POST /tokens", s.role(authn.RoleSuperadmin, s.handleCreateToken))
+	mux.Handle("POST /tokens/{id}/revoke", s.role(authn.RoleSuperadmin, s.handleRevokeToken))
 	mux.Handle("GET /audit", s.auth(s.handleAudit))
 	mux.Handle("GET /alerts", s.auth(s.handleAlerts))
 	mux.Handle("GET /patches", s.auth(s.handlePatches))
@@ -427,28 +430,28 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /groups/{id}", s.auth(s.handleGroup))
 	mux.Handle("POST /groups/{id}", s.role(authn.RoleOperator, s.handleEditGroup))
 	mux.Handle("GET /sites", s.auth(s.handleSites))
-	mux.Handle("POST /sites", s.role(authn.RoleAdmin, s.handleSaveSite))
+	mux.Handle("POST /sites", s.role(authn.RoleSuperadmin, s.handleSaveSite))
 	mux.Handle("POST /theme", s.auth(s.handleTheme))
 	mux.Handle("POST /lang", s.auth(s.handleLang))
 	mux.Handle("GET /ad", s.auth(s.handleAD))
-	mux.Handle("GET /setup", s.role(authn.RoleAdmin, s.handleSetup))
-	mux.Handle("POST /setup/codesign", s.role(authn.RoleAdmin, s.handleSaveCodeSigning))
+	mux.Handle("GET /setup", s.role(authn.RoleSuperadmin, s.handleSetup))
+	mux.Handle("POST /setup/codesign", s.role(authn.RoleSuperadmin, s.handleSaveCodeSigning))
 	mux.Handle("GET /setup/{file}", s.auth(s.handleCodeSigningCert))
 	mux.Handle("POST /alerts/{id}/ack", s.role(authn.RoleOperator, s.handleAckAlert))
-	mux.Handle("GET /settings", s.role(authn.RoleAdmin, s.handleSettings))
-	mux.Handle("POST /settings", s.role(authn.RoleAdmin, s.handleSaveSettings))
-	mux.Handle("POST /settings/files", s.role(authn.RoleAdmin, s.handleSaveFileLimit))
-	mux.Handle("POST /settings/last-user", s.role(authn.RoleAdmin, s.handleSaveLastUser))
-	mux.Handle("POST /settings/logo", s.role(authn.RoleAdmin, s.handleLogoUpload))
+	mux.Handle("GET /settings", s.role(authn.RoleSuperadmin, s.handleSettings))
+	mux.Handle("POST /settings", s.role(authn.RoleSuperadmin, s.handleSaveSettings))
+	mux.Handle("POST /settings/files", s.role(authn.RoleSuperadmin, s.handleSaveFileLimit))
+	mux.Handle("POST /settings/last-user", s.role(authn.RoleSuperadmin, s.handleSaveLastUser))
+	mux.Handle("POST /settings/logo", s.role(authn.RoleSuperadmin, s.handleLogoUpload))
 	mux.Handle("GET /logo", s.auth(s.handleLogo))
 	mux.Handle("GET /policies", s.auth(s.handlePolicies))
-	mux.Handle("GET /policies/new", s.role(authn.RoleAdmin, s.handlePolicyForm))
-	mux.Handle("GET /policies/{id}", s.role(authn.RoleAdmin, s.handlePolicyForm))
-	mux.Handle("POST /policies", s.role(authn.RoleAdmin, s.handleSavePolicy))
-	mux.Handle("POST /policies/{id}/delete", s.role(authn.RoleAdmin, s.handleDeletePolicy))
+	mux.Handle("GET /policies/new", s.role(authn.RoleSuperadmin, s.handlePolicyForm))
+	mux.Handle("GET /policies/{id}", s.role(authn.RoleSuperadmin, s.handlePolicyForm))
+	mux.Handle("POST /policies", s.role(authn.RoleSuperadmin, s.handleSavePolicy))
+	mux.Handle("POST /policies/{id}/delete", s.role(authn.RoleSuperadmin, s.handleDeletePolicy))
 	mux.Handle("GET /agent-installer", s.role(authn.RoleOperator, s.handleInstallers))
-	mux.Handle("POST /agent-installer/build", s.role(authn.RoleAdmin, s.handleBuildInstaller))
-	mux.Handle("POST /agent-installer/confirm", s.role(authn.RoleAdmin, s.handleConfirmInstaller))
+	mux.Handle("POST /agent-installer/build", s.role(authn.RoleSuperadmin, s.handleBuildInstaller))
+	mux.Handle("POST /agent-installer/confirm", s.role(authn.RoleSuperadmin, s.handleConfirmInstaller))
 	mux.Handle("GET /agent-installer/{id}/msi", s.role(authn.RoleOperator, s.handleDownloadInstaller))
 	mux.Handle("GET /agent-installer/{id}/download", s.role(authn.RoleOperator, s.handleDownloadInstaller))
 	mux.Handle("POST /agent-installer/signing/ca", s.console(s.handleCreateSigningCA))
@@ -464,13 +467,15 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /updates/publish", s.console(s.startPublish(releasesKind)))
 	mux.Handle("POST "+publishReleasePath, s.console(s.handlePublishRelease))
 	mux.Handle("GET /federation", s.auth(s.handleFederation))
-	mux.Handle("POST /federation/links", s.role(authn.RoleAdmin, s.handleCreateLink))
-	mux.Handle("POST /federation/links/{id}/revoke", s.role(authn.RoleAdmin, s.handleRevokeLink))
+	mux.Handle("GET /scopes", s.role(authn.RoleSuperadmin, s.handleScopes))
+	mux.Handle("POST /scopes", s.role(authn.RoleSuperadmin, s.handleSaveScope))
+	mux.Handle("POST /federation/links", s.role(authn.RoleSuperadmin, s.handleCreateLink))
+	mux.Handle("POST /federation/links/{id}/revoke", s.role(authn.RoleSuperadmin, s.handleRevokeLink))
 	mux.Handle("POST /federation/open", s.auth(s.handleOpenLink))
 	mux.Handle("POST /federation/close", s.auth(s.handleCloseLink))
 	mux.Handle("GET /federation/stepup", s.role(authn.RoleOperator, s.handleFedStepUp))
-	mux.Handle("POST /federation/join", s.role(authn.RoleAdmin, s.handleJoin))
-	mux.Handle("POST /federation/uplink/{action}", s.role(authn.RoleAdmin, s.handleUplinkState))
+	mux.Handle("POST /federation/join", s.role(authn.RoleSuperadmin, s.handleJoin))
+	mux.Handle("POST /federation/uplink/{action}", s.role(authn.RoleSuperadmin, s.handleUplinkState))
 	return s.secure(s.federate(mux))
 }
 
@@ -532,6 +537,13 @@ func (s *Server) auth(h ctxHandler) http.Handler {
 				return
 			}
 		}
+		// A role withdrawn since sign-in takes effect at once; changing
+		// tenant and signing out still work.
+		if s.access(r.Context(), sess).Role() == "" && r.URL.Path != "/tenant" && r.URL.Path != "/logout" {
+			s.log.Warn("operator without a role", "operator", sess.data.Operator.Username, "tenant", sess.data.Tenant, "path", r.URL.Path)
+			http.Error(w, tr(langOf(r, sess), "accesso negato: nessun ruolo Tempra RMM assegnato"), http.StatusForbidden)
+			return
+		}
 		// Refresh the idle timeout.
 		if err := s.save(r.Context(), w, sess); err != nil {
 			s.fail(w, r, err)
@@ -541,12 +553,13 @@ func (s *Server) auth(h ctxHandler) http.Handler {
 	})
 }
 
-// role requires one of the given roles; Admin implies Operator and Reader.
+// role requires a role on the session's tenant; each role includes the
+// ones below it (superadmin, admin, operator, reader).
 func (s *Server) role(role string, h ctxHandler) http.Handler {
 	return s.auth(func(w http.ResponseWriter, r *http.Request) {
-		op := sessionFrom(r.Context()).data.Operator
-		if !hasRole(op, role) {
-			s.log.Warn("forbidden", "operator", op.Username, "path", r.URL.Path, "needs", role)
+		sess := sessionFrom(r.Context())
+		if !s.access(r.Context(), sess).atLeast(role) {
+			s.log.Warn("forbidden", "operator", sess.data.Operator.Username, "path", r.URL.Path, "needs", role)
 			http.Error(w, s.T(r, "permesso negato"), http.StatusForbidden)
 			return
 		}
@@ -554,13 +567,11 @@ func (s *Server) role(role string, h ctxHandler) http.Handler {
 	})
 }
 
-func hasRole(op *Operator, role string) bool {
-	for _, r := range op.Roles {
-		if r == role || r == authn.RoleAdmin || (role == authn.RoleReader && r == authn.RoleOperator) {
-			return true
-		}
-	}
-	return false
+// can reports whether the request's operator has role on the session's
+// tenant.
+func (s *Server) can(r *http.Request, role string) bool {
+	sess := sessionFrom(r.Context())
+	return sess != nil && sess.data.Operator != nil && s.access(r.Context(), sess).atLeast(role)
 }
 
 func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error) {
@@ -577,10 +588,14 @@ type page struct {
 	Tenant   store.Tenant
 	Tenants  []store.Tenant
 	Flash    string
-	IsAdmin  bool
-	CanRun   bool
-	Data     any
-	Refresh  int
+	// Access is the operator's role on the tenant; IsSuper, IsAdmin and
+	// CanRun tell superadmin, admin and operator (or above) apart.
+	Access  Access
+	IsSuper bool
+	IsAdmin bool
+	CanRun  bool
+	Data    any
+	Refresh int
 	// OpenAlerts is shown in the navigation.
 	OpenAlerts int
 	// Theme is the operator's choice: "" (the default, dark), light, dark
@@ -604,9 +619,11 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, name, title stri
 		op := sess.data.Operator
 		p.Operator, p.CSRF, p.Flash, p.Theme = op, sess.data.CSRF, sess.data.Flash, sess.data.Theme
 		p.Path = r.URL.RequestURI()
-		p.IsAdmin, p.CanRun = hasRole(op, authn.RoleAdmin), hasRole(op, authn.RoleOperator)
+		a := s.access(r.Context(), sess)
+		p.Access = a
+		p.IsSuper, p.IsAdmin, p.CanRun = a.Super(), a.atLeast(authn.RoleAdmin), a.atLeast(authn.RoleOperator)
 		p.Federated = op.Federated
-		p.ShowLinks = !op.Federated && (s.hub != nil || (s.fedVerifier != nil && p.IsAdmin))
+		p.ShowLinks = !op.Federated && (s.hub != nil || (s.fedVerifier != nil && p.IsSuper))
 		for _, id := range op.Tenants {
 			if t, err := s.store.GetTenant(r.Context(), id); err == nil {
 				p.Tenants = append(p.Tenants, t)

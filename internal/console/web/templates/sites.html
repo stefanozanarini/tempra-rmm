@@ -4,13 +4,13 @@
 <form method="post" action="/sites" class="stack">
   <input type="hidden" name="csrf" value="{{$.CSRF}}">
   <input type="hidden" name="id" value="{{.ID}}">
-  <label>{{t "Nome"}} <input name="name" value="{{.Name}}" required maxlength="64" {{if not $.IsAdmin}}disabled{{end}}></label>
-  <label>{{t "Subnet (una per riga)"}} <textarea name="subnets" rows="3" spellcheck="false" {{if not $.IsAdmin}}disabled{{end}}>{{range .Subnets}}{{.}}
+  <label>{{t "Nome"}} <input name="name" value="{{.Name}}" required maxlength="64" {{if not $.IsSuper}}disabled{{end}}></label>
+  <label>{{t "Subnet (una per riga)"}} <textarea name="subnets" rows="3" spellcheck="false" {{if not $.IsSuper}}disabled{{end}}>{{range .Subnets}}{{.}}
 {{end}}</textarea></label>
-  {{if $.IsAdmin}}<div class="actions"><button class="primary">{{t "Salva"}}</button><button name="delete" value="1" class="danger">{{t "Elimina"}}</button></div>{{end}}
+  {{if $.IsSuper}}<div class="actions"><button class="primary">{{t "Salva"}}</button><button name="delete" value="1" class="danger">{{t "Elimina"}}</button></div>{{end}}
 </form>
 {{else}}<p class="muted">{{t "Nessuna sede."}}</p>{{end}}
-{{if .IsAdmin}}
+{{if .IsSuper}}
 <h2>{{t "Nuova sede"}}</h2>
 <form method="post" action="/sites" class="stack">
   <input type="hidden" name="csrf" value="{{.CSRF}}">

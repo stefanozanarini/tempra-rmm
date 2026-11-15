@@ -115,7 +115,7 @@ func TestSignerPolicyApproval(t *testing.T) {
 
 	// An operator (not admin) cannot approve policies.
 	op := admin
-	op.Roles = []string{authn.RoleOperator}
+	op.Roles = []string{authn.AppOperator}
 	if _, err := e.signer.SignPolicy(ctx, &openrmmv1.SignPolicyRequest{TenantId: e.tenant, PolicyJson: raw,
 		IdToken: e.tokenFor(t, op, policy.AuthNonce(raw))}); status.Code(err) != codes.PermissionDenied {
 		t.Fatalf("operator approval: %v", err)

@@ -787,17 +787,26 @@ func (s *Server) handleApproveProfile(w http.ResponseWriter, r *http.Request) {
 		s.flash(w, r, s.T(r, "Il profilo è cambiato nel frattempo: controlla l'ultima versione e approvala."), back)
 		return
 	}
+	sess := sessionFrom(r.Context())
+	a := s.access(r.Context(), sess)
+	// A profile runs on any new computer: not for administrators of some
+	// sites or groups, nor of servers only (provisioning is for clients).
+	fam, ok := a.Family(authn.RoleAdmin)
+	if !a.Super() && (len(a.SiteIDs) > 0 || len(a.GroupIDs) > 0 || !ok || fam == "server") {
+		s.flash(w, r, s.T(r, "Il tuo ruolo non permette di approvare profili di provisioning."), back)
+		return
+	}
 	req, msg := s.buildProfileRequest(r, p, days, ttlMin)
 	if msg != "" {
 		s.flash(w, r, msg, back)
 		return
 	}
+	req.OsFamily = fam
 	raw, err := proto.Marshal(req)
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	sess := sessionFrom(r.Context())
 	pd := &Pending{Purpose: "profile", State: ids.NewSecret(24), Nonce: profilereq.AuthNonce(req),
 		CodeVerifier: oauth2.GenerateVerifier(), StartedAt: s.now(), ProfileReq: raw, Return: back}
 	sess.data.Pending = pd
@@ -890,6 +899,14 @@ func (s *Server) handleStartProvisioning(w http.ResponseWriter, r *http.Request)
 	}
 	if r.PostFormValue("confirm") == "" {
 		s.flash(w, r, s.T(r, "Conferma che i computer sono appena installati e che i loro dati possono andare persi."), back)
+		return
+	}
+	var agentIDs []string
+	for _, a := range agents {
+		agentIDs = append(agentIDs, a.ID)
+	}
+	if err := s.checkScope(r, t, s.access(r.Context(), sessionFrom(r.Context())), authn.RoleOperator, agentIDs); err != nil {
+		s.flash(w, r, s.scopeMessage(r, err), back)
 		return
 	}
 	id := r.PostFormValue("profile")

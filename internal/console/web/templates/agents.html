@@ -57,7 +57,7 @@
   <a href="/agents{{qs "family" .Family "q" .Query "ou" .OU "group" .Group "show" .Show}}" {{if not .Site}}class="current"{{end}}>{{t "Tutte le sedi"}}</a>
   {{range .Sites}}<a href="/agents{{qs "site" .ID "family" $.Data.Family "q" $.Data.Query "ou" $.Data.OU "group" $.Data.Group "show" $.Data.Show}}" {{if eq $.Data.Site .ID}}class="current"{{end}}>{{.Name}} <span class="muted">{{.Count}}</span></a>{{end}}
   <a href="/agents{{qs "site" "none" "family" .Family "q" .Query "ou" .OU "group" .Group "show" .Show}}" {{if eq .Site "none"}}class="current"{{end}}>{{t "Senza sede"}} <span class="muted">{{.NoSite}}</span></a>
-  <a class="muted small" href="/sites">{{if $.IsAdmin}}{{t "gestisci le sedi"}}{{else}}{{t "sedi"}}{{end}}</a>
+  <a class="muted small" href="/sites">{{if $.IsSuper}}{{t "gestisci le sedi"}}{{else}}{{t "sedi"}}{{end}}</a>
   {{if .OUs}}<details class="tree-group" open data-remember="agents.ad"{{if .OU}} data-keep-open{{end}}>
   <summary class="tree-title">Active Directory</summary>
   {{if .OU}}<a href="/agents{{qs "family" .Family "q" .Query "site" .Site "group" .Group "show" .Show}}">{{t "Tutte le OU"}}</a>{{end}}

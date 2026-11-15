@@ -237,6 +237,7 @@ func (c *Client) connect(ctx context.Context, id *identity.Identity) (bool, erro
 	if err != nil {
 		return false, err
 	}
+	verifier.SetOSFamily(hostinfo.OSFamily())
 	exec, pols, err := c.executorFor(id)
 	if err != nil {
 		return false, err

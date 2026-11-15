@@ -20,11 +20,11 @@
   <dt>{{t "Sede"}}</dt><dd>{{if .Site.Name}}{{.Site.Name}}{{else}}<span class="muted">{{t "senza sede"}}</span>{{end}}{{if .Site.Manual}} <span class="badge">{{t "assegnata a mano"}}</span>{{end}}</dd>
   <dt>{{t "Registrato"}}</dt><dd>{{fmtTime .Agent.EnrolledAt}}</dd>
   <dt>{{t "Approvato"}}</dt><dd>{{fmtTime .Agent.ApprovedAt}} {{.Agent.ApprovedBy}}</dd>
-  <dt>{{t "Anello aggiornamenti"}}{{help "section:ring"}}</dt><dd>{{if $.IsAdmin}}<form method="post" action="/agents/{{.Agent.ID}}/ring" class="inline">
+  <dt>{{t "Anello aggiornamenti"}}{{help "section:ring"}}</dt><dd>{{if $.IsSuper}}<form method="post" action="/agents/{{.Agent.ID}}/ring" class="inline">
     <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="return" value="{{.Return}}">
     <select name="ring" aria-label="{{t "Anello aggiornamenti"}}"><option value="broad"{{if eq .Agent.UpdateRing "broad"}} selected{{end}}>broad</option><option value="pilot"{{if eq .Agent.UpdateRing "pilot"}} selected{{end}}>pilot</option></select>
     <button>{{t "Salva"}}</button></form>{{else}}{{.Agent.UpdateRing}}{{end}}</dd>
-  {{if and $.IsAdmin (eq .Agent.Host.OS "windows") (eq .Agent.Status "active")}}
+  {{if and $.IsSuper (eq .Agent.Host.OS "windows") (eq .Agent.Status "active")}}
   <dt>Active Directory</dt><dd><form method="post" action="/agents/{{.Agent.ID}}/ad-reader" class="inline">
     <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="return" value="{{.Return}}">
     {{if .ADReader}}<span class="badge chk-ok">{{t "legge Active Directory ogni 24 ore"}}</span> <input type="hidden" name="on" value="0"><button>{{t "Smetti di leggere"}}</button>

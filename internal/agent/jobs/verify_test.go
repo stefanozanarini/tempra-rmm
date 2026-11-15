@@ -125,3 +125,23 @@ func TestVerifyReturnsInvalidAuthenticJob(t *testing.T) {
 		t.Fatalf("forged job returned: %v, %v", got, err)
 	}
 }
+
+func TestVerifyOSFamily(t *testing.T) {
+	f := newFixture(t)
+	v := f.verifier(t)
+	v.SetOSFamily("client")
+	for fam, ok := range map[string]bool{"": true, "client": true, "server": false} {
+		j := f.job()
+		j.OsFamily = fam
+		if _, err := v.Verify(f.seal(j), f.now); (err == nil) != ok || (!ok && !errors.Is(err, ErrInvalid)) {
+			t.Errorf("job for %q on a client: %v", fam, err)
+		}
+	}
+	// An unknown family accepts only unrestricted jobs.
+	v.SetOSFamily("unknown")
+	j := f.job()
+	j.OsFamily = "client"
+	if _, err := v.Verify(f.seal(j), f.now); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("restricted job on an unknown family: %v", err)
+	}
+}

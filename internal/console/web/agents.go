@@ -10,6 +10,7 @@ import (
 
 	"github.com/stefanozanarini/tempra-rmm/internal/accesslog"
 	"github.com/stefanozanarini/tempra-rmm/internal/adinv"
+	"github.com/stefanozanarini/tempra-rmm/internal/console/authn"
 	"github.com/stefanozanarini/tempra-rmm/internal/console/store"
 	"github.com/stefanozanarini/tempra-rmm/internal/ids"
 	"github.com/stefanozanarini/tempra-rmm/internal/updates"
@@ -697,6 +698,13 @@ func (s *Server) handleMoveAgents(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(agents) == 0 || len(agents) > 1000 {
 		s.flash(w, r, s.T(r, "Seleziona almeno un agente."), back)
+		return
+	}
+	if s.guardScopeChange(w, r, t, "", back) {
+		return
+	}
+	if err := s.checkScope(r, t, s.access(r.Context(), sessionFrom(r.Context())), authn.RoleOperator, agents); err != nil {
+		s.flash(w, r, s.scopeMessage(r, err), back)
 		return
 	}
 	n, err := s.moveAgents(r, t, agents, site)

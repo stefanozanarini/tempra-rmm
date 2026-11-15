@@ -160,7 +160,7 @@ func TestConsoleSetupAndCodeSigning(t *testing.T) {
 
 	// Operators do not see the setup page nor change the certificate.
 	op := admin
-	op.OID, op.Roles = ids.NewUUID(), []string{authn.RoleOperator}
+	op.OID, op.Roles = ids.NewUUID(), []string{authn.AppOperator}
 	oc, ocsrf := e.login(t, op)
 	if code, _ := get(t, oc, e.console.URL+"/setup"); code != http.StatusForbidden {
 		t.Fatalf("operator opened setup: %d", code)

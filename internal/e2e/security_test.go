@@ -145,7 +145,7 @@ func TestConsoleAlertsAndSettings(t *testing.T) {
 
 	// A reader sees alerts but cannot take them in charge or change settings.
 	reader := admin
-	reader.OID, reader.Roles = ids.NewUUID(), []string{authn.RoleReader}
+	reader.OID, reader.Roles = ids.NewUUID(), []string{authn.AppReader}
 	rc, rcsrf := e.login(t, reader)
 	_, body := get(t, rc, e.console.URL+"/alerts")
 	if !strings.Contains(body, "203.0.113.7") || strings.Contains(body, "Prendi in carico") || !strings.Contains(body, `sev-critical">1<`) {

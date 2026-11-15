@@ -13,16 +13,16 @@
 <p class="muted">{{t "Dimensione massima di un file scaricato o caricato con la gestione dei file. Vale per le sessioni aperte da ora in poi: il limite è scritto nel comando firmato e l'agente lo applica."}}</p>
 <form method="post" action="/settings/files" class="inline">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
-  <label>{{t "Limite per file (MB)"}} <input type="number" name="file_max_mb" min="1" max="{{.Data.FileMaxCap}}" value="{{.Data.FileMaxMB}}" {{if not .IsAdmin}}disabled{{end}}></label>
-  {{if .IsAdmin}}<button class="primary">{{t "Salva"}}</button>{{end}}
+  <label>{{t "Limite per file (MB)"}} <input type="number" name="file_max_mb" min="1" max="{{.Data.FileMaxCap}}" value="{{.Data.FileMaxMB}}" {{if not .IsSuper}}disabled{{end}}></label>
+  {{if .IsSuper}}<button class="primary">{{t "Salva"}}</button>{{end}}
 </form>
 
 <h2 id="last-user">{{t "Utente dei computer"}}</h2>
 <p class="muted">{{t "Quando nessuno è collegato o il computer è spento, la console continua a mostrare l'ultimo utente visto (dall'inventario o dagli accessi interattivi e RDP) per questo numero di giorni."}}</p>
 <form method="post" action="/settings/last-user" class="inline">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
-  <label>{{t "Mostra l'ultimo utente per (giorni)"}} <input type="number" name="last_user_days" min="1" max="90" value="{{.Data.LastUserDays}}" {{if not .IsAdmin}}disabled{{end}}></label>
-  {{if .IsAdmin}}<button class="primary">{{t "Salva"}}</button>{{end}}
+  <label>{{t "Mostra l'ultimo utente per (giorni)"}} <input type="number" name="last_user_days" min="1" max="90" value="{{.Data.LastUserDays}}" {{if not .IsSuper}}disabled{{end}}></label>
+  {{if .IsSuper}}<button class="primary">{{t "Salva"}}</button>{{end}}
 </form>
 
 <h2 id="logo">{{t "Logo aziendale"}}</h2>

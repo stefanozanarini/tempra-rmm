@@ -2,16 +2,38 @@ package authn
 
 import (
 	"encoding/base64"
-	"slices"
 	"testing"
 )
 
-func TestCapRoles(t *testing.T) {
-	if got := capRoles([]string{RoleAdmin, RoleReader}, RoleOperator); !slices.Equal(got, []string{RoleOperator, RoleReader}) {
-		t.Fatalf("capRoles = %v", got)
+func TestAccessOf(t *testing.T) {
+	cases := []struct {
+		roles            []string
+		max              string
+		clients, servers string
+	}{
+		{[]string{AppAdmin}, "", RoleSuperadmin, RoleSuperadmin},
+		{[]string{AppAdminClients}, "", RoleAdmin, RoleReader},
+		{[]string{AppAdminClients, AppOperatorServers}, "", RoleAdmin, RoleOperator},
+		{[]string{AppAdminClients, AppAdminServers}, "", RoleAdmin, RoleAdmin},
+		{[]string{AppOperatorServers}, "", RoleReader, RoleOperator},
+		{[]string{AppReader}, "", RoleReader, RoleReader},
+		{[]string{AppAdmin}, RoleOperator, RoleOperator, RoleOperator},
+		{[]string{"User", "msiam_access"}, "", "", ""},
 	}
-	if got := capRoles([]string{RoleAdmin, RoleOperator}, RoleReader); !slices.Equal(got, []string{RoleReader}) {
-		t.Fatalf("capRoles = %v", got)
+	for _, c := range cases {
+		if a := AccessOf(c.roles, c.max); a.Clients != c.clients || a.Servers != c.servers {
+			t.Errorf("%v cap %q = %+v", c.roles, c.max, a)
+		}
+	}
+	a := AccessOf([]string{AppAdminClients, AppOperatorServers}, "")
+	if f, ok := a.Family(RoleOperator); !ok || f != "" {
+		t.Fatalf("operator family = %q %v", f, ok)
+	}
+	if f, ok := a.Family(RoleAdmin); !ok || f != "client" {
+		t.Fatalf("admin family = %q %v", f, ok)
+	}
+	if _, ok := a.Family(RoleSuperadmin); ok || a.Super() || a.Role() != RoleAdmin || a.On("") != RoleOperator {
+		t.Fatal("superadmin, Role or On")
 	}
 }
 
@@ -38,8 +60,12 @@ func TestFederationFromEnv(t *testing.T) {
 	t.Setenv("OPENRMM_FEDERATION_CLIENT_ID", "app")
 	t.Setenv("OPENRMM_FEDERATION_TENANT_MAP", "6f1c2b1e-3d4a-4b5c-8d9e-0f1a2b3c4d5e=7a1c2b1e-3d4a-4b5c-8d9e-0f1a2b3c4d5e")
 	c, ok, err := FederationFromEnv()
-	if !ok || err != nil || c.MaxRole != RoleAdmin || c.MFAClaim != "amr" {
+	if !ok || err != nil || c.MaxRole != RoleSuperadmin || c.MFAClaim != "amr" {
 		t.Fatalf("config = %+v %v %v", c, ok, err)
+	}
+	t.Setenv("OPENRMM_FEDERATION_MAX_ROLE", AppOperator)
+	if c, _, err := FederationFromEnv(); err != nil || c.MaxRole != RoleOperator {
+		t.Fatalf("app role as maximum: %q %v", c.MaxRole, err)
 	}
 	t.Setenv("OPENRMM_FEDERATION_MAX_ROLE", "root")
 	if _, _, err := FederationFromEnv(); err == nil {

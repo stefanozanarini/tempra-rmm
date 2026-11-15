@@ -169,7 +169,8 @@ type Operator struct {
 	Name     string   `json:"name"`
 	Username string   `json:"username"`
 	Roles    []string `json:"roles"`
-	Session  string   `json:"session"` // random per central session
+	Groups   []string `json:"groups,omitempty"` // security group object ids, for scopes
+	Session  string   `json:"session"`          // random per central session
 	Lang     string   `json:"lang,omitempty"`
 	Theme    string   `json:"theme,omitempty"`
 }
