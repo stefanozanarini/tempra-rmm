@@ -1125,3 +1125,71 @@ func testVulnHistory(t *testing.T, s Store) {
 		t.Fatalf("history: %+v", got)
 	}
 }
+
+func TestDashStats(t *testing.T) { testDashStats(t, NewMemory()) }
+
+func testDashStats(t *testing.T, s Store) {
+	ctx := context.Background()
+	tenant := Tenant{ID: ids.NewUUID(), Name: "t"}
+	if err := s.CreateTenant(ctx, tenant); err != nil {
+		t.Fatal(err)
+	}
+	agent := Agent{TenantID: tenant.ID, ID: ids.NewUUID(), Status: AgentActive, Host: HostInfo{Hostname: "pc"},
+		CertFingerprint: "fp-" + ids.NewUUID(), CertNotAfter: time.Now().Add(time.Hour)}
+	if err := s.CreateAgent(ctx, agent); err != nil {
+		t.Fatal(err)
+	}
+	mod := Module{Version: "1.0.0", KeyID: "k", Manifest: []byte("{}"), Signature: []byte("s"), ManifestSHA256: make([]byte, 32), Archive: []byte("zip")}
+	mod.ID = "mod-" + strings.ToLower(ids.NewUUID()[:8])
+	if err := s.PutModule(ctx, mod); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	for i := 0; i < 3; i++ {
+		j := Job{TenantID: tenant.ID, ID: ids.NewUUID(), AgentID: agent.ID, Module: mod.ID, ModuleVersion: "1.0.0", Action: "run",
+			Params: []byte(`{}`), Envelope: []byte("env"), CreatedBy: "t", ExpiresAt: now.Add(time.Hour)}
+		if err := s.CreateJob(ctx, j); err != nil {
+			t.Fatal(err)
+		}
+		if i == 0 {
+			if err := s.UpdateJob(ctx, tenant.ID, agent.ID, j.ID, JobUpdate{State: JobFailed, Error: "x"}, now); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	counts, err := s.JobCounts(ctx, tenant.ID, now.Add(-time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	by := map[JobState]int{}
+	for _, c := range counts {
+		if c.Module != mod.ID || c.AgentID != agent.ID || !c.Day.Equal(dayOf(now)) {
+			t.Fatalf("count %+v", c)
+		}
+		by[c.State] += c.Count
+	}
+	if by[JobFailed] != 1 || by[JobQueued] != 2 {
+		t.Fatalf("job counts %+v", by)
+	}
+
+	t0 := now.UTC().Truncate(time.Second)
+	inv := Inventory{TenantID: tenant.ID, AgentID: agent.ID, Data: []byte(`{}`), Summary: InventorySummary{CollectedAt: t0}}
+	if err := s.PutInventory(ctx, inv, []InventoryChange{
+		{At: t0.Add(-10 * 24 * time.Hour), Kind: "software.added", Detail: "Old 1"},
+		{At: t0, Kind: "software.added", Detail: "7-Zip 24.08"},
+		{At: t0, Kind: "software.removed", Detail: "WinRAR 6"},
+		{At: t0, Kind: "hardware", Detail: "memoria"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	recent, err := s.RecentInventoryChanges(ctx, tenant.ID, t0.Add(-7*24*time.Hour), "software.", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(recent) != 2 || recent[0].AgentID != agent.ID || recent[0].Kind == "hardware" || recent[1].Kind == "hardware" {
+		t.Fatalf("changes %+v", recent)
+	}
+	if one, _ := s.RecentInventoryChanges(ctx, tenant.ID, t0.Add(-7*24*time.Hour), "software.", 1); len(one) != 1 {
+		t.Fatalf("limit: %+v", one)
+	}
+}

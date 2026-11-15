@@ -343,3 +343,5 @@ table.hbars.criteria th { white-space:normal; max-width:none; width:50%; }
 table.hbars.criteria th .small { display:block; }
 table.hbars.criteria thead th { font-weight:600; color:var(--muted); }
 table.hbars.criteria td.num { white-space:nowrap; }
+table.changes { font-size:13px; margin-top:6px; }
+table.changes td:first-child { white-space:nowrap; }

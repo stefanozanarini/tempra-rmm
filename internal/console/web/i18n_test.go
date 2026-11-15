@@ -132,6 +132,15 @@ func usedKeys(t *testing.T) map[string]bool {
 		keys[c.Label] = keys[c.Label] || false
 		keys[c.Help] = keys[c.Help] || false
 	}
+	for _, l := range hwAgeLabels {
+		keys[l] = keys[l] || false
+	}
+	for _, l := range hwBelowLabels {
+		keys[l] = keys[l] || false
+	}
+	for _, js := range jobStates {
+		keys[js.Label] = keys[js.Label] || false
+	}
 	for _, l := range patchAgeLabels {
 		keys[l] = keys[l] || false
 	}

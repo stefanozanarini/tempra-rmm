@@ -37,6 +37,9 @@ type dashData struct {
 	Total, Online, Problems, Pending, Unseen int
 	Donuts                                   []donut
 	Bars                                     []barChart
+	Jobs                                     *lineChart // outcome of the jobs, nil without jobs
+	JobFails                                 barChart
+	Changes                                  *changesView // recent software changes
 }
 
 type donut struct {
@@ -688,6 +691,14 @@ func (s *Server) dashboard(r *http.Request, lang, t, site, group string) (*dashD
 	}
 	upd := newBars(tr(lang, "Applicazioni da aggiornare"), tr(lang, "computer con un aggiornamento disponibile (winget); clicca per aggiornare"), apps)
 	upd.Wide, upd.Empty = true, tr(lang, "Nessuna applicazione da aggiornare.")
+	hardwareCharts(lang, d, agents, byInv, now)
 	d.Bars = append(d.Bars, old, upd, pop)
+	names := map[string]string{}
+	for _, a := range agents {
+		names[a.ID] = a.Host.Hostname
+	}
+	if err := s.activityCharts(ctx, lang, t, d, allow, names); err != nil {
+		return nil, err
+	}
 	return d, nil
 }

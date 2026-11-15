@@ -137,6 +137,7 @@ type Store interface {
 	VulnFeedStore
 	VulnHistoryStore
 	VulnExposureStore
+	DashStatsStore
 }
 
 // HashToken returns the value stored in place of an enrollment token.

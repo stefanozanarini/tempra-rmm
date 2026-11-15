@@ -33,9 +33,16 @@ func TestConsoleDashboard(t *testing.T) {
 		}
 		if i == 0 {
 			inv.Batteries = []inventory.Battery{{Name: "BAT0", DesignCapacity: 50000, FullChargeCapacity: 45000}}
+			// Old and weak: a 2017 BIOS, 4 GB, a failing spinning disk.
+			inv.Firmware.Date, inv.Memory.TotalBytes = "2017-03-01", 4<<30
+			inv.Disks = []inventory.Disk{{Model: "ST500", MediaType: "HDD", SizeBytes: 500 << 30, Health: "Warning"}}
 		}
 		raw, _ := json.Marshal(inv)
-		e.store.PutInventory(ctx, store.Inventory{TenantID: e.tenant, AgentID: id, Data: raw, Summary: store.InventorySummary{CollectedAt: time.Now()}}, nil)
+		var changes []store.InventoryChange
+		if i == 0 { // a recent software change
+			changes = []store.InventoryChange{{At: now, Kind: inventory.ChangeSoftwareAdded, Detail: "Notepad++ 8.7"}}
+		}
+		e.store.PutInventory(ctx, store.Inventory{TenantID: e.tenant, AgentID: id, Data: raw, Summary: store.InventorySummary{CollectedAt: time.Now()}}, changes)
 		rep := []byte(`{"managed_by":"none","scanned_at":"` + now.UTC().Format(time.RFC3339) + `","updates":[],"pending_reboot":{"required":false}}`)
 		important := 0
 		if i == 1 {
@@ -64,7 +71,9 @@ func TestConsoleDashboard(t *testing.T) {
 	for _, want := range []string{`class="donut"`, "Tipi di dispositivo", "Portatili", "Windows 11 Pro 24H2", "30–60 giorni", "Libero: meno del 10%",
 		"Non cifrato", "Assente o disattivato", `href="/patches?show=missing"`, "1.0.2",
 		"Computer più indietro con gli aggiornamenti", `href="/reports?software=Java&amp;tab=computers"`, "2 versioni", "Software più installati",
-		"Applicazioni da aggiornare", `href="/patches/app?id=PuTTY.PuTTY"`} {
+		"Applicazioni da aggiornare", `href="/patches/app?id=PuTTY.PuTTY"`,
+		"Salute dei dischi", "Da tenere d&#39;occhio", "Età dell&#39;hardware", "oltre 5 anni", "Hardware sotto i requisiti", "RAM sotto 8 GB",
+		"disco meccanico (HDD)", "Nessun job negli ultimi 30 giorni.", "Modifiche software recenti", "Notepad&#43;&#43; 8.7", "installata"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("dashboard lacks %q: %s", want, body)
 		}
