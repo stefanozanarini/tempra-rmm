@@ -46,8 +46,48 @@ type panelTab struct {
 	Current        bool
 }
 
+// agentFilters narrow the list by state (?show=).
+var agentFilters = []struct{ Key, Label string }{
+	{"online", "Online"},
+	{"offline", "Offline"},
+	{"critical", "Problemi gravi"},
+	{"issues", "Con problemi"},
+	{"patches", "Patch mancanti"},
+	{"reboot", "Riavvio in sospeso"},
+	{"apps", "App da aggiornare"},
+}
+
+// shows tells whether the row is in the state filter f ("" is all).
+func (row agentRow) shows(f string) bool {
+	switch f {
+	case "online":
+		return row.Online
+	case "offline":
+		return !row.Online
+	case "critical":
+		return row.Alerts > 0 || row.Checks == "failing"
+	case "issues":
+		return row.Alerts > 0 || (row.Checks != "" && row.Checks != "ok") || row.Missing > 0 || row.Reboot
+	case "patches":
+		return row.Missing > 0
+	case "reboot":
+		return row.Reboot
+	case "apps":
+		return row.ThirdParty > 0
+	}
+	return true
+}
+
+type filterView struct {
+	Key, Label string
+	Count      int
+}
+
 type agentsData struct {
-	Family, Query, Site, OU  string
+	Family, Query, Site, OU string
+	// Show: the state filter, Filters the choices with their counts.
+	Show                     string
+	Filters                  []filterView
 	Group                    string      // group id filter
 	Groups                   []groupView // visible groups, Computers counted on all agents
 	Counts                   map[string]int
@@ -240,6 +280,12 @@ func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
 	if d.Family != "client" && d.Family != "server" {
 		d.Family = ""
 	}
+	filterCount := map[string]int{}
+	for _, f := range agentFilters {
+		if f.Key == q.Get("show") {
+			d.Show = f.Key
+		}
+	}
 	selected := q.Get("agent")
 	checked := map[string]bool{}
 	for _, id := range q["sel"] {
@@ -341,6 +387,16 @@ func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
 		if (d.Family != "" && a.Host.OSFamily != d.Family) || !inSite || !inUnit || (needle != "" && !row.matches(needle)) {
 			continue
 		}
+		if a.Status == store.AgentActive {
+			for _, f := range agentFilters {
+				if row.shows(f.Key) {
+					filterCount[f.Key]++
+				}
+			}
+		}
+		if !row.shows(d.Show) {
+			continue
+		}
 		row.Checked = checked[a.ID] || (all && a.Status == store.AgentActive)
 		switch a.Status {
 		case store.AgentPending:
@@ -354,6 +410,9 @@ func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
 	for _, st := range sites {
 		d.Sites = append(d.Sites, siteView{Site: st, Count: siteCount[st.ID]})
 	}
+	for _, f := range agentFilters {
+		d.Filters = append(d.Filters, filterView{Key: f.Key, Label: s.T(r, f.Label), Count: filterCount[f.Key]})
+	}
 	d.OUs = ouTree(allOUs, ouKeys)
 	base := url.Values{}
 	for _, k := range []string{"family", "q", "site", "ou"} {
@@ -363,6 +422,9 @@ func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
 	}
 	if d.Group != "" {
 		base.Set("group", d.Group)
+	}
+	if d.Show != "" {
+		base.Set("show", d.Show)
 	}
 	link := func(extra url.Values) string {
 		v := url.Values{}
@@ -424,6 +486,9 @@ func rowLink(d agentsData, agentID string) string {
 	}
 	if d.Group != "" {
 		v.Set("group", d.Group)
+	}
+	if d.Show != "" {
+		v.Set("show", d.Show)
 	}
 	if d.Tab != "" {
 		v.Set("tab", d.Tab)

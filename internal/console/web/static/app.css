@@ -309,3 +309,12 @@ details.wf-when[open] > summary { margin-bottom:6px; }
 /* Advanced search: fields and examples. */
 table.query-fields code { white-space:nowrap; }
 .query-examples li { margin:6px 0; }
+/* Agents list: resizable columns. */
+table.agents th { position:relative; }
+table.agents td { overflow:hidden; text-overflow:ellipsis; }
+.col-grip { position:absolute; top:0; right:-3px; width:7px; height:100%; cursor:col-resize; z-index:2; touch-action:none; }
+.col-grip:hover, body.resizing .col-grip:active { background:var(--accent); opacity:.5; }
+body.resizing { cursor:col-resize; user-select:none; }
+.list { overflow-x:auto; }
+nav.tabs.filters { flex-wrap:wrap; margin:0 0 10px; }
+nav.tabs.filters a { padding:3px 10px; font-size:.9em; }

@@ -167,6 +167,72 @@
   });
 })();
 
+// Agents list: drag the right edge of a column header to resize it; the
+// widths are remembered per browser, a double click on the edge resets them.
+(function () {
+  var tables = document.querySelectorAll("table.agents");
+  if (!tables.length) return;
+  function key(t) { return "open-rmm.agents.cols." + t.tHead.rows[0].cells.length; }
+  function apply(t, widths) {
+    var cells = t.tHead.rows[0].cells, total = 0;
+    for (var i = 0; i < cells.length; i++) {
+      cells[i].style.width = widths[i] + "px";
+      total += widths[i];
+    }
+    t.style.tableLayout = "fixed";
+    t.style.width = total + "px";
+  }
+  function load(t) {
+    try {
+      var w = JSON.parse(localStorage.getItem(key(t)) || "null");
+      if (Array.isArray(w) && w.length === t.tHead.rows[0].cells.length) return w;
+    } catch (e) { /* storage unavailable or invalid: natural widths */ }
+    return null;
+  }
+  tables.forEach(function (t) {
+    if (!t.tHead) return;
+    var saved = load(t);
+    if (saved) apply(t, saved);
+    Array.prototype.forEach.call(t.tHead.rows[0].cells, function (th, i) {
+      var grip = document.createElement("span");
+      grip.className = "col-grip";
+      grip.setAttribute("aria-hidden", "true");
+      grip.title = t.dataset.resizeTitle || "";
+      th.appendChild(grip);
+      grip.addEventListener("dblclick", function (ev) {
+        ev.preventDefault();
+        try { localStorage.removeItem(key(t)); } catch (e) { /* ignored */ }
+        Array.prototype.forEach.call(t.tHead.rows[0].cells, function (c) { c.style.width = ""; });
+        t.style.tableLayout = "";
+        t.style.width = "";
+      });
+      grip.addEventListener("pointerdown", function (ev) {
+        ev.preventDefault();
+        var cells = t.tHead.rows[0].cells, widths = [];
+        for (var j = 0; j < cells.length; j++) widths.push(cells[j].getBoundingClientRect().width);
+        apply(t, widths);
+        var startX = ev.clientX, start = widths[i];
+        grip.setPointerCapture(ev.pointerId);
+        document.body.classList.add("resizing");
+        function move(e) {
+          widths[i] = Math.max(32, Math.round(start + e.clientX - startX));
+          apply(t, widths);
+        }
+        function up() {
+          grip.removeEventListener("pointermove", move);
+          grip.removeEventListener("pointerup", up);
+          grip.removeEventListener("pointercancel", up);
+          document.body.classList.remove("resizing");
+          try { localStorage.setItem(key(t), JSON.stringify(widths)); } catch (e) { /* ignored */ }
+        }
+        grip.addEventListener("pointermove", move);
+        grip.addEventListener("pointerup", up);
+        grip.addEventListener("pointercancel", up);
+      });
+    });
+  });
+})();
+
 // Agents workspace: the scrolling list shows the selected agent.
 (function () {
   var list = document.querySelector(".list.scroll");
