@@ -156,19 +156,20 @@ func New(cfg Config) (*Server, error) {
 func funcs(lang string) template.FuncMap {
 	timeFmt := dateFormat(lang) + " 15:04:05"
 	return template.FuncMap{
-		"t":            func(key string) string { return tr(lang, key) },
-		"help":         func(key string) template.HTML { return helpHTML(lang, key) },
-		"filesAgent":   filesAgent,
-		"screenAgent":  screenAgent,
-		"tf":           func(key string, args ...any) string { return trf(lang, key, args...) },
-		"th":           func(key string) template.HTML { return trHTML(lang, key) },
-		"msg":          func(s string) string { return trMessage(lang, s) },
-		"platformName": func(p string) string { return platformName(lang, p) },
-		"cvssClass":    cvssClass,
-		"jobState":     jobState,
-		"jobFailures":  jobFailures,
-		"lowDisk":      lowDisk,
-		"ttlOptions":   func() []ttlOption { return ttlOptions },
+		"t":                func(key string) string { return tr(lang, key) },
+		"help":             func(key string) template.HTML { return helpHTML(lang, key) },
+		"filesAgent":       filesAgent,
+		"screenAgent":      screenAgent,
+		"logonScreenAgent": logonScreenAgent,
+		"tf":               func(key string, args ...any) string { return trf(lang, key, args...) },
+		"th":               func(key string) template.HTML { return trHTML(lang, key) },
+		"msg":              func(s string) string { return trMessage(lang, s) },
+		"platformName":     func(p string) string { return platformName(lang, p) },
+		"cvssClass":        cvssClass,
+		"jobState":         jobState,
+		"jobFailures":      jobFailures,
+		"lowDisk":          lowDisk,
+		"ttlOptions":       func() []ttlOption { return ttlOptions },
 		"assignmentValidities": func() []struct {
 			Days  int
 			Label string

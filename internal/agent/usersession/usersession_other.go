@@ -19,6 +19,9 @@ type Process struct{}
 // helper in the user's graphical session.
 func Start(argv, env []string, dir string) (*Process, error) { return nil, ErrUnsupported }
 
+// StartSystem always fails, like Start.
+func StartSystem(argv, env []string, dir string) (*Process, error) { return nil, ErrUnsupported }
+
 func (p *Process) Read(b []byte) (int, error)  { return 0, ErrUnsupported }
 func (p *Process) Write(b []byte) (int, error) { return 0, ErrUnsupported }
 func (p *Process) Wait() error                 { return ErrUnsupported }

@@ -15,3 +15,7 @@ import "errors"
 // ErrNoUser is returned when no user is logged on the active console
 // session, so there is no desktop to run in.
 var ErrNoUser = errors.New("no interactive user is logged on")
+
+// ErrNoConsole is returned when no session is attached to the console
+// (briefly, while sessions are being switched).
+var ErrNoConsole = errors.New("no session is attached to the console")

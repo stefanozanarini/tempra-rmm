@@ -20,8 +20,6 @@ import (
 	"fmt"
 	"image"
 	"log"
-	"runtime"
-	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -40,6 +38,7 @@ var (
 	procGetThreadDesktop          = user32.NewProc("GetThreadDesktop")
 	procCloseDesktop              = user32.NewProc("CloseDesktop")
 	procGetUserObjectInformationW = user32.NewProc("GetUserObjectInformationW")
+	procSetThreadDesktop          = user32.NewProc("SetThreadDesktop")
 )
 
 var (
@@ -91,9 +90,9 @@ const (
 // not wait: an unchanged screen just keeps the previous image.
 const firstFrameTimeout = 200
 
-// errDesktopInaccessible means the input desktop is not the user's
-// (Winlogon while locked, the secure desktop of a UAC prompt), which a
-// process running as the user can neither duplicate nor BitBlt.
+// errDesktopInaccessible means the thread could not reach the input desktop
+// (Winlogon while locked, the secure desktop of a UAC prompt). The helper
+// runs as LocalSystem and follows the input desktop, so this is transient.
 var errDesktopInaccessible = errors.New("input desktop not accessible (screen locked or UAC prompt?)")
 
 // errLayoutChanged means the monitor layout changed under a duplication.
@@ -478,52 +477,23 @@ func (o *duplOutput) blit(dst *image.RGBA, vx, vy int, src []byte, pitch, tw, th
 	}
 }
 
-// Capture runs on one locked OS thread: the duplication belongs to the
-// thread's desktop, and its COM objects are not shared between threads.
-var (
-	captureOnce sync.Once
-	captureReqs chan chan captureResult
-)
-
-type captureResult struct {
-	img *image.RGBA
-	err error
-}
-
-// captureScreen returns one frame of the whole virtual desktop. The image
-// may be reused by the next call, so the caller must be done with it by
-// then.
-func captureScreen() (*image.RGBA, error) {
-	captureOnce.Do(func() {
-		captureReqs = make(chan chan captureResult)
-		go captureThread(captureReqs)
-	})
-	reply := make(chan captureResult, 1)
-	captureReqs <- reply
-	r := <-reply
-	return r.img, r.err
-}
-
-func captureThread(reqs <-chan chan captureResult) {
-	runtime.LockOSThread() // never unlocked: the thread lives as long as the helper
-	var sid uint32
-	_ = windows.ProcessIdToSessionId(windows.GetCurrentProcessId(), &sid)
-	log.Printf("screenhelper: session %d, thread desktop %s, input desktop %s", sid, threadDesktopName(), inputDesktopName())
-	var s captureState
-	for reply := range reqs {
-		img, err := s.capture()
-		reply <- captureResult{img, err}
-	}
-}
-
 // captureState picks the backend: duplication when it can be set up, GDI
-// when it cannot (retried now and then), nothing while the desktop is not
-// the user's.
+// when it cannot (retried now and then). It lives on the desktop thread.
 type captureState struct {
 	dxgi        *dxgiCapture
 	retryAt     time.Time // no duplication attempt before this
 	lastDXGIErr string
 	backend     string // backend of the last good frame, to log changes
+}
+
+// reset drops the duplication after the thread moved to another desktop:
+// it belongs to the desktop it was created on.
+func (s *captureState) reset() {
+	if s.dxgi != nil {
+		s.dxgi.close()
+		s.dxgi = nil
+	}
+	s.retryAt, s.backend = time.Time{}, ""
 }
 
 func (s *captureState) capture() (*image.RGBA, error) {
@@ -593,14 +563,23 @@ func (s *captureState) noteBackend(name string, img *image.RGBA) {
 	log.Printf("screenhelper: capturing with %s, %dx%d, first frame black: %v", name, img.Rect.Dx(), img.Rect.Dy(), black)
 }
 
-func desktopName(h uintptr) string {
+// rawDesktopName returns a desktop's name ("Default", "Winlogon"...).
+func rawDesktopName(h uintptr) (string, error) {
 	var buf [256]uint16
 	var needed uint32
 	r, _, err := procGetUserObjectInformationW.Call(h, uoiName, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)*2), uintptr(unsafe.Pointer(&needed))) // #nosec G103 -- Win32 API call
 	if r == 0 {
+		return "", err
+	}
+	return windows.UTF16ToString(buf[:]), nil
+}
+
+func desktopName(h uintptr) string {
+	name, err := rawDesktopName(h)
+	if err != nil {
 		return fmt.Sprintf("? (%v)", err)
 	}
-	return fmt.Sprintf("%q", windows.UTF16ToString(buf[:]))
+	return fmt.Sprintf("%q", name)
 }
 
 func threadDesktopName() string {

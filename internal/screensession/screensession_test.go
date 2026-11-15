@@ -30,10 +30,12 @@ func TestRoundTripByteAtATime(t *testing.T) {
 	wire = append(wire, EncodeButton(ButtonRight, true)...)
 	wire = append(wire, EncodeWheel(-120)...)
 	wire = append(wire, EncodeKey(0x41, false)...)
+	wire = append(wire, EncodeSAS()...)
+	wire = append(wire, EncodeDesktop(DesktopWinlogon)...)
 
 	frames := feedByte(t, wire)
-	if len(frames) != 6 {
-		t.Fatalf("got %d frames, want 6", len(frames))
+	if len(frames) != 8 {
+		t.Fatalf("got %d frames, want 8", len(frames))
 	}
 	if frames[0].Kind != Size || frames[0].Width != 1920 || frames[0].Height != 1080 {
 		t.Errorf("size frame: %+v", frames[0])
@@ -52,6 +54,12 @@ func TestRoundTripByteAtATime(t *testing.T) {
 	}
 	if frames[5].Kind != Key || frames[5].Key != 0x41 || frames[5].Down {
 		t.Errorf("key frame: %+v", frames[5])
+	}
+	if frames[6].Kind != SAS {
+		t.Errorf("SAS frame: %+v", frames[6])
+	}
+	if frames[7].Kind != Desk || frames[7].Desktop != DesktopWinlogon {
+		t.Errorf("desktop frame: %+v", frames[7])
 	}
 }
 

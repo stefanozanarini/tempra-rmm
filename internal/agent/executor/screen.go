@@ -15,6 +15,7 @@ import (
 	openrmmv1 "github.com/stefanozanarini/tempra-rmm/gen/openrmm/v1"
 	"github.com/stefanozanarini/tempra-rmm/internal/agent/secfile"
 	"github.com/stefanozanarini/tempra-rmm/internal/agent/usersession"
+	"github.com/stefanozanarini/tempra-rmm/internal/screensession"
 )
 
 const (
@@ -28,12 +29,14 @@ const (
 )
 
 // runScreen serves a remote-control session for a signed job: the
-// screenhelper process, launched inside the logged-on user's desktop
-// session, connected to the console over the same Shell stream the
-// interactive shell uses, until the operator closes it, the session time
-// is over or it is idle. The agent never parses the frames: it only pumps
-// bytes between the process and the stream (internal/screensession is
-// spoken by the helper and the console web handler, not here).
+// screenhelper process, launched as LocalSystem in the console session (so
+// it works with nobody signed in, on the lock screen and on UAC prompts),
+// connected to the console over the same Shell stream the interactive
+// shell uses, until the operator closes it, the session time is over or it
+// is idle. The agent pumps the bytes unchanged between the process and the
+// stream (internal/screensession is spoken by the helper and the console
+// web handler); it only watches the console's input for Ctrl+Alt+Del,
+// which a service alone may press.
 func (e *Executor) runScreen(job *openrmmv1.Job, send func(*openrmmv1.JobUpdate), log *slog.Logger) *openrmmv1.JobUpdate {
 	var p struct {
 		Minutes int `json:"minutes"`
@@ -59,7 +62,7 @@ func (e *Executor) runScreen(job *openrmmv1.Job, send func(*openrmmv1.JobUpdate)
 	if err != nil {
 		return fail(job, "locate agent executable: %v", err)
 	}
-	proc, err := usersession.Start([]string{exe, "screenhelper"}, nil, workDir)
+	proc, err := usersession.StartSystem([]string{exe, "screenhelper"}, nil, workDir)
 	if err != nil {
 		return fail(job, "start remote control: %v", err)
 	}
@@ -125,6 +128,7 @@ func (e *Executor) runScreen(job *openrmmv1.Job, send func(*openrmmv1.JobUpdate)
 	defer idle.Stop()
 	// Input events from the console.
 	go func() {
+		var dec screensession.Decoder
 		for {
 			f, err := stream.Recv()
 			if err != nil {
@@ -138,6 +142,19 @@ func (e *Executor) runScreen(job *openrmmv1.Job, send func(*openrmmv1.JobUpdate)
 			if d := f.GetData(); len(d) > 0 {
 				idle.Reset(screenIdle)
 				bytesIn.Add(int64(len(d)))
+				if frames, err := dec.Feed(d); err == nil {
+					for _, fr := range frames {
+						if fr.Kind != screensession.SAS {
+							continue
+						}
+						msg := "Ctrl+Alt+Del sent"
+						if err := sendSAS(); err != nil {
+							msg = "Ctrl+Alt+Del: " + err.Error()
+						}
+						log.Info("remote control", "sas", msg)
+						send(&openrmmv1.JobUpdate{JobId: job.GetJobId(), State: openrmmv1.JobUpdate_STATE_RUNNING, Message: msg})
+					}
+				}
 				if _, err := proc.Write(d); err != nil {
 					end("exited")
 					return

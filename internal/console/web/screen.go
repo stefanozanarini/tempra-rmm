@@ -34,12 +34,24 @@ func screenAgent(version string) bool {
 	return version != "" && vuln.CompareVersions(version, minScreenAgent) >= 0
 }
 
+// minLogonScreenAgent is the first agent version whose remote control runs
+// as LocalSystem in the console session: it needs no signed-in user and
+// follows the sign-in screen, the lock screen and UAC prompts.
+const minLogonScreenAgent = "1.2.0"
+
+// logonScreenAgent tells whether an agent version's remote control works
+// without a signed-in user.
+func logonScreenAgent(version string) bool {
+	return version != "" && vuln.CompareVersions(version, minLogonScreenAgent) >= 0
+}
+
 // Remote-control sessions: one MFA approval opens a view of one agent's
 // screen, with mouse/keyboard control, for a limited time. Served the
-// same way as the interactive shell (same Shell stream, same gateway),
-// but the module requires a logged-on, unlocked Windows user session
-// (internal/agent/usersession): the agent runs as LocalSystem and has no
-// desktop of its own.
+// same way as the interactive shell (same Shell stream, same gateway). The
+// agent runs as LocalSystem in session 0, with no desktop of its own: it
+// runs the screenhelper in the console session (internal/agent/usersession),
+// as the signed-in user before agent 1.2.0 (which therefore needs one,
+// unlocked), as LocalSystem since.
 
 const (
 	screenModule = "screen"
@@ -239,6 +251,8 @@ func (s *Server) serveScreen(ws *websocket.Conn, r *http.Request, j store.Job, a
 				f.Data = screensession.EncodeWheel(m.Delta)
 			case "key":
 				f.Data = screensession.EncodeKey(m.Key, m.Down)
+			case "sas":
+				f.Data = screensession.EncodeSAS()
 			case "close":
 				f.Close = true
 			default:

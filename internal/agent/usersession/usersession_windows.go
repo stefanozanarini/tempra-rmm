@@ -49,6 +49,39 @@ func Start(argv, env []string, dir string) (*Process, error) {
 		return nil, fmt.Errorf("duplicate user token: %w", err)
 	}
 	defer token.Close()
+	return startWithToken(token, argv, env, dir)
+}
+
+// StartSystem runs argv as LocalSystem, like the agent, but inside the
+// console session rather than session 0, in the same kind of job object.
+// Unlike Start it needs no logged-on user: the console session exists
+// with the sign-in screen alone, and LocalSystem may switch to any of
+// its desktops (Winlogon, the secure desktop of UAC prompts), which a
+// user's process cannot. A nil env gives LocalSystem's environment.
+func StartSystem(argv, env []string, dir string) (*Process, error) {
+	sessionID := windows.WTSGetActiveConsoleSessionId()
+	if sessionID == 0xFFFFFFFF {
+		return nil, ErrNoConsole
+	}
+	var self windows.Token
+	if err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_DUPLICATE|windows.TOKEN_QUERY, &self); err != nil {
+		return nil, fmt.Errorf("open agent token: %w", err)
+	}
+	defer self.Close()
+	var token windows.Token
+	if err := windows.DuplicateTokenEx(self, windows.MAXIMUM_ALLOWED, nil, windows.SecurityImpersonation, windows.TokenPrimary, &token); err != nil {
+		return nil, fmt.Errorf("duplicate agent token: %w", err)
+	}
+	defer token.Close()
+	// Moving a token to another session takes SeTcbPrivilege, which
+	// LocalSystem holds.
+	if err := windows.SetTokenInformation(token, windows.TokenSessionId, (*byte)(unsafe.Pointer(&sessionID)), uint32(unsafe.Sizeof(sessionID))); err != nil { // #nosec G103 -- Win32 API call
+		return nil, fmt.Errorf("move token to session %d: %w", sessionID, err)
+	}
+	return startWithToken(token, argv, env, dir)
+}
+
+func startWithToken(token windows.Token, argv, env []string, dir string) (*Process, error) {
 	if env == nil {
 		var err error
 		if env, err = userEnvironment(token); err != nil {

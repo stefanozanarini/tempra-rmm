@@ -53,7 +53,13 @@ func Run(stdin io.Reader, stdout io.Writer) error {
 	}
 }
 
+// applyInput injects an input event on the desktop thread, the only one
+// on the input desktop. SAS frames are the agent's to act on: ignored.
 func applyInput(f screensession.Frame) {
+	onDesktopThread(func() { injectInput(f) })
+}
+
+func injectInput(f screensession.Frame) {
 	var err error
 	switch f.Kind {
 	case screensession.Move:
@@ -73,6 +79,7 @@ func applyInput(f screensession.Frame) {
 func captureLoop(ctx context.Context, stdout io.Writer) {
 	var lastW, lastH int
 	var lastErr string // logged once until capture recovers or fails differently
+	lastDesk := int32(-1)
 	ticker := time.NewTicker(frameInterval)
 	defer ticker.Stop()
 	for {
@@ -82,6 +89,12 @@ func captureLoop(ctx context.Context, stdout io.Writer) {
 		case <-ticker.C:
 		}
 		img, err := captureScreen()
+		if d := currentDesktop(); d >= 0 && d != lastDesk {
+			lastDesk = d
+			if _, err := stdout.Write(screensession.EncodeDesktop(byte(d))); err != nil { // #nosec G115 -- a desktop kind
+				return
+			}
+		}
 		if err != nil {
 			if msg := err.Error(); msg != lastErr {
 				lastErr = msg

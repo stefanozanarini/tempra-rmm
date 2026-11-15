@@ -18,6 +18,8 @@
 //	'S' + 4-byte width + 4-byte height (big-endian): the virtual desktop
 //	    size, sent once at the start and again if it changes.
 //	'F' + 4-byte length + JPEG bytes: one screen frame.
+//	'D' + 1 byte: the desktop now shown (DesktopDefault, DesktopWinlogon,
+//	    DesktopOther), sent once at the start and again when it changes.
 //
 // From the console to the helper:
 //
@@ -27,6 +29,8 @@
 //	    a mouse button.
 //	'W' + 4-byte delta (big-endian, signed): the vertical wheel.
 //	'K' + 4-byte virtual-key code (big-endian) + 1 down byte (0/1): a key.
+//	'A': Ctrl+Alt+Del (the secure attention sequence). The agent itself,
+//	    not the helper, acts on it: only a service may generate it.
 //
 // The session's end is carried by ShellFrame.close itself, like the
 // shell: no close marker is needed in this protocol.
@@ -46,6 +50,15 @@ const (
 	Button = 'B'
 	Wheel  = 'W'
 	Key    = 'K'
+	SAS    = 'A'
+	Desk   = 'D'
+)
+
+// Desktops reported by Desk frames.
+const (
+	DesktopDefault  = 0 // the user's desktop
+	DesktopWinlogon = 1 // sign-in, lock screen
+	DesktopOther    = 2 // anything else, e.g. the secure desktop of a UAC prompt
 )
 
 // Mouse buttons.
@@ -67,6 +80,7 @@ type Frame struct {
 	Down          bool   // Button, Key
 	Wheel         int32  // Wheel
 	Key           uint32 // Key
+	Desktop       byte   // Desk
 	Image         []byte // Image (shares the decoder's buffer: copy before reuse)
 }
 
@@ -119,6 +133,12 @@ func EncodeKey(vk uint32, down bool) []byte {
 	return b
 }
 
+// EncodeSAS returns the wire bytes of a SAS frame.
+func EncodeSAS() []byte { return []byte{SAS} }
+
+// EncodeDesktop returns the wire bytes of a Desk frame.
+func EncodeDesktop(d byte) []byte { return []byte{Desk, d} }
+
 func boolByte(b bool) byte {
 	if b {
 		return 1
@@ -128,7 +148,7 @@ func boolByte(b bool) byte {
 
 // fixedLen is the payload length (after the tag byte) of every frame kind
 // except Image, whose length is carried in its own 4-byte prefix.
-var fixedLen = map[byte]int{Size: 8, Move: 8, Button: 2, Wheel: 4, Key: 5}
+var fixedLen = map[byte]int{Size: 8, Move: 8, Button: 2, Wheel: 4, Key: 5, SAS: 0, Desk: 1}
 
 // Decoder reassembles frames out of a byte stream that may be split at
 // arbitrary points. It is not safe for concurrent use.
@@ -188,6 +208,8 @@ func (d *Decoder) Feed(data []byte) ([]Frame, error) {
 			f.Wheel = int32(binary.BigEndian.Uint32(p)) // #nosec G115 -- inverse of EncodeWheel
 		case Key:
 			f.Key, f.Down = binary.BigEndian.Uint32(p), p[4] != 0
+		case Desk:
+			f.Desktop = p[0]
 		}
 		out = append(out, f)
 		d.buf = d.buf[1+n:]

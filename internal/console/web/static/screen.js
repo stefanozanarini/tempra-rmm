@@ -7,6 +7,7 @@
   "use strict";
   var canvas = document.getElementById("screen-canvas");
   var status = document.getElementById("screen-status");
+  var desk = document.getElementById("screen-desktop");
   var ctx = canvas.getContext("2d");
   var img = new Image();
   var buf = new Uint8Array(0);
@@ -37,6 +38,12 @@
         var dv = new DataView(buf.buffer, buf.byteOffset + 1, 8);
         resize(dv.getUint32(0, false), dv.getUint32(4, false));
         buf = buf.slice(9);
+        continue;
+      }
+      if (kind === 0x44 /* 'D' */) {
+        if (buf.length < 2) return;
+        desk.textContent = desk.dataset["d" + buf[1]] || "";
+        buf = buf.slice(2);
         continue;
       }
       // Unknown kind: drop everything, the stream cannot be resynchronized.
@@ -103,5 +110,6 @@
   // SendInput without a full per-layout mapping table.
   canvas.addEventListener("keydown", function (e) { e.preventDefault(); send({ t: "key", key: e.keyCode, down: true }); });
   canvas.addEventListener("keyup", function (e) { e.preventDefault(); send({ t: "key", key: e.keyCode, down: false }); });
+  document.getElementById("screen-sas").addEventListener("click", function () { send({ t: "sas" }); canvas.focus(); });
   document.getElementById("screen-close").addEventListener("click", function () { send({ t: "close" }); });
 })();
