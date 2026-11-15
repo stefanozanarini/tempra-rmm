@@ -40,6 +40,10 @@ type setupData struct {
 	CodeInfo  codesign.Info
 	Expiring  bool
 	HasRoot   bool
+	// MSPMode: the "Clienti" page is unlocked. ConsoleAdmin: this operator
+	// may change it (and other console-wide settings).
+	MSPMode      bool
+	ConsoleAdmin bool
 }
 
 // recommended are the modules of a typical Windows and Linux installation,
@@ -105,8 +109,23 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 	now := s.now()
-	d := setupData{Builder: s.builder != nil}
+	d := setupData{Builder: s.builder != nil, ConsoleAdmin: s.consoleAdmin(ctx, sessionFrom(ctx))}
 	add := func(it setupItem) { d.Items = append(d.Items, it) }
+
+	cs, err := s.store.GetConsoleSettings(ctx)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	d.MSPMode = cs.MSPMode
+	it := setupItem{Title: s.T(r, "Modalità MSP (facoltativo)"), Status: setupOptional}
+	if d.MSPMode {
+		it.Link, it.LinkLabel = "/customers", s.T(r, "Clienti")
+		it.Status, it.Detail = setupDone, s.T(r, "Attiva: crea nuovi clienti (tenant) dalla pagina Clienti, senza CLI.")
+	} else {
+		it.Detail = s.T(r, "Attivala qui sotto per gestire più clienti (tenant) dalla console invece che da riga di comando.")
+	}
+	add(it)
 
 	add(setupItem{Title: s.T(r, "Accesso con Entra ID e MFA"), Status: setupDone,
 		Detail: s.T(r, "Gli operatori accedono con Entra ID; ogni comando e ogni policy richiede una nuova autenticazione MFA.")})
@@ -116,7 +135,7 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	it := setupItem{Title: s.T(r, "Sedi"), Link: "/sites", LinkLabel: s.T(r, "Sedi")}
+	it = setupItem{Title: s.T(r, "Sedi"), Link: "/sites", LinkLabel: s.T(r, "Sedi")}
 	if len(sites) == 0 {
 		it.Status, it.Detail = setupTodo, s.T(r, "Definisci le sedi con le loro subnet: gli agenti vengono raggruppati automaticamente nell'albero.")
 	} else {
@@ -256,6 +275,19 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	s.render(w, r, "setup", s.T(r, "Configurazione"), d)
+}
+
+// handleSetMSPMode turns MSP mode on or off (the "Clienti" page).
+func (s *Server) handleSetMSPMode(w http.ResponseWriter, r *http.Request) {
+	on := r.PostFormValue("on") != ""
+	if err := s.store.SetMSPMode(r.Context(), on); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if t, ok := tenantOf(r); ok {
+		s.audit(r.Context(), t, sessionFrom(r.Context()).data.Operator, "console.msp_mode", "", map[string]any{"on": on})
+	}
+	s.flash(w, r, s.T(r, "Impostazione salvata."), "/setup#msp")
 }
 
 // handleSaveCodeSigning stores the public code-signing certificate (never a

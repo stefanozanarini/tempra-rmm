@@ -1,0 +1,18 @@
+{{define "content"}}
+{{with .Data}}
+<p>{{t "Clienti (tenant) di questa console. Crearne uno non dà accesso a nessun operatore: aggiungi il nuovo tenant a OPENRMM_TENANT_MAP (o alla mappa della federazione) per quello."}}</p>
+<form method="post" action="/customers" class="inline">
+  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <label>{{t "Nome"}} <input type="text" name="name" required maxlength="80"></label>
+  <button class="primary">{{t "Crea cliente"}}</button>
+</form>
+{{if .Tenants}}
+<table>
+<thead><tr><th>{{t "Nome"}}</th><th>ID</th><th>{{t "Creato"}}</th></tr></thead>
+<tbody>
+{{range .Tenants}}<tr><td>{{.Name}}</td><td><code>{{.ID}}</code></td><td>{{fmtTime .CreatedAt}}</td></tr>{{end}}
+</tbody>
+</table>
+{{end}}
+{{end}}
+{{end}}

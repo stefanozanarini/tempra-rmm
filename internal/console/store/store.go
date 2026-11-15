@@ -25,6 +25,15 @@ type Tenant struct {
 	CreatedAt time.Time
 }
 
+// ConsoleSettings are console-wide, not tied to any one tenant.
+type ConsoleSettings struct {
+	// MSPMode unlocks the "Clienti" page, where a console administrator
+	// creates the tenants of an MSP's customers from the web console
+	// instead of the offline openrmm-admin CLI. An operator still needs a
+	// tenant in OPENRMM_TENANT_MAP to manage or switch to it.
+	MSPMode bool
+}
+
 type EnrollmentToken struct {
 	ID          string
 	TenantID    string
@@ -87,6 +96,11 @@ type Store interface {
 	CreateTenant(ctx context.Context, t Tenant) error
 	GetTenant(ctx context.Context, id string) (Tenant, error)
 	ListTenants(ctx context.Context) ([]Tenant, error)
+
+	// GetConsoleSettings returns the console-wide settings (MSP mode and
+	// future switches), the zero value if never set.
+	GetConsoleSettings(ctx context.Context) (ConsoleSettings, error)
+	SetMSPMode(ctx context.Context, on bool) error
 
 	CreateEnrollmentToken(ctx context.Context, t EnrollmentToken, tokenHash []byte) error
 	RevokeEnrollmentToken(ctx context.Context, id string) error

@@ -48,6 +48,7 @@
       <a href="/settings">{{t "Impostazioni"}}</a>
       <a href="/setup">{{t "Configurazione"}}</a>
       <a href="/scopes">{{t "Ambiti"}}</a>
+      {{if .ShowCustomers}}<a href="/customers">{{t "Clienti"}}</a>{{end}}
     </div></details>{{end}}
     {{if or .ShowLinks .Federated}}<a href="/federation">{{t "Console collegate"}}</a>{{end}}
   </nav>

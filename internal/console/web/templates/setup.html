@@ -11,6 +11,15 @@
 </tbody>
 </table>
 
+{{if .ConsoleAdmin}}
+<h2 id="msp">{{t "Modalità MSP"}}</h2>
+<p>{{t "Attiva per gestire più clienti (tenant) da questa console: sblocca la pagina Clienti, dove crei un nuovo tenant senza riga di comando. L'accesso di un operatore a un tenant resta deciso dalla mappa dei tenant della configurazione."}}</p>
+<form method="post" action="/setup/msp-mode" class="inline">
+  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <label><input type="checkbox" name="on" value="1" {{if .MSPMode}}checked{{end}}> {{t "Modalità MSP attiva"}}</label>
+  <button class="primary">{{t "Salva"}}</button>
+</form>
+{{end}}
 <h2 id="codesign">{{t "Firma del codice"}}</h2>
 {{if .Builder}}
 <p>{{th "La chiave di firma e gli installer dell'agente si gestiscono nella pagina <a href=\"/agent-installer\">Installazione dell'agente</a>."}}</p>

@@ -35,6 +35,7 @@ var helpTexts = map[string]string{ // #nosec G101 -- help text, not credentials
 	"setup":       "Stato della configurazione della console: certificati, firma, collegamento a Entra ID, moduli e release da pubblicare.",
 	"ad":          "Confronto tra i computer di Active Directory e gli agenti: trovi i PC che non hanno l'agente (forse non ricevono la GPO) e gli oggetti computer vecchi da pulire.",
 	"federation":  "Collegamento con una console centrale: gli operatori centrali lavorano su questa console e ogni loro azione è registrata qui a loro nome.",
+	"customers":   "Clienti (tenant) di questa console, in modalità MSP. Crearne uno qui non dà accesso a nessun operatore: va aggiunto alla mappa dei tenant della configurazione.",
 	"updates":     "Aggiornamenti dell'agente: release pubblicate e anelli. I computer dell'anello pilot ricevono subito la nuova versione, quelli broad dopo.",
 	"bulk":        "Azioni su più computer insieme: comandi, script, installazioni, gestione dei file, sede e anello. Una sola autenticazione MFA approva l'azione su tutti; ogni computer riceve un proprio comando firmato.",
 	"shell":       "Shell interattiva sul computer, a tempo. Ogni riga digitata è registrata nell'audit. Chiudi la sessione quando hai finito.",

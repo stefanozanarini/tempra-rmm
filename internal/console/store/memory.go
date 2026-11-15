@@ -51,6 +51,8 @@ type Memory struct {
 	presence    map[string]map[[2]string]*AgentPresence
 
 	scopes map[string]Scope // tenant/subject
+
+	consoleSettings ConsoleSettings
 }
 
 func NewMemory() *Memory {

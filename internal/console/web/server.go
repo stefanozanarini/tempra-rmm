@@ -437,6 +437,9 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /ad", s.auth(s.handleAD))
 	mux.Handle("GET /setup", s.role(authn.RoleSuperadmin, s.handleSetup))
 	mux.Handle("POST /setup/codesign", s.role(authn.RoleSuperadmin, s.handleSaveCodeSigning))
+	mux.Handle("POST /setup/msp-mode", s.console(s.handleSetMSPMode))
+	mux.Handle("GET /customers", s.console(s.handleCustomers))
+	mux.Handle("POST /customers", s.console(s.handleCreateCustomer))
 	mux.Handle("GET /setup/{file}", s.auth(s.handleCodeSigningCert))
 	mux.Handle("POST /alerts/{id}/ack", s.role(authn.RoleOperator, s.handleAckAlert))
 	mux.Handle("GET /settings", s.role(authn.RoleSuperadmin, s.handleSettings))
@@ -606,8 +609,9 @@ type page struct {
 	Path  string
 	// Federation: Federated when a central console's operator works on
 	// this console; ShowLinks shows the linked consoles page in the menu.
-	Federated bool
-	ShowLinks bool
+	Federated     bool
+	ShowLinks     bool
+	ShowCustomers bool
 	// HasLogo: the tenant has a company logo (served at /logo).
 	HasLogo bool
 }
@@ -625,6 +629,11 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, name, title stri
 		p.IsSuper, p.IsAdmin, p.CanRun = a.Super(), a.atLeast(authn.RoleAdmin), a.atLeast(authn.RoleOperator)
 		p.Federated = op.Federated
 		p.ShowLinks = !op.Federated && (s.hub != nil || (s.fedVerifier != nil && p.IsSuper))
+		if !op.Federated && p.IsSuper {
+			if cs, err := s.store.GetConsoleSettings(r.Context()); err == nil {
+				p.ShowCustomers = cs.MSPMode
+			}
+		}
 		for _, id := range op.Tenants {
 			if t, err := s.store.GetTenant(r.Context(), id); err == nil {
 				p.Tenants = append(p.Tenants, t)
