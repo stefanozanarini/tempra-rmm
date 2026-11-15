@@ -144,6 +144,20 @@ func TestConsoleVulnerabilities(t *testing.T) {
 		t.Fatal("search")
 	}
 
+	// One computer's vulnerabilities, with its installed version and fix.
+	agents, _ := e.store.ListAgents(ctx, e.tenant)
+	var old string
+	for _, a := range agents {
+		if a.Host.Hostname == "PC-OLD" {
+			old = a.ID
+		}
+	}
+	_, body = get(t, c, e.console.URL+"/security/vulnerabilities?agent="+old)
+	if body = html.UnescapeString(body); !strings.Contains(body, "Vulnerabilità di PC-OLD") || !strings.Contains(body, "CVE-2026-1001") ||
+		!strings.Contains(body, "KB5127648 (26100.9711)") || strings.Contains(body, "CVE-2026-14266") || strings.Contains(body, "</span>computer colpiti</span>") {
+		t.Fatalf("computer view: %s", body)
+	}
+
 	// The old address moves to Security, keeping the filters.
 	noRedirect := &http.Client{Jar: c.Jar, Transport: c.Transport,
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
@@ -173,7 +187,7 @@ func TestConsoleVulnerabilities(t *testing.T) {
 		"Bassa o non valutata", "ultimi 30 giorni", `href="/security/vulnerabilities?exploited=1"`, "Mostra come tabella",
 		// Posture: compliance, patches and OS support, most exposed, time to fix.
 		"Conformità", "Aggiornamenti di sicurezza installati", "Supporto del sistema operativo", "Patch di sicurezza mancanti per anzianità",
-		"Computer più esposti", `href="/security/vulnerabilities?q=PC-OLD"`, "Software più vulnerabile", `href="/security/vulnerabilities?q=7-Zip"`,
+		"Computer più esposti", `href="/security/vulnerabilities?agent=`, "Software più vulnerabile", `href="/security/vulnerabilities?q=7-Zip"`,
 		`href="/reports?software=7-Zip&tab=computers"`, "Tempo medio di correzione", "Registrazione attiva dal"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("dashboard without %q: %s", want, body)

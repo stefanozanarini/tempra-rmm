@@ -87,6 +87,7 @@
 
 {{define "agent-updates"}}
 <h2 id="patches">{{t "Aggiornamenti"}}</h2>
+<p><a href="/security/vulnerabilities?agent={{.Data.Agent.ID}}">{{t "Vulnerabilità (CVE) di questo computer"}} →</a></p>
 {{with .Data.Updates}}
 {{with .Windows}}
 {{if .Manager}}<p class="muted">{{tf "Aggiornamenti del sistema (%s) verificati il %s" .Manager (fmtTime .ScannedAt)}}</p>

@@ -15,6 +15,7 @@ import (
 
 	"github.com/stefanozanarini/tempra-rmm/internal/console/store"
 	"github.com/stefanozanarini/tempra-rmm/internal/console/vuln"
+	"github.com/stefanozanarini/tempra-rmm/internal/ids"
 	"github.com/stefanozanarini/tempra-rmm/internal/inventory"
 	"github.com/stefanozanarini/tempra-rmm/internal/updates"
 )
@@ -282,6 +283,10 @@ type vulnData struct {
 	HasKEV    bool
 	Query     string
 	Exploited bool // only exploited CVEs
+	// Agent: one computer's vulnerabilities (?agent=), with its Hostname;
+	// AgentFindings are its CVEs with the installed version and the fix.
+	Agent, Hostname string
+	AgentFindings   []agentFinding
 	// Sort: "" (urgency: exploited first, then score), cvss, cvss_asc,
 	// hosts or hosts_asc (affected computers).
 	Sort       string
@@ -300,10 +305,23 @@ type vulnData struct {
 
 const maxVulnRows = 300
 
+// agentFinding is a CVE of one computer.
+type agentFinding struct {
+	vuln.Finding
+	Hit vuln.Hit
+}
+
 func (s *Server) vulnReport(r *http.Request, tenant string) (*vulnData, error) {
 	ctx := r.Context()
 	q := r.URL.Query()
 	d := &vulnData{Query: strings.TrimSpace(q.Get("q")), Exploited: q.Get("exploited") == "1", MaxFinding: maxVulnRows}
+	if id := q.Get("agent"); ids.IsUUID(id) {
+		a, err := s.store.GetAgent(ctx, tenant, id)
+		if err != nil {
+			return nil, err
+		}
+		d.Agent, d.Hostname = a.ID, a.Host.Hostname
+	}
 	switch q.Get("sort") {
 	case "cvss", "cvss_asc", "hosts", "hosts_asc":
 		d.Sort = q.Get("sort")
@@ -322,8 +340,21 @@ func (s *Server) vulnReport(r *http.Request, tenant string) (*vulnData, error) {
 	}
 	d.ComputedAt = at
 	all := cached
+	if d.Agent != "" {
+		// Only the CVEs of the computer; the counts below are its own.
+		var mine []vuln.Finding
+		for _, f := range cached {
+			for _, h := range f.Hits {
+				if h.AgentID == d.Agent {
+					mine = append(mine, f)
+					break
+				}
+			}
+		}
+		all = mine
+	}
 	if d.Sort != "" {
-		all = append([]vuln.Finding(nil), cached...)
+		all = append([]vuln.Finding(nil), all...)
 		sortFindings(all, d.Sort)
 	}
 	d.Total = len(all)
@@ -355,6 +386,18 @@ func (s *Server) vulnReport(r *http.Request, tenant string) (*vulnData, error) {
 			continue
 		}
 		d.Shown++
+		if d.Agent != "" {
+			if len(d.AgentFindings) < maxVulnRows {
+				af := agentFinding{Finding: f}
+				for _, h := range f.Hits {
+					if h.AgentID == d.Agent {
+						af.Hit = h
+					}
+				}
+				d.AgentFindings = append(d.AgentFindings, af)
+			}
+			continue
+		}
 		if len(d.Findings) < maxVulnRows {
 			d.Findings = append(d.Findings, f)
 		}
@@ -393,6 +436,9 @@ func (d *vulnData) SortURL(col string) string {
 	}
 	if d.Exploited {
 		v.Set("exploited", "1")
+	}
+	if d.Agent != "" {
+		v.Set("agent", d.Agent)
 	}
 	return "/security/vulnerabilities?" + v.Encode()
 }

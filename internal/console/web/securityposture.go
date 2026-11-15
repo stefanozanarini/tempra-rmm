@@ -404,7 +404,7 @@ func topExposed(lang string, fs []vuln.Finding) (barChart, []softwareRisk) {
 		if i == 10 {
 			break
 		}
-		b := bar{Label: h.name, Count: h.sev.Total(), Link: "/security/vulnerabilities?" + url.Values{"q": {h.name}}.Encode()}
+		b := bar{Label: h.name, Count: h.sev.Total(), Link: "/security/vulnerabilities?" + url.Values{"agent": {h.id}}.Encode()}
 		if h.kev > 0 {
 			b.Note = trf(lang, "%d sfruttate", h.kev)
 		}
