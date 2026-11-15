@@ -24,3 +24,11 @@ func TestTemplatesHaveNoInlineScriptsOrStyles(t *testing.T) {
 		}
 	}
 }
+
+// The remote-control page decodes each frame from a blob: URL: without
+// blob: in img-src every frame is blocked and the screen stays black.
+func TestScreenCSPAllowsBlobImages(t *testing.T) {
+	if !regexp.MustCompile(`img-src [^;]*\bblob:`).MatchString(screenCSP) {
+		t.Fatalf("img-src must allow blob: URLs: %s", screenCSP)
+	}
+}

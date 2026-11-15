@@ -138,6 +138,9 @@ type screenData struct {
 	By      string // approving operator
 }
 
+const screenCSP = "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+	"connect-src 'self'; img-src 'self' blob:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+
 func (s *Server) handleScreenPage(w http.ResponseWriter, r *http.Request) {
 	j, a, ok := s.screenJob(r)
 	if !ok {
@@ -145,9 +148,10 @@ func (s *Server) handleScreenPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// This page draws to a <canvas> with its own small script, served by
-	// the console: no third-party script or style.
-	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; "+
-		"connect-src 'self'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+	// the console: no third-party script or style. Each frame is decoded
+	// from a blob: URL the script creates, which img-src must allow, or the
+	// browser drops every frame and the canvas stays black.
+	w.Header().Set("Content-Security-Policy", screenCSP)
 	var p struct {
 		Minutes int `json:"minutes"`
 	}

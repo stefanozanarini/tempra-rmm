@@ -58,6 +58,7 @@
       if (canvas.width && canvas.height) ctx.drawImage(im, 0, 0, canvas.width, canvas.height);
       URL.revokeObjectURL(url);
     };
+    im.onerror = function () { URL.revokeObjectURL(url); };
     im.src = url;
   }
 
