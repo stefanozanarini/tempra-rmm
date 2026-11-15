@@ -2,7 +2,9 @@
 
 A managed-service provider runs one **central console**; each customer runs its own **customer console** with its agents, database and signer. A link lets the provider's operators do, from the central console, everything they could do on the customer console — while the customer console keeps its data, its signing key, its audit log and the power to cut the link.
 
-Both are the same Tempra RMM software; federation is a link, not a different product. Two levels at most: a central console is not itself linked to another one.
+Both are the same Tempra RMM software; federation is a link, not a different product. Two levels at most: a central console is not itself linked to another one — the console refuses at startup to be configured as both.
+
+Each link keeps a fixed number of tunnels open (`OPENRMM_FEDERATION_TUNNELS`, default 6), set to match on both sides. Every open interactive session (shell, remote control) from a central operator occupies one tunnel for as long as it stays open; ordinary page requests share the rest. A customer console with several central operators working on it at once, or long remote-control sessions, may need a higher value — the "Console collegate" page shows "tunnel occupati" when a link has none free.
 
 ## How it works
 
@@ -28,6 +30,7 @@ Trust, in short: a central console that is compromised could read the customer's
    OPENRMM_FEDERATION_LISTEN=:8445
    OPENRMM_FEDERATION_BIND=0.0.0.0:8445
    OPENRMM_FEDERATION_PUBLIC_ADDR=central.msp.it:8445
+   OPENRMM_FEDERATION_TUNNELS=6   # optional, raise for many concurrent sessions
    ```
 
    Publish port 8445 to the internet (or to the networks the customer consoles come from). The web console itself stays on the provider's LAN or VPN.
@@ -42,9 +45,10 @@ Trust, in short: a central console that is compromised could read the customer's
    OPENRMM_FEDERATION_CLIENT_ID=<central console application id>
    OPENRMM_FEDERATION_TENANT_MAP=<provider tenant id>=<Tempra RMM tenant id of this console>
    OPENRMM_FEDERATION_MAX_ROLE=OpenRMM.Admin
+   OPENRMM_FEDERATION_TUNNELS=6   # optional, match the central's setting
    ```
 
-   These settings go to both the web console and the signer (`docker compose up -d`). They are deliberately in the deployment configuration, not in the web console: a web console administrator alone cannot let another directory approve commands.
+   These settings go to both the web console and the signer (`docker compose up -d`). They are deliberately in the deployment configuration, not in the web console: a web console administrator alone cannot let another directory approve commands. A console already configured this way (a customer) refuses to also start as a central console (`OPENRMM_FEDERATION_LISTEN`), and the other way around: federation is two levels at most.
 2. **Linked consoles → Link to a central console** (Admin): paste the link token. The customer console creates its link key, connects and registers. From then on it keeps the link open.
 3. **Suspend** closes the link at once; **Resume** reopens it; **Remove** deletes the link key (the provider must create a new link to reconnect).
 
