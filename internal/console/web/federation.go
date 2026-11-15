@@ -175,6 +175,7 @@ func (s *Server) forwardUpgrade(w http.ResponseWriter, r *http.Request, sess *se
 type linkView struct {
 	store.FederationLink
 	Connected int
+	Busy      bool // every open tunnel is in use: sessions may have to wait
 	Summary   *federation.Summary
 }
 
@@ -210,7 +211,7 @@ func (s *Server) federationPage(w http.ResponseWriter, r *http.Request, d federa
 			return
 		}
 		for _, l := range links {
-			v := linkView{FederationLink: l, Connected: s.hub.Connected(l.ID)}
+			v := linkView{FederationLink: l, Connected: s.hub.Connected(l.ID), Busy: s.hub.Busy(l.ID)}
 			var sum federation.Summary
 			if len(l.Summary) > 0 && json.Unmarshal(l.Summary, &sum) == nil {
 				v.Summary = &sum

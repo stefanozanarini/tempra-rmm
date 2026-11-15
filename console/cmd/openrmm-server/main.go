@@ -32,9 +32,16 @@
 //
 //	OPENRMM_FEDERATION_LISTEN          listener for the links of customer consoles (e.g. :8445)
 //	OPENRMM_FEDERATION_PUBLIC_ADDR     host:port customer consoles dial (put in link tokens)
+//	OPENRMM_FEDERATION_TUNNELS         tunnels kept open per link, default 6: each open interactive
+//	                                   session (shell, remote control) occupies one for as long as
+//	                                   it stays open; raise it if several central operators use the
+//	                                   same customer console's sessions at once
 //
 // Customer console: OPENRMM_FEDERATION_* of authn.FederationFromEnv (the
-// central console's directory, also configured on the signer).
+// central console's directory, also configured on the signer) plus
+// OPENRMM_FEDERATION_TUNNELS above, matched to the central's own setting.
+// Two levels at most: a console cannot be both a central (LISTEN set) and
+// a customer of another (FederationFromEnv configured) at once.
 //
 // "openrmm-server healthcheck" exits 0 if the console answers on /healthz.
 package main
@@ -50,6 +57,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -342,6 +350,17 @@ type fedSetup struct {
 // is trusted. A console may have neither.
 func setupFederation(ctx context.Context, log *slog.Logger, db *store.Postgres) (*fedSetup, error) {
 	f := &fedSetup{listen: os.Getenv("OPENRMM_FEDERATION_LISTEN"), linkAddr: os.Getenv("OPENRMM_FEDERATION_PUBLIC_ADDR")}
+	cfg, ok, err := authn.FederationFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	if f.listen != "" && ok {
+		return nil, errors.New("a console cannot be both a central console (OPENRMM_FEDERATION_LISTEN) and a customer of another (OPENRMM_FEDERATION_ISSUER): federation supports two levels at most")
+	}
+	tunnels, err := tunnelsPerLinkFromEnv()
+	if err != nil {
+		return nil, err
+	}
 	if f.listen != "" {
 		if f.linkAddr == "" {
 			return nil, errors.New("OPENRMM_FEDERATION_PUBLIC_ADDR is required with OPENRMM_FEDERATION_LISTEN")
@@ -350,11 +369,7 @@ func setupFederation(ctx context.Context, log *slog.Logger, db *store.Postgres) 
 		if err != nil {
 			return nil, err
 		}
-		f.hub = &federation.Hub{Store: db, ID: id, Log: log}
-	}
-	cfg, ok, err := authn.FederationFromEnv()
-	if err != nil {
-		return nil, err
+		f.hub = &federation.Hub{Store: db, ID: id, Log: log, TunnelsPerLink: tunnels}
 	}
 	if ok {
 		for attempt := 0; ; attempt++ {
@@ -367,9 +382,23 @@ func setupFederation(ctx context.Context, log *slog.Logger, db *store.Postgres) 
 			log.Warn("central console directory not reachable yet", "err", err)
 			time.Sleep(5 * time.Second)
 		}
-		f.uplink = &federation.Uplink{Store: db, Log: log}
+		f.uplink = &federation.Uplink{Store: db, Log: log, TunnelsPerLink: tunnels}
 	}
 	return f, nil
+}
+
+// tunnelsPerLinkFromEnv reads OPENRMM_FEDERATION_TUNNELS, 0 (the
+// package default) if unset.
+func tunnelsPerLinkFromEnv() (int, error) {
+	v := os.Getenv("OPENRMM_FEDERATION_TUNNELS")
+	if v == "" {
+		return 0, nil
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 {
+		return 0, fmt.Errorf("OPENRMM_FEDERATION_TUNNELS: invalid value %q", v)
+	}
+	return n, nil
 }
 
 func (f *fedSetup) start(ctx context.Context, log *slog.Logger, srv *web.Server) error {

@@ -95,7 +95,7 @@ func TestLinkEndToEnd(t *testing.T) {
 	uctx, ucancel := context.WithCancel(ctx)
 	defer ucancel()
 	go u.Run(uctx)
-	waitFor(t, func() bool { return e.hub.Connected(link.ID) == tunnelsPerLink })
+	waitFor(t, func() bool { return e.hub.Connected(link.ID) == defaultTunnelsPerLink })
 
 	req, _ := http.NewRequest(http.MethodPost, URL+"/agents/x/notes", strings.NewReader("a=b"))
 	req.Header.Set(HeaderOperator, Operator{ObjectID: ids.NewUUID(), TenantID: ids.NewUUID(), Username: "mario@msp.it",

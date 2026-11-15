@@ -84,6 +84,11 @@ type Uplink struct {
 	Handler http.Handler
 	Log     *slog.Logger
 	Poll    time.Duration // default 15s
+	// TunnelsPerLink is how many tunnels to keep open to the central
+	// console, default defaultTunnelsPerLink. Raise it (matching the
+	// central's Hub.TunnelsPerLink) to allow more concurrent interactive
+	// sessions (shell, remote control) from central operators at once.
+	TunnelsPerLink int
 
 	mu      sync.Mutex
 	running string // link id being served
@@ -136,8 +141,12 @@ func (u *Uplink) Sync(ctx context.Context) {
 		u.Log.Error("federation identity unreadable", "err", err)
 		return
 	}
+	tunnels := u.TunnelsPerLink
+	if tunnels <= 0 {
+		tunnels = defaultTunnelsPerLink
+	}
 	rctx, cancel := context.WithCancel(ctx)
-	d := &relay.Dialer{Target: l.CentralAddr, TLS: clientTLS(id, l.CentralFingerprint), Count: tunnelsPerLink,
+	d := &relay.Dialer{Target: l.CentralAddr, TLS: clientTLS(id, l.CentralFingerprint), Count: tunnels,
 		Log: u.Log, Peer: "central console"}
 	srv := &http.Server{Handler: u.Handler, ReadHeaderTimeout: 30 * time.Second}
 	go d.Run(rctx)

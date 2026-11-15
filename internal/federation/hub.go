@@ -19,9 +19,13 @@ import (
 
 const (
 	handshakeTimeout = 10 * time.Second
-	// Tunnels kept per link: concurrent requests to one customer console.
-	tunnelsPerLink = 6
-	summaryEvery   = 5 * time.Minute
+	// defaultTunnelsPerLink is how many tunnels are kept per link when
+	// neither side overrides it: concurrent requests to one customer
+	// console, counting one per open interactive session (shell or
+	// remote control) for its whole duration. Hub.TunnelsPerLink and
+	// Uplink.TunnelsPerLink (OPENRMM_FEDERATION_TUNNELS) raise it.
+	defaultTunnelsPerLink = 6
+	summaryEvery          = 5 * time.Minute
 )
 
 // identityName is the console_keys entry of the central link certificate.
@@ -55,6 +59,12 @@ type Hub struct {
 	// DialWait is how long a request waits for a tunnel (default 10s: a
 	// linked console reconnects within seconds after a restart).
 	DialWait time.Duration
+	// TunnelsPerLink caps concurrent requests to one link, default
+	// defaultTunnelsPerLink. Raise it (OPENRMM_FEDERATION_TUNNELS) when
+	// several central operators open interactive sessions (shell, remote
+	// control) on the same customer console at once: each occupies one
+	// tunnel for as long as it is open.
+	TunnelsPerLink int
 
 	mu      sync.Mutex
 	pools   map[string]chan net.Conn
@@ -67,6 +77,13 @@ func (h *Hub) now() time.Time {
 		return h.Now()
 	}
 	return time.Now()
+}
+
+func (h *Hub) tunnels() int {
+	if h.TunnelsPerLink > 0 {
+		return h.TunnelsPerLink
+	}
+	return defaultTunnelsPerLink
 }
 
 func (h *Hub) tlsConfig() *tls.Config {
@@ -125,7 +142,7 @@ func (h *Hub) add(ctx context.Context, link store.FederationLink, c net.Conn) {
 	}
 	pool, ok := h.pools[link.ID]
 	if !ok {
-		pool = make(chan net.Conn, tunnelsPerLink*2)
+		pool = make(chan net.Conn, h.tunnels()*2)
 		h.pools[link.ID] = pool
 	}
 	h.mu.Unlock()
@@ -242,6 +259,17 @@ func (h *Hub) Connected(linkID string) int {
 	return h.live[linkID]
 }
 
+// Busy tells whether every open tunnel of a link is in use (none idle in
+// the pool): a new request or interactive session would have to wait for
+// one to free up, or for DialWait before failing.
+func (h *Hub) Busy(linkID string) bool {
+	h.mu.Lock()
+	pool := h.pools[linkID]
+	live := h.live[linkID]
+	h.mu.Unlock()
+	return live > 0 && len(pool) == 0
+}
+
 // Client returns the HTTP client whose connections are the link's tunnels.
 func (h *Hub) Client(linkID string) *http.Client {
 	h.mu.Lock()
@@ -254,7 +282,7 @@ func (h *Hub) Client(linkID string) *http.Client {
 	}
 	pool, ok := h.pools[linkID]
 	if !ok {
-		pool = make(chan net.Conn, tunnelsPerLink*2)
+		pool = make(chan net.Conn, h.tunnels()*2)
 		h.pools[linkID] = pool
 	}
 	wait := h.DialWait
@@ -279,7 +307,7 @@ func (h *Hub) Client(linkID string) *http.Client {
 		}
 	}
 	c := &http.Client{
-		Transport: &http.Transport{DialContext: dial, MaxConnsPerHost: tunnelsPerLink, MaxIdleConnsPerHost: tunnelsPerLink,
+		Transport: &http.Transport{DialContext: dial, MaxConnsPerHost: h.tunnels(), MaxIdleConnsPerHost: h.tunnels(),
 			ResponseHeaderTimeout: 60 * time.Second, DisableCompression: true},
 		// Redirects go back to the browser.
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },

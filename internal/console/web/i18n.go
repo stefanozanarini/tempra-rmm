@@ -995,7 +995,9 @@ var catalogEN = map[string]string{ // #nosec G101 -- UI text, not credentials
 	"connessa":                                              "connected",
 	"in attesa del cliente":                                 "waiting for the customer",
 	"non connessa":                                          "not connected",
-	"token valido fino a %s":                                "token valid until %s",
+	"tunnel occupati":                                       "tunnels busy",
+	"Tutti i tunnel sono occupati: nuove sessioni interattive (shell, controllo remoto) devono attendere che una si liberi.": "Every tunnel is in use: new interactive sessions (shell, remote control) must wait for one to free up.",
+	"token valido fino a %s": "token valid until %s",
 
 	// Firmware
 	"%s non è installato.":                            "%s is not installed.",

@@ -15,7 +15,7 @@
 <tbody>
 {{range .Links}}<tr{{if eq .ID $.Data.Open}} class="current"{{end}}>
   <td><strong>{{.Name}}</strong>{{with .Summary}}{{if .Console}}<br><span class="muted">{{.Console}}</span>{{end}}{{end}}</td>
-  <td>{{if eq .Status "active"}}{{if .Connected}}<span class="badge online">{{t "connessa"}}</span>{{else}}<span class="badge chk-warning">{{t "non connessa"}}</span>{{end}}
+  <td>{{if eq .Status "active"}}{{if .Connected}}<span class="badge online">{{t "connessa"}}</span>{{if .Busy}} <span class="badge chk-warning" title="{{t "Tutti i tunnel sono occupati: nuove sessioni interattive (shell, controllo remoto) devono attendere che una si liberi."}}">{{t "tunnel occupati"}}</span>{{end}}{{else}}<span class="badge chk-warning">{{t "non connessa"}}</span>{{end}}
       {{else if eq .Status "pending"}}<span class="badge pending">{{t "in attesa del cliente"}}</span>{{if .TokenExpiresAt}}<br><span class="muted">{{tf "token valido fino a %s" (fmtTime .TokenExpiresAt)}}</span>{{end}}
       {{else}}<span class="badge revoked">{{label .Status}}</span>{{end}}</td>
   <td>{{with .Summary}}{{.Agents}} · {{tf "%d online" .Online}}{{if .Pending}} · {{tf "%d da approvare" .Pending}}{{end}}{{end}}</td>
