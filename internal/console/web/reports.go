@@ -137,8 +137,23 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 	if n, err := strconv.Atoi(q.Get("days")); err == nil && n > 0 && n <= 365 {
 		d.Days = n
 	}
+	if d.Tab == "cve" {
+		// Moved to Security → Vulnerabilities.
+		qq := url.Values{}
+		for k, vs := range q {
+			if k != "tab" {
+				qq[k] = vs
+			}
+		}
+		target := "/security/vulnerabilities"
+		if len(qq) > 0 {
+			target += "?" + qq.Encode()
+		}
+		http.Redirect(w, r, target, http.StatusMovedPermanently)
+		return
+	}
 	switch d.Tab {
-	case "software", "computers", "os", "logons", "cve":
+	case "software", "computers", "os", "logons":
 	default:
 		d.Tab = "dashboard"
 	}

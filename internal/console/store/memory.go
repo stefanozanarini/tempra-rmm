@@ -46,6 +46,7 @@ type Memory struct {
 	profiles    map[string]*memProfile  // tenant/id
 	runs        map[string]ProvisioningRun
 	vulnFeeds   map[string]VulnFeed
+	vulnHistory map[string]map[time.Time]VulnCounts
 }
 
 func NewMemory() *Memory {

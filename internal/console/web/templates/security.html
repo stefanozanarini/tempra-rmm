@@ -1,0 +1,99 @@
+{{define "content"}}
+{{with .Data}}
+<nav class="tabs" aria-label="Security">
+  <a href="/security"{{if eq .Tab "dashboard"}} class="current"{{end}}>Dashboard</a>
+  <a href="/security/vulnerabilities"{{if eq .Tab "vulns"}} class="current"{{end}}>{{t "Vulnerabilità"}}</a>{{if eq .Tab "vulns"}}{{help "section:cve"}}{{end}}
+</nav>
+
+{{if eq .Tab "dashboard"}}
+{{if not .Ready}}<p class="muted">{{t "Dati sulle vulnerabilità non ancora scaricati: la console li scarica da Microsoft e da CISA pochi minuti dopo l'avvio, poi ogni 6 ore."}}</p>
+{{else}}
+<form method="get" action="/security" class="inline autosubmit">
+  <label>{{t "Periodo"}} <select name="days">{{range .DayChoices}}<option value="{{.}}"{{if eq . $.Data.Days}} selected{{end}}>{{tf "ultimi %d giorni" .}}</option>{{end}}</select></label>
+  <button class="primary">{{t "Applica"}}</button>
+</form>
+<div class="cards">
+{{range .Cards}}<a class="card{{if and .Class .Value}} {{.Class}}{{end}}" href="{{.Link}}"><span class="num">{{.Value}}</span>{{.Label}}{{if .HasDelta}}<span class="delta{{if gt .Delta 0}} up{{else if lt .Delta 0}} down{{end}}">{{if gt .Delta 0}}+{{end}}{{.Delta}} {{tf "dal %s" $.Data.Since}}</span>{{end}}</a>{{end}}
+</div>
+{{if lt .History 2}}<p class="muted">{{t "Lo storico è registrato una volta al giorno da quando la console è stata aggiornata: i grafici si riempiono un giorno alla volta."}}</p>{{end}}
+<div class="viz-grid charts2">
+{{range .Charts}}
+<section class="viz">
+  <h3>{{.Title}}</h3><p class="muted small">{{.Sub}}</p>
+  <ul class="legend inline">{{range .Series}}<li><span class="swatch {{.Class}}"></span>{{.Label}}</li>{{end}}</ul>
+  <svg class="lines" viewBox="0 0 640 250" role="img" aria-label="{{.Title}}">
+    {{range .Ticks}}<line class="grid" x1="44" x2="530" y1="{{.Y}}" y2="{{.Y}}"></line><text class="tick" x="38" y="{{.Y}}" dy="4">{{.Label}}</text>{{end}}
+    {{range .XTicks}}<text class="xtick" x="{{.X}}" y="236" text-anchor="{{.Anchor}}">{{.Label}}</text>{{end}}
+    {{$single := .Single}}
+    {{range .Series}}{{$c := .Class}}
+      {{if not $single}}<path class="line {{$c}}" d="{{.Path}}"></path>{{end}}
+      {{range .Points}}<circle class="pt {{$c}}{{if $single}} on{{end}}" cx="{{.X}}" cy="{{.Y}}" r="{{if $single}}5{{else}}9{{end}}"><title>{{.Title}}</title></circle>{{end}}
+      <text class="end" x="538" y="{{.LabelY}}" dy="4">{{.Last}} {{.Short}}</text>
+    {{end}}
+  </svg>
+  <details class="table-view"><summary>{{t "Mostra come tabella"}}</summary>
+    <table><thead><tr><th>{{t "Giorno"}}</th>{{range .Series}}<th class="num">{{.Label}}</th>{{end}}</tr></thead>
+    <tbody>{{range .Rows}}<tr><td>{{.Day}}</td>{{range .Values}}<td class="num">{{.}}</td>{{end}}</tr>{{end}}</tbody></table>
+  </details>
+</section>
+{{end}}
+</div>
+<p class="muted small">{{t "Gravità dal punteggio CVSS: critica 9 o più, alta da 7, media da 4, bassa sotto 4; senza punteggio vale la gravità indicata dal produttore. I conteggi del giorno si aggiornano ogni volta che le vulnerabilità vengono ricalcolate."}}</p>
+{{end}}
+{{end}}
+
+{{if eq .Tab "vulns"}}{{with .Vulns}}
+{{if not .Ready}}<p class="muted">{{t "Dati sulle vulnerabilità non ancora scaricati: la console li scarica da Microsoft e da CISA pochi minuti dopo l'avvio, poi ogni 6 ore."}}</p>
+{{else}}{{with .Selected}}
+<p><a href="/security/vulnerabilities">← {{t "tutte le vulnerabilità"}}</a></p>
+<h2>{{.ID}}</h2>
+<p>{{.Title}}</p>
+<p>{{if .KEV}}<span class="badge chk-failing">{{t "sfruttata attivamente (CISA KEV)"}}</span> {{end}}{{if .Ransomware}}<span class="badge chk-failing">{{t "usata in attacchi ransomware"}}</span> {{end}}{{if and .Exploited (not .KEV)}}<span class="badge chk-failing">{{t "sfruttata (Microsoft)"}}</span> {{end}}
+  <span class="badge {{cvssClass .CVSS}}">CVSS {{cvssText .CVSS}}</span>{{with .Severity}} <span class="badge">{{label .}}</span>{{end}}
+  · {{.Product}}{{if not .Released.IsZero}} · {{tf "pubblicata il %s" (isoDate .Released)}}{{end}}{{with .KEVAdded}} · {{tf "nel catalogo CISA dal %s" .}}{{end}}</p>
+<p>{{if eq .Product "Windows"}}<a href="https://msrc.microsoft.com/update-guide/vulnerability/{{.ID}}" target="_blank" rel="noopener noreferrer">Microsoft ↗</a> · {{end}}<a href="https://nvd.nist.gov/vuln/detail/{{.ID}}" target="_blank" rel="noopener noreferrer">NVD ↗</a></p>
+<h3>{{tf "Computer colpiti (%d)" (len .Hits)}}</h3>
+{{with $.Data.Vulns.FixNote}}<p class="muted">{{.}}</p>{{end}}
+{{if and $.CanRun $.Data.Vulns.FixURL}}<p><a class="button primary" href="{{$.Data.Vulns.FixURL}}">{{$.Data.Vulns.FixLabel}}</a>
+  <span class="muted">{{t "Apre l'azione già preparata per i computer colpiti: la controlli e la approvi con MFA."}}</span></p>
+{{end}}
+<table>
+<thead><tr><th>{{t "Computer"}}</th><th>{{t "Versione installata"}}</th><th>{{t "Correzione"}}</th></tr></thead>
+<tbody>{{range .Hits}}<tr><td><a href="/agents/{{.AgentID}}#patches">{{.Hostname}}</a></td><td>{{.Installed}}{{if .UserScope}} <span class="badge chk-warning">{{t "profilo utente"}}</span>{{end}}{{with .Pending}} <span class="badge chk-ok" title="{{t "Aggiornamento scaricato: si installa quando l'utente chiude e riapre l'applicazione."}}">{{tf "%s pronto, manca il riavvio" .}}</span>{{end}}</td><td>{{or .Fix (t "nessuna correzione indicata")}}</td></tr>{{end}}</tbody>
+</table>
+{{else}}
+<div class="cards">
+  <a class="card" href="/security/vulnerabilities"><span class="num">{{.Total}}</span>{{t "vulnerabilità trovate"}}</a>
+  <a class="card {{if .KEVCount}}bad{{end}}" href="/security/vulnerabilities?exploited=1"><span class="num">{{.KEVCount}}</span>{{t "sfruttate attivamente (CISA)"}}</a>
+  <span class="card {{if .Critical}}warn{{end}}"><span class="num">{{.Critical}}</span>{{t "critiche (CVSS 9 o più)"}}</span>
+  <span class="card"><span class="num">{{.Endpoints}}</span>{{t "computer colpiti"}}</span>
+</div>
+<form method="get" action="/security/vulnerabilities" class="toolbar">
+  <input type="search" name="q" value="{{.Query}}" placeholder="{{t "CVE, prodotto, computer o KB"}}" aria-label="{{t "Cerca"}}">
+  <label class="check"><input type="checkbox" name="exploited" value="1"{{if .Exploited}} checked{{end}}> {{t "solo sfruttate"}}</label>
+  {{with .Sort}}<input type="hidden" name="sort" value="{{.}}">{{end}}
+  <button>{{t "Cerca"}}</button>
+</form>
+<table>
+<thead><tr><th>CVE</th>
+  <th><a class="sort" href="{{.SortURL "cvss"}}" title="{{t "Ordina per gravità"}}">{{t "Gravità"}}{{.SortMark "cvss"}}</a></th>
+  <th>{{t "Prodotto"}}</th>
+  <th><a class="sort" href="{{.SortURL "hosts"}}" title="{{t "Ordina per numero di computer"}}">{{t "Computer"}}{{.SortMark "hosts"}}</a></th>
+  <th>{{t "Correzione"}}</th></tr></thead>
+<tbody>{{range .Findings}}<tr>
+  <td><a href="/security/vulnerabilities{{qs "id" .ID}}">{{.ID}}</a>{{if .KEV}} <span class="badge chk-failing" title="{{t "sfruttata attivamente (CISA KEV)"}}">KEV</span>{{else if .Exploited}} <span class="badge chk-failing">{{t "sfruttata"}}</span>{{end}}</td>
+  <td><span class="badge {{cvssClass .CVSS}}">{{cvssText .CVSS}}</span>{{with .Severity}} <span class="muted small">{{label .}}</span>{{end}}</td>
+  <td>{{.Product}}<br><span class="muted small">{{.Title}}</span></td>
+  <td>{{len .Hits}}</td>
+  <td class="small">{{range $i, $f := .FixList}}{{if $i}}<br>{{end}}{{$f}}{{end}}</td>
+</tr>{{else}}<tr><td colspan="5" class="muted">{{t "Nessuna vulnerabilità trovata."}}</td></tr>{{end}}</tbody>
+</table>
+{{if gt .Shown (len .Findings)}}<p class="muted small">{{tf "Mostrate %d vulnerabilità su %d: affina la ricerca." (len .Findings) .Shown}}</p>{{end}}
+{{end}}
+{{if not .ComputedAt.IsZero}}<p class="muted small">{{tf "Vulnerabilità calcolate il %s dall'ultimo inventario dei computer; il calcolo si aggiorna in background ogni pochi minuti." (fmtTime .ComputedAt)}}</p>{{end}}
+<p class="muted small">{{tf "Fonti: aggiornamenti di sicurezza Microsoft (%d mesi), confrontati con la build di Windows di ogni computer; NVD per %d applicazioni note, confrontate con la versione installata; per Linux, le CVE degli aggiornamenti di sicurezza in sospeso (apt, dnf, zypper); catalogo CISA delle vulnerabilità sfruttate." .Months .Products}}</p>
+{{end}}
+{{end}}{{end}}
+
+{{end}}
+{{end}}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"html"
+	"net/http"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -30,7 +31,7 @@ func TestConsoleVulnerabilities(t *testing.T) {
 		publishTo(t, e.store, filepath.Join(repoRoot(t), "modules", m))
 	}
 	c, _ := e.login(t, admin)
-	if _, body := get(t, c, e.console.URL+"/reports?tab=cve"); !strings.Contains(body, "non ancora scaricati") {
+	if _, body := get(t, c, e.console.URL+"/security/vulnerabilities"); !strings.Contains(body, "non ancora scaricati") {
 		t.Fatalf("no data yet: %s", body)
 	}
 	cves := []vuln.CVE{
@@ -80,32 +81,32 @@ func TestConsoleVulnerabilities(t *testing.T) {
 		  {"id":"libpcre2-8-0","title":"libpcre2-8-0 10.42-4ubuntu2.2","classification":"security","installed":"10.42-4ubuntu2.1","version":"10.42-4ubuntu2.2","cves":["CVE-2026-89156"]}]}`)})
 	e.store.PutVulnFeed(ctx, store.VulnFeed{Key: "cve/CVE-2026-89156", Data: []byte(`{"title":"PCRE2 heap overflow","cvss":8.1}`)})
 
-	_, body := get(t, c, e.console.URL+"/reports?tab=cve")
+	_, body := get(t, c, e.console.URL+"/security/vulnerabilities")
 	body = html.UnescapeString(body)
 	kev, smb := strings.Index(body, "CVE-2026-1001"), strings.Index(body, "CVE-2026-1002")
 	if kev < 0 || smb < 0 || kev > smb || !strings.Contains(body, ">KEV<") || !strings.Contains(body, "KB5127648 (26100.9711)") {
 		t.Fatalf("ranking (exploited first): %s", body)
 	}
-	_, body = get(t, c, e.console.URL+"/reports?tab=cve&id=CVE-2026-1001")
+	_, body = get(t, c, e.console.URL+"/security/vulnerabilities?id=CVE-2026-1001")
 	body = html.UnescapeString(body)
 	if !strings.Contains(body, "Computer colpiti (2)") || !strings.Contains(body, "PC-OLD") || !strings.Contains(body, "PC-MID") ||
 		strings.Contains(body, "PC-NEW") || !strings.Contains(body, "sfruttata attivamente (CISA KEV)") {
 		t.Fatalf("detail: %s", body)
 	}
-	_, body = get(t, c, e.console.URL+"/reports?tab=cve&id=CVE-2026-14266")
+	_, body = get(t, c, e.console.URL+"/security/vulnerabilities?id=CVE-2026-14266")
 	if body = html.UnescapeString(body); !strings.Contains(body, "PC-ZIP") || !strings.Contains(body, "7-Zip 24.07") || !strings.Contains(body, "7-Zip 26.02") {
 		t.Fatalf("application detail: %s", body)
 	}
-	_, body = get(t, c, e.console.URL+"/reports?tab=cve&id=CVE-2026-89156")
+	_, body = get(t, c, e.console.URL+"/security/vulnerabilities?id=CVE-2026-89156")
 	if body = html.UnescapeString(body); !strings.Contains(body, "SRV-UBUNTU") || !strings.Contains(body, "libpcre2-8-0 10.42-4ubuntu2.2") ||
 		!strings.Contains(body, "PCRE2 heap overflow") || !strings.Contains(body, "CVSS 8.1") {
 		t.Fatalf("linux detail: %s", body)
 	}
-	_, body = get(t, c, e.console.URL+"/reports?tab=cve&id=CVE-2025-10585")
+	_, body = get(t, c, e.console.URL+"/security/vulnerabilities?id=CVE-2025-10585")
 	if body = html.UnescapeString(body); !strings.Contains(body, "profilo utente") || !strings.Contains(body, "Installa per tutto il computer con winget") {
 		t.Fatalf("user-scope detail: %s", body)
 	}
-	_, body = get(t, c, e.console.URL+"/reports?tab=cve&id=CVE-2026-75874")
+	_, body = get(t, c, e.console.URL+"/security/vulnerabilities?id=CVE-2026-75874")
 	if body = html.UnescapeString(body); !strings.Contains(body, "PC-FIREFOX") || !strings.Contains(body, "about:profiles") ||
 		strings.Contains(body, "/agents/bulk?") {
 		t.Fatalf("user-scope Firefox: %s", body)
@@ -118,7 +119,7 @@ func TestConsoleVulnerabilities(t *testing.T) {
 		"CVE-2026-89156": {">libpcre2-8-0</textarea>", "SRV-UBUNTU"},
 		"CVE-2025-10585": {">Google.Chrome</textarea>", "PC-CHROME"},
 	} {
-		_, page := get(t, c, e.console.URL+"/reports?tab=cve&id="+id)
+		_, page := get(t, c, e.console.URL+"/security/vulnerabilities?id="+id)
 		m := fixLink.FindStringSubmatch(page)
 		if m == nil {
 			t.Fatalf("%s: no fix link: %s", id, page)
@@ -138,8 +139,37 @@ func TestConsoleVulnerabilities(t *testing.T) {
 		t.Fatal("unlisted classification still checked")
 	}
 
-	_, body = get(t, c, e.console.URL+"/reports?tab=cve&q=smb")
+	_, body = get(t, c, e.console.URL+"/security/vulnerabilities?q=smb")
 	if strings.Contains(body, "CVE-2026-1001") || !strings.Contains(body, "CVE-2026-1002") {
 		t.Fatal("search")
+	}
+
+	// The old address moves to Security, keeping the filters.
+	noRedirect := &http.Client{Jar: c.Jar, Transport: c.Transport,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	resp, err := noRedirect.Get(e.console.URL + "/reports?tab=cve&id=CVE-2026-1001")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusMovedPermanently || resp.Header.Get("Location") != "/security/vulnerabilities?id=CVE-2026-1001" {
+		t.Fatalf("redirect: %d %q", resp.StatusCode, resp.Header.Get("Location"))
+	}
+
+	// Security dashboard: the counts of the day are recorded and charted;
+	// with the day before recorded, the cards show the change.
+	snaps, _ := e.store.ListVulnSnapshots(ctx, e.tenant, now.AddDate(0, 0, -1))
+	if len(snaps) != 1 || snaps[0].Counts.KEV != 1 || snaps[0].Counts.CVEs.Total() == 0 || snaps[0].Counts.Endpoints == 0 {
+		t.Fatalf("snapshot: %+v", snaps)
+	}
+	e.store.PutVulnSnapshot(ctx, store.VulnSnapshot{TenantID: e.tenant, Day: now.AddDate(0, 0, -3),
+		Counts: store.VulnCounts{CVEs: store.SevCounts{Critical: 9}, Hits: store.SevCounts{Critical: 20}}})
+	_, body = get(t, c, e.console.URL+"/security?days=30")
+	body = html.UnescapeString(body)
+	for _, want := range []string{"Vulnerabilità per gravità", "Esposizioni per gravità", `<path class="line st-critical"`,
+		"Bassa o non valutata", "ultimi 30 giorni", `href="/security/vulnerabilities?exploited=1"`, "Mostra come tabella"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("dashboard without %q: %s", want, body)
+		}
 	}
 }

@@ -121,6 +121,14 @@ func TestModuleChecksAreStored(t *testing.T) {
 	if w, _ := e.store.WorstChecks(context.Background(), e.tenant); w[agentID] != store.CheckFailing {
 		t.Fatalf("worst = %+v", w)
 	}
+
+	// No longer failing (a warning is enough): the alert closes on its own.
+	v2 := e.publish(t, resultModule(t, "trendmicro", "1.0.1", "status",
+		`{"checks":[{"id":"sep","status":"warning","summary":"servizio tmlisten in avvio"}]}`))
+	if j := e.waitFinal(t, e.queue(t, agentID, v2, "status", "{}")); j.State != store.JobSucceeded {
+		t.Fatalf("job: %s %s", j.State, j.Error)
+	}
+	waitFor(t, func() bool { _, ok := e.alerts(agentID)["check.failing"]; return !ok })
 }
 
 func TestConsoleAlertsAndSettings(t *testing.T) {

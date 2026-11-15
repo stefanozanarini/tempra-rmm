@@ -141,6 +141,9 @@ type SecurityStore interface {
 	// ListAlerts returns alerts, most recent first; agentID "" means all.
 	ListAlerts(ctx context.Context, tenantID, agentID string, openOnly bool, limit int) ([]Alert, error)
 	AcknowledgeAlert(ctx context.Context, tenantID, id, by string, at time.Time) error
+	// ResolveAlert closes the open alert with the dedupe key, if any, as
+	// acknowledged by by (the problem went away on its own).
+	ResolveAlert(ctx context.Context, tenantID, dedupeKey, by string, at time.Time) (bool, error)
 
 	// SearchLogons returns the logon events of every agent whose user name
 	// contains user (any user when empty), since the given time, most
@@ -328,6 +331,19 @@ func (m *Memory) AcknowledgeAlert(_ context.Context, tenantID, id, by string, at
 		}
 	}
 	return ErrNotFound
+}
+
+func (m *Memory) ResolveAlert(_ context.Context, tenantID, dedupeKey, by string, at time.Time) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.sec().alerts {
+		a := &m.sec().alerts[i]
+		if a.TenantID == tenantID && a.DedupeKey == dedupeKey && a.AcknowledgedAt == nil {
+			a.AcknowledgedAt, a.AcknowledgedBy = &at, by
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func logonKey(e LogonEvent) string { return e.Channel + "/" + strconv.FormatInt(e.RecordID, 10) }
@@ -635,6 +651,17 @@ func (p *Postgres) AcknowledgeAlert(ctx context.Context, tenantID, id, by string
 			WHERE id = $1 AND acknowledged_at IS NULL`, id, at, by)
 		return err
 	})
+}
+
+func (p *Postgres) ResolveAlert(ctx context.Context, tenantID, dedupeKey, by string, at time.Time) (bool, error) {
+	var closed bool
+	err := p.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `UPDATE alerts SET acknowledged_at = $2, acknowledged_by = $3
+			WHERE dedupe_key = $1 AND acknowledged_at IS NULL`, dedupeKey, at, by)
+		closed = err == nil && tag.RowsAffected() > 0
+		return err
+	})
+	return closed, err
 }
 
 func (p *Postgres) AddLogonEvents(ctx context.Context, tenantID, agentID string, events []LogonEvent, now time.Time) ([]LogonEvent, error) {

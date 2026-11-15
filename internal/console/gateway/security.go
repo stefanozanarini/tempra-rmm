@@ -34,7 +34,7 @@ type reportedCheck struct {
 }
 
 // ingestChecks stores the checks of a result. A check that starts failing
-// raises an alert.
+// raises an alert, closed on its own when the check is no longer failing.
 func (s *Server) ingestChecks(ctx context.Context, a store.Agent, module string, raw []byte) {
 	var res struct {
 		Checks []reportedCheck `json:"checks"`
@@ -65,6 +65,14 @@ func (s *Server) ingestChecks(ctx context.Context, a store.Agent, module string,
 		if c.Status == store.CheckFailing && prev != store.CheckFailing {
 			s.raise(ctx, a, store.SeverityWarning, "check.failing", "check/"+chk.CheckID,
 				fmt.Sprintf("Controllo %s non superato: %s", chk.CheckID, chk.Summary), now)
+		}
+		if c.Status != store.CheckFailing {
+			closed, err := s.store.ResolveAlert(ctx, a.TenantID, a.ID+"/check/"+chk.CheckID, "check:"+c.Status, now)
+			if err != nil {
+				s.log.Error("resolve alert", "agent", a.ID, "check", chk.CheckID, "err", err)
+			} else if closed {
+				s.audit(ctx, a.TenantID, "agent:"+a.ID, "alert.resolved", a.ID, map[string]any{"check": chk.CheckID, "status": c.Status})
+			}
 		}
 	}
 }

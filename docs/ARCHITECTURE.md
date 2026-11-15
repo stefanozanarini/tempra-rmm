@@ -363,8 +363,9 @@ The installation type is also sent by the core on connect (one field), so the co
 
 ### 8.4 Checks and alerts ✅
 
-- **Checks convention:** any module may add `"checks": [{"id": "sep", "status": "ok|warning|failing", "summary": "…"}]` to its result. The console stores the latest status per agent as `<module>/<id>` (module from the console's own records) and shows them on the agent page and, as the worst status, in the agent lists. A check that starts failing raises an alert.
+- **Checks convention:** any module may add `"checks": [{"id": "sep", "status": "ok|warning|failing", "summary": "…"}]` to its result. The console stores the latest status per agent as `<module>/<id>` (module from the console's own records) and shows them on the agent page and, as the worst status, in the agent lists. A check that starts failing raises an alert; the alert closes on its own (audited as `alert.resolved`) when the check reports ok or warning again.
 - **Alerts** have a severity (info, warning, critical), are merged while open (same key: count and last time) and are taken in charge by an Operator (audited). The number of open alerts is shown in the navigation.
+- **Security** menu: the vulnerabilities list (CVEs matched against the inventory, §8.5) and a dashboard with the trend of the CVEs and of the exposures (CVE × computer) by severity — critical (CVSS 9+), high (7+), medium (4+), low or unscored. The console records the counts once a day per tenant (`vuln_history`), each time the CVEs are matched and after every refresh of the sources, so the history fills also when nobody opens the pages. `/reports?tab=cve` redirects to `/security/vulnerabilities`.
 
 ### 8.5 `winupdate` ✅
 

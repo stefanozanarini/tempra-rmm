@@ -34,7 +34,7 @@ func TestConsoleVulnPendingAndLibrary(t *testing.T) {
 	raw, _ := json.Marshal(inv)
 	e.store.PutInventory(ctx, store.Inventory{TenantID: e.tenant, AgentID: edge, Data: raw,
 		Summary: store.InventorySummary{CollectedAt: inv.CollectedAt.Add(time.Second)}}, nil)
-	_, body := get(t, c, e.console.URL+"/reports?tab=cve&id=CVE-2026-90001")
+	_, body := get(t, c, e.console.URL+"/security/vulnerabilities?id=CVE-2026-90001")
 	if body = html.UnescapeString(body); !strings.Contains(body, "142.0.3595.53 pronto, manca il riavvio") ||
 		!strings.Contains(body, "1 computer hanno già scaricato una versione corretta") {
 		t.Fatalf("pending restart: %s", body)
@@ -44,7 +44,7 @@ func TestConsoleVulnPendingAndLibrary(t *testing.T) {
 	sha := strings.Repeat("ab", 32)
 	e.store.PutPackage(ctx, store.Package{TenantID: e.tenant, SHA256: sha, Name: "VLC media player", Version: "3.0.21",
 		FileName: "vlc-3.0.21-win64.msi", Kind: "msi", Source: "upload", CreatedAt: time.Now()})
-	_, body = get(t, c, e.console.URL+"/reports?tab=cve&id=CVE-2026-90002")
+	_, body = get(t, c, e.console.URL+"/security/vulnerabilities?id=CVE-2026-90002")
 	if body = html.UnescapeString(body); !strings.Contains(body, "/packages/"+sha+"/deploy?agent="+vlc) ||
 		!strings.Contains(body, "Distribuisci VLC media player 3.0.21 dalla libreria") {
 		t.Fatalf("library package: %s", body)

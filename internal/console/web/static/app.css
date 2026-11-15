@@ -318,3 +318,21 @@ body.resizing { cursor:col-resize; user-select:none; }
 .list { overflow-x:auto; }
 nav.tabs.filters { flex-wrap:wrap; margin:0 0 10px; }
 nav.tabs.filters a { padding:3px 10px; font-size:.9em; }
+/* Security dashboard: trend lines by severity. */
+svg.lines { width:100%; height:auto; display:block; font-size:13px; }
+svg.lines line.grid { stroke:var(--line); stroke-width:1; }
+svg.lines text { fill:var(--muted); }
+svg.lines text.tick { text-anchor:end; }
+svg.lines text.end { fill:var(--fg); font-weight:600; }
+svg.lines path.line { fill:none; stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
+svg.lines circle.pt { fill:transparent; stroke:none; }
+svg.lines circle.pt:hover { fill:var(--fg); fill-opacity:.15; }
+svg.lines circle.pt.on { stroke:var(--card); stroke-width:2; }
+.line.st-critical { stroke:var(--st-critical); } .line.st-serious { stroke:var(--st-serious); }
+.line.st-warning { stroke:var(--st-warning); } .line.st-none { stroke:var(--st-none); }
+circle.on.st-critical { fill:var(--st-critical); } circle.on.st-serious { fill:var(--st-serious); }
+circle.on.st-warning { fill:var(--st-warning); } circle.on.st-none { fill:var(--st-none); }
+.card .delta { display:block; font-size:12px; color:var(--muted); margin-top:2px; }
+.card .delta.up { color:var(--danger); } .card .delta.down { color:var(--ok); }
+details.table-view { margin-top:6px; font-size:13px; }
+details.table-view table { margin-top:6px; }

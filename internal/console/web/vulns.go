@@ -19,7 +19,7 @@ import (
 	"github.com/stefanozanarini/tempra-rmm/internal/updates"
 )
 
-// CVEs affecting the endpoints (Reporting → Vulnerabilities). The sources
+// CVEs affecting the endpoints (Security → Vulnerabilities). The sources
 // are downloaded in the background (RefreshVulns, every few hours); the
 // loaded index is kept in memory for a few minutes.
 
@@ -49,7 +49,32 @@ func (s *Server) RefreshVulns(ctx context.Context) error {
 		m.at = time.Time{} // computed again at the next view
 	}
 	s.vulns.mu.Unlock()
+	s.snapshotVulns(ctx)
 	return err
+}
+
+// snapshotVulns matches the CVEs of every tenant, so the daily history has
+// a row also on the days nobody opens the pages.
+func (s *Server) snapshotVulns(ctx context.Context) {
+	ix, err := s.vulnIndex(ctx)
+	if err != nil {
+		return
+	}
+	tenants, err := s.store.ListTenants(ctx)
+	if err != nil {
+		s.log.Warn("vulnerability history", "err", err)
+		return
+	}
+	for _, t := range tenants {
+		agents, err := s.store.ListAgents(ctx, t.ID)
+		if err != nil {
+			s.log.Warn("vulnerability history", "tenant", t.ID, "err", err)
+			continue
+		}
+		if _, _, err := s.matchVulns(ctx, t.ID, ix, agents, activeAgents(agents)); err != nil {
+			s.log.Warn("vulnerability history", "tenant", t.ID, "err", err)
+		}
+	}
 }
 
 func (s *Server) vulnIndex(ctx context.Context) (*vuln.Index, error) {
@@ -245,10 +270,11 @@ func (s *Server) matchVulns(ctx context.Context, tenant string, ix *vuln.Index, 
 	}
 	s.vulns.matched[tenant] = m
 	s.vulns.mu.Unlock()
+	s.recordVulns(tenant, m.all)
 	return m.all, m.at, nil
 }
 
-// vulnData is the Vulnerabilities tab.
+// vulnData is the Vulnerabilities page.
 type vulnData struct {
 	Ready     bool // sources downloaded
 	Months    int
@@ -358,7 +384,7 @@ func sortFindings(fs []vuln.Finding, by string) {
 // SortURL is the link of a column header: descending first, then
 // ascending, keeping the search.
 func (d *vulnData) SortURL(col string) string {
-	v := url.Values{"tab": {"cve"}, "sort": {col}}
+	v := url.Values{"sort": {col}}
 	if d.Sort == col {
 		v.Set("sort", col+"_asc")
 	}
@@ -368,7 +394,7 @@ func (d *vulnData) SortURL(col string) string {
 	if d.Exploited {
 		v.Set("exploited", "1")
 	}
-	return "/reports?" + v.Encode()
+	return "/security/vulnerabilities?" + v.Encode()
 }
 
 // SortMark is the arrow of a column header.

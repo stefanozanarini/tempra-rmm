@@ -26,7 +26,7 @@ func TestSortFindings(t *testing.T) {
 		}
 	}
 	d := &vulnData{Sort: "hosts", Query: "chrome", Exploited: true}
-	if got := d.SortURL("hosts"); got != "/reports?exploited=1&q=chrome&sort=hosts_asc&tab=cve" {
+	if got := d.SortURL("hosts"); got != "/security/vulnerabilities?exploited=1&q=chrome&sort=hosts_asc" {
 		t.Errorf("SortURL = %s", got)
 	}
 	if d.SortMark("hosts") != " ▼" || d.SortMark("cvss") != "" {

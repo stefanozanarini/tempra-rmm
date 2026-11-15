@@ -135,6 +135,7 @@ type Store interface {
 	AssignmentStore
 	ProfileStore
 	VulnFeedStore
+	VulnHistoryStore
 }
 
 // HashToken returns the value stored in place of an enrollment token.

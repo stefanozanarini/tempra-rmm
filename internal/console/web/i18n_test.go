@@ -128,6 +128,10 @@ func usedKeys(t *testing.T) map[string]bool {
 	for _, v := range assignmentValidities {
 		keys[v.Label] = keys[v.Label] || false
 	}
+	for _, sv := range severities {
+		keys[sv.Label] = keys[sv.Label] || false
+		keys[sv.Short] = keys[sv.Short] || false
+	}
 	for _, f := range agentFilters {
 		keys[f.Label] = keys[f.Label] || false
 	}
