@@ -38,7 +38,7 @@ var helpTexts = map[string]string{ // #nosec G101 -- help text, not credentials
 	"updates":     "Aggiornamenti dell'agente: release pubblicate e anelli. I computer dell'anello pilot ricevono subito la nuova versione, quelli broad dopo.",
 	"bulk":        "Azioni su più computer insieme: comandi, script, installazioni, gestione dei file, sede e anello. Una sola autenticazione MFA approva l'azione su tutti; ogni computer riceve un proprio comando firmato.",
 	"shell":       "Shell interattiva sul computer, a tempo. Ogni riga digitata è registrata nell'audit. Chiudi la sessione quando hai finito.",
-	"screen":      "Controllo remoto del computer, a tempo: vedi lo schermo e muovi mouse e tastiera. Richiede un utente collegato con lo schermo sbloccato. Chiudi la sessione quando hai finito.",
+	"screen":      "Controllo remoto del computer, a tempo: vedi lo schermo e muovi mouse e tastiera. Dall'agente 1.2.0 funziona anche senza utente collegato o a schermo bloccato. Chiudi la sessione quando hai finito.",
 	"files":       "Gestione dei file: \"Sfoglia\" sceglie il computer di cui vedi le cartelle; \"Applica a\" decide su quali computer caricare un file o da quali scaricarlo in uno zip. Le cartelle dell'agente non sono accessibili e ogni file trasferito è registrato.",
 
 	"section:shell":      "Apre PowerShell (bash su Linux) sul computer per il tempo scelto, dopo l'approvazione MFA. Il computer deve consentirlo con la policy locale (GPO AllowInteractiveShell).",
