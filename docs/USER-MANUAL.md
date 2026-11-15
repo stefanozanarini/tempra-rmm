@@ -64,9 +64,9 @@ When you launch any command, a Microsoft sign-in opens for that command. Sign in
 | Software | Library, Workflows |
 | Provisioning | Profiles, Runs |
 | Deployment | Installer, Agent versions, Modules, Policy |
-| Reporting | Reporting, Software inventory, Alerts, Activity |
+| Reporting | Reporting, Alerts, Activity |
 | Security | Dashboard, Vulnerabilities |
-| Settings, Setup | Admin only |
+| Administration | Settings, Setup, Scopes (OpenRMM.Admin only) |
 | Linked consoles | Only on a federated console |
 
 ## 3. Enrolling computers
@@ -348,7 +348,7 @@ The subnets RDP is allowed from are set by an Admin in **Settings**; without the
 
 ### Advanced search
 
-In **Computer inventory**, the advanced search combines any inventory field with AND, OR, NOT and parentheses. The page **fields and examples** lists every field.
+In **Computer inventory**, the advanced search combines any inventory field with AND, OR, NOT and parentheses. The page **fields and examples** lists every field. The simple fields below the bar are added to the search with AND: after **Search** they are written in the bar, where you can edit them.
 
 | Syntax | Meaning | Example |
 | --- | --- | --- |

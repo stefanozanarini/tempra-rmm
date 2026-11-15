@@ -35,7 +35,8 @@ type reportsData struct {
 	Vulns *vulnData
 	// Dashboard.
 	Dash *dashData
-	// Computers.
+	// Computers: the simple filters (Site also narrows the dashboard),
+	// turned into the advanced search before searching.
 	Software, Version, OSFilter, User, Model, Site string
 	// Expr: the advanced search (?q=), ExprError why it is not valid.
 	Expr, ExprError string
@@ -51,7 +52,7 @@ type reportsData struct {
 	// Columns: the inventory columns chosen (?col=), Choices all of them.
 	Columns []invColumn
 	Choices []columnChoice
-	// Upgrades: the applications matching the software filter that winget
+	// Upgrades: the applications matching the software term that winget
 	// can upgrade on some of the computers found, with the action prepared
 	// for them.
 	Upgrades []reportUpgrade
@@ -285,15 +286,26 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 	d.Sites = sites
 	matcher := newSiteMatcher(sites, manual)
 	osCount := map[string]int{}
-	d.Searched = d.Software != "" || d.Version != "" || d.OSFilter != "" || d.User != "" || d.Model != "" || d.Site != "" || d.Expr != "" ||
-		q.Has("all") || q.Has("search")
+	if d.Tab == "computers" {
+		// The simple filters become the advanced search, shown in its bar
+		// where the operator can edit it.
+		if terms := filterQuery(d.Software, d.Version, d.OSFilter, d.User, d.Model, d.Site, sites); terms != "" {
+			v := url.Values{"tab": {"computers"}, "search": {"1"}, "q": {andQuery(terms, d.Expr)}, "col": q["col"]}
+			if csvOut {
+				v.Set("format", "csv")
+			}
+			http.Redirect(w, r, "/reports?"+v.Encode(), http.StatusSeeOther)
+			return
+		}
+	}
+	d.Searched = d.Expr != "" || q.Has("all") || q.Has("search")
 	expr, err := parseQuery(d.Expr, s.now())
 	if err != nil && d.Tab == "computers" {
 		d.ExprError = queryErrorText(s.lang(r), err)
 		csvOut = false
 	}
 	swTerms := softwareTerms(expr)
-	d.ShowSoftware = d.Software != "" || d.Version != "" || len(swTerms) > 0
+	d.ShowSoftware = len(swTerms) > 0
 	lastUsers, userTTL := s.lastUsers(r.Context(), t)
 	for _, a := range agents {
 		if a.Status == store.AgentRevoked {
@@ -306,7 +318,7 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 				inv = parsed
 			}
 		}
-		siteID, siteName, _ := matcher.match(a, stored.Summary)
+		_, siteName, _ := matcher.match(a, stored.Summary)
 		row := reportRow{Agent: a, Site: siteName, OS: osLabel(a, inv), Seen: stored.ReceivedAt,
 			Model: strings.TrimSpace(stored.Summary.Manufacturer + " " + stored.Summary.Model)}
 		lu, hasLU := lastUsers[a.ID]
@@ -314,25 +326,6 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 		osCount[row.OS]++
 		if d.Tab != "computers" || !d.Searched || d.ExprError != "" {
 			continue
-		}
-		if !contains(row.OS, d.OSFilter) || !contains(row.User, d.User) || !contains(row.Model, d.Model) {
-			continue
-		}
-		if d.Site != "" && (d.Site != siteID && !(d.Site == "none" && siteID == "")) {
-			continue
-		}
-		if d.Software != "" || d.Version != "" {
-			if inv == nil {
-				continue
-			}
-			for _, sw := range inv.VisibleSoftware() {
-				if contains(sw.Name, d.Software) && contains(sw.Version, d.Version) {
-					row.Software = append(row.Software, sw)
-				}
-			}
-			if len(row.Software) == 0 {
-				continue
-			}
 		}
 		if expr != nil {
 			qc := &queryCtx{lang: s.lang(r), now: s.now(), a: a, inv: inv, row: &row}
@@ -343,9 +336,6 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			seen := map[string]bool{}
-			for _, sw := range row.Software {
-				seen[sw.Name+"\x00"+sw.Version] = true
-			}
 			for _, t := range swTerms {
 				for _, sw := range t.apps(qc) {
 					if k := sw.Name + "\x00" + sw.Version; !seen[k] {
@@ -361,8 +351,8 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 	sort.Slice(d.Rows, func(i, j int) bool {
 		return strings.ToLower(d.Rows[i].Agent.Host.Hostname) < strings.ToLower(d.Rows[j].Agent.Host.Hostname)
 	})
-	if d.Software != "" && len(d.Rows) > 0 && !csvOut {
-		if d.Upgrades, err = s.reportUpgrades(r, t, d.Software, d.Rows); err != nil {
+	if name := upgradeName(expr); name != "" && len(d.Rows) > 0 && !csvOut {
+		if d.Upgrades, err = s.reportUpgrades(r, t, name, d.Rows); err != nil {
 			s.fail(w, r, err)
 			return
 		}

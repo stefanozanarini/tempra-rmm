@@ -309,6 +309,7 @@ details.wf-when[open] > summary { margin-bottom:6px; }
 /* Advanced search: fields and examples. */
 table.query-fields code { white-space:nowrap; }
 .query-examples li { margin:6px 0; }
+input.query-bar { width:100%; font-family:ui-monospace, Consolas, monospace; }
 /* Agents list: resizable columns. */
 table.agents th { position:relative; }
 /* Only once a column was resized: text cut to the width chosen. */

@@ -81,6 +81,7 @@ func timeValue(t *time.Time) []string {
 var queryFields = []queryField{
 	{"hostname", "Nome del computer", kindText, func(c *queryCtx) []string { return one(c.a.Host.Hostname) }},
 	{"site", "Sede", kindText, func(c *queryCtx) []string { return one(c.row.Site) }},
+	{"device", "Produttore e modello", kindText, func(c *queryCtx) []string { return one(c.row.Model) }},
 	{"user", "Utente collegato", kindText, func(c *queryCtx) []string { return one(c.row.User) }},
 	{"status", "Stato", kindText, func(c *queryCtx) []string { return one(string(c.a.Status)) }},
 	{"agent_version", "Versione agente", kindText, func(c *queryCtx) []string { return one(c.a.Host.AgentVersion) }},
@@ -802,6 +803,80 @@ func queryErrorText(lang string, err error) string {
 		return trf(lang, qe.format, qe.args...)
 	}
 	return err.Error()
+}
+
+// queryValue writes a value of a term, in quotes when it has spaces,
+// parentheses or operators. Quotes cannot be written in a value: they are
+// dropped.
+func queryValue(v string) string {
+	v = strings.TrimSpace(strings.ReplaceAll(v, `"`, ""))
+	if v == "" || strings.ContainsAny(v, " \t()!=<>:") || strings.HasPrefix(v, "-") {
+		return `"` + v + `"`
+	}
+	return v
+}
+
+// filterQuery writes the simple filters of Computer inventory as an
+// advanced search, so the operator sees it and can edit it: site is a site
+// id (or "none"), names its name.
+func filterQuery(software, version, os, user, model, site string, sites []store.Site) string {
+	var terms []string
+	if software != "" || version != "" {
+		name := software
+		if name == "" {
+			name = "*"
+		}
+		if version != "" {
+			name += "@" + version
+		} else if strings.Contains(name, "@") {
+			name += "@" // the name is all before the last @
+		}
+		terms = append(terms, "software:"+queryValue(name))
+	}
+	for _, f := range []struct{ key, v string }{{"os", os}, {"user", user}, {"device", model}} {
+		if f.v != "" {
+			terms = append(terms, f.key+":"+queryValue(f.v))
+		}
+	}
+	if site == "none" {
+		terms = append(terms, "NOT site:*")
+	}
+	for _, st := range sites {
+		if st.ID == site {
+			terms = append(terms, "site="+queryValue(st.Name))
+		}
+	}
+	return strings.Join(terms, " ")
+}
+
+// andQuery combines the terms of the simple filters with an advanced search.
+func andQuery(terms, expr string) string {
+	switch {
+	case terms == "":
+		return expr
+	case expr == "":
+		return terms
+	}
+	return terms + " AND (" + expr + ")"
+}
+
+// upgradeName is the application an advanced search requires on every
+// computer it finds (software:name, outside OR and NOT, without * or a
+// version), to offer its upgrade with winget.
+func upgradeName(q queryNode) string {
+	switch n := q.(type) {
+	case andNode:
+		for _, c := range n {
+			if name := upgradeName(c); name != "" {
+				return name
+			}
+		}
+	case *termNode:
+		if len(n.fields) == 1 && n.fields[0].Kind == kindProduct && n.glob == nil && n.version == "" && n.op == ":" {
+			return n.name
+		}
+	}
+	return ""
 }
 
 type queryExample struct{ Query, Label string }

@@ -37,7 +37,6 @@
     </div></details>
     <details class="menu"><summary>Reporting{{if .OpenAlerts}} <span class="badge sev-critical">{{.OpenAlerts}}</span>{{end}}</summary><div>
       <a href="/reports">Reporting</a>
-      <a href="/reports?tab=software">{{t "Inventario software"}}</a>
       <a href="/alerts">{{t "Avvisi"}}{{if .OpenAlerts}} <span class="badge sev-critical">{{.OpenAlerts}}</span>{{end}}</a>
       <a href="/audit">{{t "Attività"}}</a>
     </div></details>
@@ -45,7 +44,11 @@
       <a href="/security">Dashboard</a>
       <a href="/security/vulnerabilities">{{t "Vulnerabilità"}}</a>
     </div></details>
-    {{if .IsSuper}}<a href="/settings">{{t "Impostazioni"}}</a> <a href="/setup">{{t "Configurazione"}}</a> <a href="/scopes">{{t "Ambiti"}}</a>{{end}}
+    {{if .IsSuper}}<details class="menu"><summary>{{t "Amministrazione"}}</summary><div>
+      <a href="/settings">{{t "Impostazioni"}}</a>
+      <a href="/setup">{{t "Configurazione"}}</a>
+      <a href="/scopes">{{t "Ambiti"}}</a>
+    </div></details>{{end}}
     {{if or .ShowLinks .Federated}}<a href="/federation">{{t "Console collegate"}}</a>{{end}}
   </nav>
   <div class="who">

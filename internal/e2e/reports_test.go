@@ -35,6 +35,10 @@ func TestConsoleReports(t *testing.T) {
 	if !strings.Contains(body, "2 computer.") || !strings.Contains(body, "PC-01") || !strings.Contains(body, "PC-02") || strings.Contains(body, "PC-03") {
 		t.Fatalf("software search: %s", body)
 	}
+	// The filters are written in the search bar, where they can be edited.
+	if !strings.Contains(body, `name="q" value="software:7-zip"`) {
+		t.Fatalf("search bar: %s", body)
+	}
 	if _, body = get(t, c, e.console.URL+"/reports?tab=computers&software=7-zip&version=24"); !strings.Contains(body, "1 computer.") || strings.Contains(body, "PC-01") {
 		t.Fatalf("version filter: %s", body)
 	}

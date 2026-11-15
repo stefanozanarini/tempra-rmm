@@ -121,19 +121,19 @@
 <p class="muted">{{t "Trova i computer per software installato, sistema operativo, utente, modello o sede, dai dati dell'ultimo inventario. I filtri si combinano; ogni campo cerca il testo contenuto, senza distinguere maiuscole e minuscole. Puoi aggiungere colonne dall'inventario ed esportare il risultato in CSV."}}</p>
 <form method="get" action="/reports" class="stack">
   <input type="hidden" name="tab" value="computers"><input type="hidden" name="search" value="1">
-  <div class="grid2">
-    <label>{{t "Software installato"}} <input name="software" value="{{.Software}}" placeholder="7-Zip"></label>
-    <label>{{t "Versione del software"}} <input name="version" value="{{.Version}}" placeholder="24."></label>
-    <label>{{t "Sistema operativo"}} <input name="os" value="{{.OSFilter}}" placeholder="Windows 11 23H2"></label>
-    <label>{{t "Utente collegato"}} <input name="user" value="{{.User}}"></label>
-    <label>{{t "Produttore o modello"}} <input name="model" value="{{.Model}}" placeholder="Latitude"></label>
-    <label>{{t "Sede"}} <select name="site"><option value="">{{t "Tutte le sedi"}}</option>
-      {{range .Sites}}<option value="{{.ID}}"{{if eq $.Data.Site .ID}} selected{{end}}>{{.Name}}</option>{{end}}
-      <option value="none"{{if eq .Site "none"}} selected{{end}}>{{t "Senza sede"}}</option></select></label>
-  </div>
   <label>{{t "Ricerca avanzata"}} <a href="/reports/query" class="small">{{t "campi ed esempi"}}</a>
-    <input name="q" value="{{.Expr}}" spellcheck="false" placeholder='(model:Latitude OR model:OptiPlex) AND ram_gb&lt;16 AND NOT software:"7-Zip@24*"'></label>
-  <p class="muted small">{{t "Combina i campi dell'inventario con AND, OR, NOT e le parentesi; si aggiunge in AND ai filtri sopra."}}</p>
+    <input name="q" value="{{.Expr}}" class="query-bar" spellcheck="false" autocomplete="off" placeholder='(model:Latitude OR model:OptiPlex) AND ram_gb&lt;16 AND NOT software:"7-Zip@24*"'></label>
+  <p class="muted small">{{t "Combina i campi dell'inventario con AND, OR, NOT e le parentesi. I campi qui sotto si aggiungono alla ricerca in AND: dopo Cerca li ritrovi scritti qui, e puoi modificarli."}}</p>
+  <div class="grid2">
+    <label>{{t "Software installato"}} <input name="software" placeholder="7-Zip"></label>
+    <label>{{t "Versione del software"}} <input name="version" placeholder="24."></label>
+    <label>{{t "Sistema operativo"}} <input name="os" placeholder="Windows 11 23H2"></label>
+    <label>{{t "Utente collegato"}} <input name="user"></label>
+    <label>{{t "Produttore o modello"}} <input name="model" placeholder="Latitude"></label>
+    <label>{{t "Sede"}} <select name="site"><option value="">{{t "Tutte le sedi"}}</option>
+      {{range .Sites}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+      <option value="none">{{t "Senza sede"}}</option></select></label>
+  </div>
   {{with .ExprError}}<p class="flash error">{{.}} <a href="/reports/query">{{t "Vedi campi e sintassi."}}</a></p>{{end}}
   <details class="columns"{{if .Columns}} open{{end}}>
     <summary>{{t "Colonne aggiuntive dall'inventario"}}{{with .Columns}} <span class="muted">({{len .}})</span>{{end}}</summary>

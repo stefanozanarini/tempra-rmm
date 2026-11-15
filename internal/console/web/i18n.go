@@ -523,7 +523,7 @@ var catalogEN = map[string]string{ // #nosec G101 -- UI text, not credentials
 	"Campo sconosciuto: %s.":     "Unknown field: %s.",
 	"Campo":                      "Field",
 	"Chrome precedente alla 142": "Chrome older than 142",
-	"Combina i campi dell'inventario con AND, OR, NOT e le parentesi; si aggiunge in AND ai filtri sopra.":                                                                                                "Combine the inventory fields with AND, OR, NOT and parentheses; it is added with AND to the filters above.",
+	"Combina i campi dell'inventario con AND, OR, NOT e le parentesi. I campi qui sotto si aggiungono alla ricerca in AND: dopo Cerca li ritrovi scritti qui, e puoi modificarli.":                        "Combine the inventory fields with AND, OR, NOT and parentheses. The fields below are added to the search with AND: after Search you find them written here, and can edit them.",
 	"Combina i termini con <code>AND</code>, <code>OR</code>, <code>NOT</code> (o <code>-</code> davanti al termine) e le parentesi. Due termini vicini valgono AND; NOT lega più di AND, AND più di OR.": "Combine the terms with <code>AND</code>, <code>OR</code>, <code>NOT</code> (or <code>-</code> before the term) and parentheses. Two terms next to each other mean AND; NOT binds tighter than AND, AND tighter than OR.",
 	"Data dell'inventario":                              "Inventory date",
 	"Dell Latitude o OptiPlex con meno di 16 GB di RAM": "Dell Latitude or OptiPlex with less than 16 GB of RAM",

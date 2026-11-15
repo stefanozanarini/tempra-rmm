@@ -113,3 +113,47 @@ func TestInventoryQuery(t *testing.T) {
 		t.Errorf("empty query: %v %v", n, err)
 	}
 }
+
+// The simple filters of Computer inventory become an advanced search that
+// finds the same computers.
+func TestFilterQuery(t *testing.T) {
+	sites := []store.Site{{ID: "s1", Name: "London Office"}}
+	for _, c := range []struct {
+		software, version, os, user, model, site string
+		want                                     string
+	}{
+		{software: "7-Zip", want: `software:7-Zip`},
+		{software: "Google Chrome", version: "142.", want: `software:"Google Chrome@142."`},
+		{version: "24.", want: `software:*@24.`},
+		{software: "a@b", want: `software:a@b@`},
+		{os: "Windows 11 23H2", user: "jdoe", model: "Dell Latitude", want: `os:"Windows 11 23H2" user:jdoe device:"Dell Latitude"`},
+		{site: "s1", want: `site="London Office"`},
+		{site: "none", want: `NOT site:*`},
+		{site: "gone", want: ``},
+		{model: `-x"y`, want: `device:"-xy"`},
+	} {
+		got := filterQuery(c.software, c.version, c.os, c.user, c.model, c.site, sites)
+		if got != c.want {
+			t.Errorf("filterQuery = %s, want %s", got, c.want)
+			continue
+		}
+		if _, err := parseQuery(got, time.Now()); err != nil {
+			t.Errorf("%s: %v", got, err)
+		}
+	}
+	if got := andQuery("os:x", "a OR b"); got != "os:x AND (a OR b)" {
+		t.Errorf("andQuery = %s", got)
+	}
+	for q, want := range map[string]string{
+		`software:"7-Zip" ram_gb<16`:  "7-zip",
+		`software:chrome OR os:linux`: "",
+		`NOT software:chrome`:         "",
+		`software:"chrome@142"`:       "",
+		`software:chr*`:               "",
+	} {
+		n, _ := parseQuery(q, time.Now())
+		if got := upgradeName(n); got != want {
+			t.Errorf("upgradeName(%s) = %q, want %q", q, got, want)
+		}
+	}
+}
