@@ -1863,6 +1863,11 @@ var catalogEN = map[string]string{ // #nosec G101 -- UI text, not credentials
 	"L'agente sta avviando la sessione…":                                                              "The agent is starting the session…",
 	"L'agente non è collegato (ultimo contatto %s): la sessione partirà se si ricollega entro le %s.": "The agent is not connected (last contact %s): the session will start if it reconnects by %s.",
 	// Provisioning
+	"Attenzione: il provisioning è pensato per computer appena installati.":                                                                                                     "Warning: provisioning is meant for freshly installed computers.",
+	"Conferma che i computer sono appena installati e che i loro dati possono andare persi.":                                                                                    "Confirm that the computers are freshly installed and that their data may be lost.",
+	"Confermo che i %d computer selezionati sono appena installati e che i dati presenti possono andare persi.":                                                                 "I confirm that the %d selected computers are freshly installed and that the data on them may be lost.",
+	"I suoi passi installano software, eseguono script e riavviano il computer senza preavviso agli utenti: applicato a un computer già in uso può causare la perdita di dati.": "Its steps install software, run scripts and reboot the computer without notice to users: applied to a computer already in use it may cause data loss.",
+	"Il provisioning è solo per i client appena installati: togli i server dalla selezione (%s).":                                                                               "Provisioning is only for freshly installed clients: remove the servers from the selection (%s).",
 	"%d di %d passi":          "%d of %d steps",
 	"Annulla":                 "Cancel",
 	"Approva la versione %d…": "Approve version %d…",

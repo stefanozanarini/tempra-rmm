@@ -63,7 +63,7 @@ func TestProvisioningProfile(t *testing.T) {
 
 	agent := e.addWindowsAgent(t, "PC-01")
 	// Not approved yet: it cannot start.
-	post(t, c, e.console.URL+"/provisioning/start", url.Values{"csrf": {csrf}, "profile": {profileID}, "agent": {agent}})
+	post(t, c, e.console.URL+"/provisioning/start", url.Values{"csrf": {csrf}, "profile": {profileID}, "agent": {agent}, "confirm": {"1"}})
 	if runs, _ := e.store.ListRuns(ctx, e.tenant); len(runs) != 0 {
 		t.Fatalf("started an unapproved profile: %+v", runs)
 	}
@@ -89,9 +89,30 @@ func TestProvisioningProfile(t *testing.T) {
 		t.Fatalf("approval nonce = %q", nonce)
 	}
 
-	// An operator starts it: the first step is dispatched at once.
+	// Servers are refused, and so is a start without the confirmation
+	// that the computer is freshly installed.
 	e.idp.signIn(op)
-	code, body, _ = post(t, oc, e.console.URL+"/provisioning/start", url.Values{"csrf": {ocsrf}, "profile": {profileID}, "agent": {agent}})
+	server := ids.NewUUID()
+	e.store.CreateAgent(ctx, store.Agent{TenantID: e.tenant, ID: server, Status: store.AgentActive, CertFingerprint: server,
+		Host: store.HostInfo{Hostname: "SRV-01", OS: "windows", Arch: "amd64", OSFamily: "server"}, CertNotAfter: time.Now().Add(time.Hour)})
+	_, body, _ = post(t, oc, e.console.URL+"/provisioning/start", url.Values{"csrf": {ocsrf}, "profile": {profileID},
+		"agent": {agent, server}, "confirm": {"1"}})
+	if !strings.Contains(body, "togli i server dalla selezione (SRV-01)") {
+		t.Fatalf("server not refused: %s", body)
+	}
+	if _, body := get(t, oc, e.console.URL+"/agents/bulk?agent="+server); strings.Contains(body, `name="confirm"`) {
+		t.Fatal("start form offered for a server")
+	}
+	_, body, _ = post(t, oc, e.console.URL+"/provisioning/start", url.Values{"csrf": {ocsrf}, "profile": {profileID}, "agent": {agent}})
+	if !strings.Contains(body, "Conferma che i computer sono appena installati") {
+		t.Fatalf("started without confirmation: %s", body)
+	}
+	if runs, _ := e.store.ListRuns(ctx, e.tenant); len(runs) != 0 {
+		t.Fatalf("runs after refusals = %+v", runs)
+	}
+
+	// An operator starts it: the first step is dispatched at once.
+	code, body, _ = post(t, oc, e.console.URL+"/provisioning/start", url.Values{"csrf": {ocsrf}, "profile": {profileID}, "agent": {agent}, "confirm": {"1"}})
 	if code != 200 || !strings.Contains(body, "Provisioning avviato su 1 computer") {
 		t.Fatalf("start: %d %s", code, body)
 	}
@@ -106,7 +127,7 @@ func TestProvisioningProfile(t *testing.T) {
 		t.Fatalf("first job = %+v", j)
 	}
 	// Starting again while it runs is refused.
-	post(t, oc, e.console.URL+"/provisioning/start", url.Values{"csrf": {ocsrf}, "profile": {profileID}, "agent": {agent}})
+	post(t, oc, e.console.URL+"/provisioning/start", url.Values{"csrf": {ocsrf}, "profile": {profileID}, "agent": {agent}, "confirm": {"1"}})
 	if runs, _ = e.store.ListRuns(ctx, e.tenant); len(runs) != 1 {
 		t.Fatalf("second run on a busy computer: %d", len(runs))
 	}
@@ -191,7 +212,7 @@ func TestProvisioningNewVersionNeedsApproval(t *testing.T) {
 		t.Fatalf("approved a stale version: %s", body)
 	}
 	agent := e.addWindowsAgent(t, "PC-01")
-	post(t, c, e.console.URL+"/provisioning/start", url.Values{"csrf": {csrf}, "profile": {id}, "agent": {agent}})
+	post(t, c, e.console.URL+"/provisioning/start", url.Values{"csrf": {csrf}, "profile": {id}, "agent": {agent}, "confirm": {"1"}})
 	runs, _ := e.store.ListRuns(ctx, e.tenant)
 	if len(runs) != 1 || runs[0].Version != 1 {
 		t.Fatalf("runs = %+v", runs)

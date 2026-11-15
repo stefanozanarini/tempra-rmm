@@ -94,14 +94,22 @@
 </form>
 {{end}}
 {{if .Profiles}}
-<h2 id="provisioning">{{t "Avvia provisioning"}}</h2>
+<section class="warn" id="provisioning">
+<h2>{{t "Avvia provisioning"}}</h2>
+{{if .ProvisionServers}}
+<p>{{tf "Il provisioning è solo per i client appena installati: togli i server dalla selezione (%s)." .ProvisionServers}}</p>
+{{else}}
+<p><strong>{{t "Attenzione: il provisioning è pensato per computer appena installati."}}</strong> {{t "I suoi passi installano software, eseguono script e riavviano il computer senza preavviso agli utenti: applicato a un computer già in uso può causare la perdita di dati."}}</p>
 <form method="post" action="/provisioning/start" class="stack">
   <input type="hidden" name="csrf" value="{{$.CSRF}}">
   {{range .Agents}}<input type="hidden" name="agent" value="{{.ID}}">{{end}}
   <label>{{t "Profilo"}} <select name="profile">{{range .Profiles}}<option value="{{.ID}}">{{.Name}} · {{tf "versione %d" .Version}}</option>{{end}}</select></label>
   <p class="muted">{{t "Esegue i passi del profilo uno dopo l'altro, con la versione approvata da un amministratore: non serve una nuova MFA."}}</p>
+  <label class="check"><input type="checkbox" name="confirm" value="1" required> {{tf "Confermo che i %d computer selezionati sono appena installati e che i dati presenti possono andare persi." (len .Agents)}}</label>
   <button class="primary">{{t "Avvia provisioning"}}</button>
 </form>
+{{end}}
+</section>
 {{end}}
 {{if .Packages}}
 <h2>{{t "Installa software"}}</h2>

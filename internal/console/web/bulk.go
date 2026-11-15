@@ -35,8 +35,11 @@ type bulkData struct {
 	// (?workflow=).
 	Workflows []store.Workflow
 	Workflow  string
-	// Profiles: the provisioning profiles with an approved version.
-	Profiles []store.Profile
+	// Profiles: the provisioning profiles with an approved version;
+	// ProvisionServers: the selected servers (names joined by commas),
+	// which provisioning refuses.
+	Profiles         []store.Profile
+	ProvisionServers string
 }
 
 // selectedAgents returns the active agents listed in the "agent" values.
@@ -181,6 +184,7 @@ func (s *Server) handleBulkForm(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	d.ProvisionServers = strings.Join(provisioningServers(agents), ", ")
 	title := s.Tf(r, "Azioni su %d agenti", len(agents))
 	if group != nil {
 		title = s.Tf(r, "Azioni sul gruppo %s (%d computer)", group.Name, len(agents))

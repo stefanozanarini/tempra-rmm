@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"regexp"
 	"sort"
 	"strconv"
@@ -847,8 +848,22 @@ func (s *Server) completeProfile(w http.ResponseWriter, r *http.Request, sess *s
 	s.flashTo(w, r, sess, trf(lang, "Versione %d approvata: utilizzabile fino al %s.", a.Version, expires.Format(dateFormat(lang))), p.Return)
 }
 
+// provisioningServers names the servers among agents. Provisioning is for
+// freshly installed clients: its steps (installations, reboots, later a
+// domain join) may lose data, so servers are refused outright.
+func provisioningServers(agents []store.Agent) []string {
+	var out []string
+	for _, a := range agents {
+		if a.Host.OSFamily == "server" {
+			out = append(out, a.Host.Hostname)
+		}
+	}
+	return out
+}
+
 // handleStartProvisioning starts the newest approved version of a profile
-// on the selected computers.
+// on the selected computers, once the operator has confirmed they are
+// freshly installed.
 func (s *Server) handleStartProvisioning(w http.ResponseWriter, r *http.Request) {
 	t, ok := tenantOf(r)
 	if !ok {
@@ -865,6 +880,16 @@ func (s *Server) handleStartProvisioning(w http.ResponseWriter, r *http.Request)
 	}
 	if msg != "" {
 		s.flash(w, r, msg, "/agents")
+		return
+	}
+	back := "/agents/bulk?" + url.Values{"agent": r.PostForm["agent"]}.Encode() + "#provisioning"
+	if servers := provisioningServers(agents); len(servers) > 0 {
+		s.flash(w, r, s.Tf(r, "Il provisioning è solo per i client appena installati: togli i server dalla selezione (%s).",
+			strings.Join(servers, ", ")), back)
+		return
+	}
+	if r.PostFormValue("confirm") == "" {
+		s.flash(w, r, s.T(r, "Conferma che i computer sono appena installati e che i loro dati possono andare persi."), back)
 		return
 	}
 	id := r.PostFormValue("profile")
