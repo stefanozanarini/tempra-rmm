@@ -1,0 +1,25 @@
+<section id="what">
+<div class="head">
+<p class="eyebrow">What it is</p>
+<h2>Three parts, one rule: every connection starts from the endpoint</h2>
+</div>
+<div class="grid3" style="flex:1">
+<div class="card fadeup" style="--i:0">
+<x-icon name="Tool" class="icon"></x-icon>
+<h3>Agent</h3>
+<p class="body">Windows clients and servers, Linux. Deployed by Group Policy (MSI + ADMX) or a signed installer. No listening port. Features arrive as signed modules — the agent itself rarely changes.</p>
+</div>
+<div class="card fadeup" style="--i:1">
+<x-icon name="Home" class="icon"></x-icon>
+<h3>Console</h3>
+<p class="body">Hosted at the customer, in unprivileged, read-only Linux containers. Multi-tenant from day zero. Operators sign in with Microsoft Entra ID and MFA only.</p>
+</div>
+<div class="card fadeup" style="--i:2">
+<x-icon name="Globe" class="icon"></x-icon>
+<h3>Federation</h3>
+<p class="body">A central console operates linked customer consoles over an outbound, pinned link — for managed service providers — while commands stay signed at the customer.</p>
+</div>
+</div>
+<div class="footer"><span>Tempra RMM</span><span>2</span></div>
+<aside>Agent, console, optional central console. The agent always dials out over 443 with mutual TLS; the console never connects to a PC, so laptops off-site work without a VPN. The agent core knows no feature: inventory, Windows Update, firmware, shell are all signed plugins.</aside>
+</section>

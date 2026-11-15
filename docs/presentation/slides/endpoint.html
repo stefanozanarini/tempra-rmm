@@ -1,0 +1,26 @@
+<section id="endpoint" class="dark">
+<div class="head">
+<p class="eyebrow">Control stays with the customer</p>
+<h2>The endpoint and the audit log have the last word</h2>
+</div>
+<div class="grid3" style="flex:1">
+<div class="card fadeup" style="--i:0">
+<x-icon name="Lock" class="icon"></x-icon>
+<h3>Local policies</h3>
+<p class="body">Set by GPO, never by the console. Scripts on by default; interactive shell and remote control <b>off</b> unless the domain admin enables them.</p>
+</div>
+<div class="card fadeup" style="--i:1">
+<x-icon name="Clock" class="icon"></x-icon>
+<h3>Timed sessions</h3>
+<p class="body">Shell up to 60 min, closes after 15 min idle. Remote control up to 60 min. Only the approving operator can attach.</p>
+</div>
+<div class="card fadeup" style="--i:2">
+<x-icon name="Book" class="icon"></x-icon>
+<h3>Tamper-evident audit</h3>
+<p class="body">Hash-chained log of every action: full script text, every shell line typed, every file moved with its SHA-256.</p>
+</div>
+</div>
+<p class="muted small">Plus: per-tenant row-level security in PostgreSQL · the console refuses superuser database roles · server-rendered UI with strict CSP and no third-party JavaScript.</p>
+<div class="footer"><span>Tempra RMM</span><span>9</span></div>
+<aside>Even with valid signatures, an endpoint whose Group Policy sets AllowAdHocScripts to 0 refuses scripts. Policies can never schedule a shell, a remote-control or a file session. The audit log cannot be edited from the console.</aside>
+</section>

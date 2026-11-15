@@ -1,0 +1,33 @@
+<section id="reports">
+<div class="head">
+<p class="eyebrow">Reporting</p>
+<h2>Ask the inventory anything, export the answer</h2>
+</div>
+<div class="row" style="gap:48px;flex:1">
+<div style="width:620px;display:flex;flex-direction:column;gap:20px">
+<table class="t">
+<tr class="th"><th style="width:100%">Reports</th></tr>
+<tr><td>Dashboard by site or group</td></tr>
+<tr><td>Software inventory</td></tr>
+<tr><td>Computer inventory + advanced search</td></tr>
+<tr><td>Operating systems and builds</td></tr>
+<tr><td>Logons and failed attempts</td></tr>
+<tr><td>Activity (audit log)</td></tr>
+</table>
+<p class="small muted">Every table exports to CSV. From a software search, the upgrade action opens ready to approve.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:10px">
+<p class="eyebrow" style="letter-spacing:1px;text-transform:none">Advanced search: AND, OR, NOT, parentheses</p>
+<p class="code">os_family:client AND bitlocker!=on</p>
+<p class="small muted">Clients with an unencrypted system disk</p>
+<p class="code">secure_boot:no OR tpm:no</p>
+<p class="small muted">No Secure Boot or no TPM</p>
+<p class="code">software&lt;"Google Chrome@142"</p>
+<p class="small muted">Chrome older than 142</p>
+<p class="code">uptime_days&gt;30</p>
+<p class="small muted">Not rebooted for over 30 days</p>
+</div>
+</div>
+<div class="footer"><span>Tempra RMM</span><span>14</span></div>
+<aside>More than 50 fields from the latest inventory: hardware, BIOS, disks, BitLocker, TPM, battery, network, users, software with versions, remote-access IDs, last seen. Numbers, versions and dates support greater-than and less-than, like last_seen less than 30 days.</aside>
+</section>

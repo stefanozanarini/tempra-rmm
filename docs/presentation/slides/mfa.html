@@ -1,0 +1,20 @@
+<section id="mfa" class="alt">
+<div class="head">
+<p class="eyebrow">Per-command MFA</p>
+<h2>Every command is approved by a person, then verified twice more</h2>
+</div>
+<div class="row" style="gap:20px">
+<div class="step fadeup" style="--i:0"><p class="n">1</p><p class="t">Operator reviews</p><p class="d">PCs, module, parameters and validity fixed in one hash.</p></div>
+<div class="step fadeup" style="--i:1"><p class="n">2</p><p class="t">Fresh MFA sign-in</p><p class="d">Entra ID nonce = that hash: bound to this command only.</p></div>
+<div class="step fadeup" style="--i:2"><p class="n">3</p><p class="t">Signer verifies</p><p class="d">Token, MFA, role, freshness, single use. Trusts no console.</p></div>
+<div class="step fadeup" style="--i:3"><p class="n">4</p><p class="t">Signed job</p><p class="d">Ed25519 over tenant, agent, module hash, nonce, expiry.</p></div>
+<div class="step fadeup" style="--i:4"><p class="n">5</p><p class="t">Agent verifies</p><p class="d">Signature, addressee, expiry, replay cache, then runs.</p></div>
+</div>
+<div class="grid3">
+<div class="card"><h3>Bulk approval</h3><p class="body">Up to 500 PCs per approval, one signed job each.</p></div>
+<div class="card"><h3>Session approval</h3><p class="body">Shell, screen and files: one MFA per timed session.</p></div>
+<div class="card"><h3>Collections</h3><p class="body">Read-only inventory and scans need no new sign-in.</p></div>
+</div>
+<div class="footer"><span>Tempra RMM</span><span>6</span></div>
+<aside>The signer is a separate container reachable only by a local socket. It signs only if the request carries an id_token issued by Entra ID for that exact request, recent, with MFA, by an Operator or Admin of that tenant, never used before. The console cannot mint commands by itself. Then the agent checks signature, that the job is addressed to it, the validity window, a persistent anti-replay cache and the module manifest hash.</aside>
+</section>

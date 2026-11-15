@@ -1,0 +1,19 @@
+<section id="vuln-flow">
+<div class="head">
+<p class="eyebrow">Vulnerability management</p>
+<h2>From public CVE data to a fix approved in one click</h2>
+</div>
+<div class="row" style="gap:20px">
+<div class="step fadeup" style="--i:0"><p class="n">Collect</p><p class="t">Every 6 hours</p><p class="d">Microsoft, NVD, CISA KEV, Linux package managers.</p></div>
+<div class="step fadeup" style="--i:1"><p class="n">Match</p><p class="t">Inventory</p><p class="d">Each Windows build, known app and Linux update.</p></div>
+<div class="step fadeup" style="--i:2"><p class="n">Prioritise</p><p class="t">Exploited first</p><p class="d">CISA KEV and ransomware on top, then CVSS.</p></div>
+<div class="step fadeup" style="--i:3"><p class="n">Fix</p><p class="t">Prepared action</p><p class="d">Updates, winget, library package or Linux packages.</p></div>
+<div class="step fadeup" style="--i:4"><p class="n">Track</p><p class="t">Daily history</p><p class="d">Exposures fall as fixes reach the PCs.</p></div>
+</div>
+<div class="grid2">
+<div class="card"><h3>Knows the edge cases</h3><p class="body">Flags apps in a user profile, out of winget’s reach, and fixes waiting for an app restart.</p></div>
+<div class="card"><h3>Robust to supersedence</h3><p class="body">Windows fixes install current security updates, not an old, replaced KB.</p></div>
+</div>
+<div class="footer"><span>Tempra RMM</span><span>10</span></div>
+<aside>The vulnerability engine runs on the console, comparing the inventory with public data. No agent change is needed. The fix button opens a bulk action already filled with the affected computers; the operator reviews it and approves with MFA. For apps installed in a user profile, winget (running as SYSTEM) cannot update them: the console proposes a machine-wide install where safe, and explains why not for Firefox and Thunderbird.</aside>
+</section>

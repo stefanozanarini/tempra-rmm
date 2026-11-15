@@ -1,0 +1,19 @@
+<section id="threats">
+<div class="head">
+<p class="eyebrow">Threat model</p>
+<h2>Each threat has a named mitigation</h2>
+</div>
+<table class="t" style="font-size:26px">
+<tr class="th"><th style="width:28%">Threat</th><th style="width:72%">Mitigation</th></tr>
+<tr><td>Console compromised</td><td>Per-command MFA checked by a separate signer; keys encrypted or offline</td></tr>
+<tr><td>DMZ host compromised</td><td>Relay without DB credentials or CA key; the LAN side opens the tunnel</td></tr>
+<tr><td>Rogue enrollment</td><td>Expiring, use-limited tokens; new agents wait for approval</td></tr>
+<tr><td>Man-in-the-middle</td><td>mTLS with a pinned private root CA; system trust store never used</td></tr>
+<tr><td>Tampered module or package</td><td>Ed25519 signature and SHA-256 checked before anything runs</td></tr>
+<tr><td>Job replay</td><td>Nonce, expiry and agent id signed; persistent replay cache</td></tr>
+<tr><td>Operator abuse</td><td>Roles, per-command MFA, immutable hash-chained audit log</td></tr>
+</table>
+<p class="small muted">Supply chain: few dependencies; govulncheck, gosec, staticcheck and race detector in CI.</p>
+<div class="footer"><span>Tempra RMM</span><span>7</span></div>
+<aside>Summary of the threat model in the architecture document, section 6.1. Four-eyes approval for mass actions is on the roadmap.</aside>
+</section>

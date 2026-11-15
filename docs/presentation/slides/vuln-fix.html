@@ -1,0 +1,29 @@
+<section id="vuln-fix">
+<div class="head">
+<p class="eyebrow">A CVE, end to end</p>
+<h2>Open a CVE, see who is affected, approve the fix</h2>
+</div>
+<div class="grid2" style="flex:1">
+<div class="card">
+<p class="tag">On the CVE page</p>
+<ul class="list">
+<li>Badges: actively exploited (CISA KEV), used in ransomware, CVSS</li>
+<li>Links to Microsoft and NVD</li>
+<li>Affected computers, installed version, fix</li>
+<li>The prepared action for exactly those computers</li>
+</ul>
+</div>
+<div class="card accent">
+<p class="tag">The prepared fix</p>
+<table class="t" style="font-size:26px">
+<tr class="th"><th style="width:34%">Product</th><th style="width:66%">Action</th></tr>
+<tr><td>Windows</td><td>Install security and critical updates</td></tr>
+<tr><td>Applications</td><td>winget upgrade, or deploy from the library</td></tr>
+<tr><td>Linux</td><td>Upgrade the affected packages</td></tr>
+</table>
+<p class="body">The operator reviews the computer list and approves once with MFA.</p>
+</div>
+</div>
+<div class="footer"><span>Tempra RMM</span><span>12</span></div>
+<aside>The list view can be filtered to only exploited CVEs, searched by CVE, product, computer or KB, and sorted by severity or by number of computers. After the next scan, fixed computers drop out of the list and the exposure trend goes down.</aside>
+</section>

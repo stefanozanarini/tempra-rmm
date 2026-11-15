@@ -1,0 +1,38 @@
+<section id="arch">
+<div class="head">
+<p class="eyebrow">Architecture</p>
+<h2>The internet-facing part holds no keys and no database</h2>
+</div>
+<div class="row" style="align-items:stretch;gap:0">
+<div class="card" style="width:360px;box-sizing:border-box">
+<p class="tag">ENDPOINT</p>
+<h3>Agent + watchdog</h3>
+<p class="body">No listening port. Verifies every signature before running anything.</p>
+</div>
+<div style="width:120px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px">
+<p class="small muted">mTLS 443</p>
+<x-shape kind="arrow-right" style="width:96px;height:44px;background:#0E7C6B"></x-shape>
+</div>
+<div class="card" style="width:400px;box-sizing:border-box;background:#ECEAE2">
+<p class="tag">DMZ</p>
+<h3>Gateway</h3>
+<p class="body">Relays an allow-list of calls as opaque frames. No DB credentials, no CA key.</p>
+</div>
+<div style="width:140px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px">
+<x-shape kind="arrow-left" style="width:96px;height:44px;background:#0E7C6B"></x-shape>
+<p class="small muted">opened from LAN</p>
+</div>
+<div class="card accent" style="flex:1">
+<p class="tag">LAN</p>
+<h3>Core · Web console · Signer · PostgreSQL</h3>
+<p class="body">Enrollment and CA key in the core. Job signing key only in the signer. Row-level security per tenant.</p>
+</div>
+</div>
+<div class="grid3">
+<p class="small muted">The firewall allows <b>no connection</b> from the DMZ to the LAN: the core opens the tunnel and re-verifies every forwarded identity.</p>
+<p class="small muted">Web console stays on the LAN/VPN; only the agents endpoint faces the internet.</p>
+<p class="small muted">A compromised gateway can delay traffic — it cannot forge jobs, modules or certificates.</p>
+</div>
+<div class="footer"><span>Tempra RMM</span><span>5</span></div>
+<aside>The DMZ split: openrmm-gateway is a relay in the DMZ; openrmm-core in the LAN opens a long-lived mTLS tunnel to it. On the tunnel the roles are reversed. The gateway never decodes payloads, so new features never touch it, and internal services are unreachable from the internet.</aside>
+</section>

@@ -1,0 +1,19 @@
+<section id="tech">
+<div class="head">
+<p class="eyebrow">Technology</p>
+<h2>A small, auditable stack</h2>
+</div>
+<table class="t">
+<tr class="th"><th style="width:26%">Layer</th><th style="width:74%">Choice</th></tr>
+<tr><td>Agent and console</td><td>Go; gRPC over HTTP/2 with mTLS</td></tr>
+<tr><td>Database</td><td>PostgreSQL 16, row-level security, LISTEN/NOTIFY job queue</td></tr>
+<tr><td>Deployment</td><td>Docker Compose; non-root, read-only, no capabilities</td></tr>
+<tr><td>Web console</td><td>Server-rendered, strict CSP, no third-party JavaScript; Italian and English</td></tr>
+<tr><td>Modules</td><td>Signed PowerShell, sh or Go plugins over a JSON-lines protocol</td></tr>
+<tr><td>Agent updates</td><td>Signed A/B releases, pilot and broad rings, rollback in 10 minutes</td></tr>
+<tr><td>Packaging</td><td>Signed MSI and ADMX for Group Policy; self-extracting Linux installer</td></tr>
+<tr><td>Licence</td><td>GNU AGPL-3.0</td></tr>
+</table>
+<div class="footer"><span>Tempra RMM</span><span>18</span></div>
+<aside>Three levels of self-healing on the endpoint: service recovery, a watchdog that restarts a hung agent, and a scheduled task every 15 minutes. Features ship as modules, so the agent itself is updated only for protocol or security fixes.</aside>
+</section>

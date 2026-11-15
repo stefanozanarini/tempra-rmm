@@ -1,0 +1,21 @@
+<section id="keys" class="alt">
+<div class="head">
+<p class="eyebrow">Keys and signatures</p>
+<h2>Every key lives in one place and signs one kind of thing</h2>
+</div>
+<table class="t">
+<tr class="th"><th style="width:26%">Key</th><th style="width:46%">Where it lives</th><th style="width:28%">Signs</th></tr>
+<tr><td>Root CA</td><td>Offline</td><td>Agents CA</td></tr>
+<tr><td>Agents CA</td><td>Core only (gateway: public part)</td><td>Agent certificates</td></tr>
+<tr><td>Job signing</td><td>Signer container only</td><td>Jobs, policies</td></tr>
+<tr><td>Module / release</td><td>Builder, passphrase-encrypted; or offline</td><td>Modules, agent updates</td></tr>
+<tr><td>Code signing</td><td>Builder: dedicated CA, AD CS or PFX</td><td>EXE and MSI</td></tr>
+</table>
+<div class="grid3">
+<p class="small muted">Agent keys are generated <b>on the PC</b>; certificates last 90 days and renew with a new key.</p>
+<p class="small muted">The builder passphrase is asked at each use and <b>never stored</b> by the console.</p>
+<p class="small muted">Revocation disconnects an agent <b>immediately</b>, even mid-session.</p>
+</div>
+<div class="footer"><span>Tempra RMM</span><span>8</span></div>
+<aside>Consoles that want the strictest model keep module and release keys offline: then even a fully compromised console cannot publish code to agents. With keys in the builder, an attacker would also need the passphrase, which is entered per operation.</aside>
+</section>

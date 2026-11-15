@@ -49,6 +49,8 @@ Next: validation on real Windows endpoints, Entra ID and Vision One. See the [ro
 
 ## Documentation
 
+- Operator manual: [docs/USER-MANUAL.md](docs/USER-MANUAL.md)
+- Product presentation: [docs/presentation](docs/presentation/README.md)
 - Server installation: [docs/INSTALL.md](docs/INSTALL.md)
 - Microsoft Entra ID setup: [docs/ENTRA.md](docs/ENTRA.md)
 - Agent installation on Windows (MSI, Group Policy): [docs/AGENT-INSTALL.md](docs/AGENT-INSTALL.md)
