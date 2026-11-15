@@ -158,6 +158,9 @@ func TestConsoleVulnerabilities(t *testing.T) {
 
 	// Security dashboard: the counts of the day are recorded and charted;
 	// with the day before recorded, the cards show the change.
+	if st, _ := e.store.VulnExposureStats(ctx, e.tenant, now.AddDate(0, 0, -1)); st.Tracking.IsZero() {
+		t.Fatal("exposures not recorded")
+	}
 	snaps, _ := e.store.ListVulnSnapshots(ctx, e.tenant, now.AddDate(0, 0, -1))
 	if len(snaps) != 1 || snaps[0].Counts.KEV != 1 || snaps[0].Counts.CVEs.Total() == 0 || snaps[0].Counts.Endpoints == 0 {
 		t.Fatalf("snapshot: %+v", snaps)
@@ -167,7 +170,11 @@ func TestConsoleVulnerabilities(t *testing.T) {
 	_, body = get(t, c, e.console.URL+"/security?days=30")
 	body = html.UnescapeString(body)
 	for _, want := range []string{"Vulnerabilità per gravità", "Esposizioni per gravità", `<path class="line st-critical"`,
-		"Bassa o non valutata", "ultimi 30 giorni", `href="/security/vulnerabilities?exploited=1"`, "Mostra come tabella"} {
+		"Bassa o non valutata", "ultimi 30 giorni", `href="/security/vulnerabilities?exploited=1"`, "Mostra come tabella",
+		// Posture: compliance, patches and OS support, most exposed, time to fix.
+		"Conformità", "Aggiornamenti di sicurezza installati", "Supporto del sistema operativo", "Patch di sicurezza mancanti per anzianità",
+		"Computer più esposti", `href="/security/vulnerabilities?q=PC-OLD"`, "Software più vulnerabile", `href="/security/vulnerabilities?q=7-Zip"`,
+		`href="/reports?software=7-Zip&tab=computers"`, "Tempo medio di correzione", "Registrazione attiva dal"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("dashboard without %q: %s", want, body)
 		}

@@ -94,33 +94,8 @@
   <a class="card" href="/agents"><span class="num">{{.Unseen}}</span>{{t "non visti da 7 giorni"}}</a>
 </div>
 <div class="viz-grid">
-{{range .Donuts}}
-<section class="viz">
-  <h3>{{.Title}}</h3><p class="muted small">{{.Sub}}</p>
-  {{if .Total}}
-  <div class="donut-row">
-    <svg viewBox="0 0 100 100" class="donut" role="img" aria-label="{{.Title}}: {{range $i, $s := .Segs}}{{if $i}}, {{end}}{{$s.Label}} {{$s.Count}}{{end}}">
-      <circle cx="50" cy="50" r="42" class="donut-track"></circle>
-      {{range .Segs}}<a href="{{or .Link "#"}}"{{if not .Link}} tabindex="-1"{{end}}><circle cx="50" cy="50" r="42" class="seg {{.Class}}" stroke-dasharray="{{.Dash}} {{.Gap}}" stroke-dashoffset="{{.Offset}}" transform="rotate(-90 50 50)"><title>{{.Label}}: {{.Count}} ({{.Pct}}%)</title></circle></a>{{end}}
-      <text x="50" y="50" class="donut-total">{{.Total}}</text>
-    </svg>
-    <ul class="legend">{{range .Segs}}<li>{{if .Link}}<a href="{{.Link}}">{{end}}<span class="swatch {{.Class}}"></span><span class="lv">{{.Count}}</span> {{.Label}}{{if .Link}}</a>{{end}}</li>{{end}}</ul>
-  </div>
-  {{else}}<p class="muted">{{t "Nessun dato."}}</p>{{end}}
-</section>
-{{end}}
-{{range .Bars}}
-<section class="viz{{if .Wide}} wide{{end}}">
-  <h3>{{.Title}}</h3><p class="muted small">{{.Sub}}</p>
-  {{if .Bars}}
-  {{if .Legend}}<ul class="legend inline">{{range .Legend}}<li><span class="swatch {{.Class}}"></span>{{.Label}}</li>{{end}}</ul>{{end}}
-  <table class="hbars">
-  {{range .Bars}}<tr><th scope="row" title="{{.Label}}{{with .Note}} · {{.}}{{end}}">{{if .Link}}<a href="{{.Link}}">{{.Label}}</a>{{else}}{{.Label}}{{end}}{{with .Note}} <span class="muted">{{.}}</span>{{end}}</th>
-    <td><svg class="hbar" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">{{if .Parts}}{{range .Parts}}<rect class="{{.Class}}" x="{{.X}}" y="0" height="10" width="{{.W}}"><title>{{.Label}}: {{.Count}}</title></rect>{{end}}{{else}}<rect x="0" y="0" height="10" width="{{.Width}}"><title>{{.Label}}: {{.Count}}</title></rect>{{end}}</svg></td><td class="lv">{{.Count}}</td></tr>{{end}}
-  </table>
-  {{else}}<p class="muted">{{.Empty}}</p>{{end}}
-</section>
-{{end}}
+{{range .Donuts}}{{template "donut" .}}{{end}}
+{{range .Bars}}{{template "hbars" .}}{{end}}
 </div>
 {{end}}{{end}}
 

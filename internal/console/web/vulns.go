@@ -270,7 +270,7 @@ func (s *Server) matchVulns(ctx context.Context, tenant string, ix *vuln.Index, 
 	}
 	s.vulns.matched[tenant] = m
 	s.vulns.mu.Unlock()
-	s.recordVulns(tenant, m.all)
+	s.recordVulns(tenant, agents, m.all)
 	return m.all, m.at, nil
 }
 

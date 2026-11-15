@@ -37,6 +37,8 @@ func openTestDB(t *testing.T) *Postgres {
 	return db
 }
 
+func TestPostgresVulnExposures(t *testing.T)         { testVulnExposures(t, openTestDB(t)) }
+func TestPostgresVulnHistory(t *testing.T)           { testVulnHistory(t, openTestDB(t)) }
 func TestPostgresAuditChain(t *testing.T)            { testAuditChain(t, openTestDB(t)) }
 func TestPostgresEnrollmentTokenLimits(t *testing.T) { testEnrollmentTokenLimits(t, openTestDB(t)) }
 func TestPostgresApprovalAndRotation(t *testing.T)   { testApprovalAndRotation(t, openTestDB(t)) }

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"sort"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // SevCounts counts by severity: critical (CVSS 9 or more), high (7),
@@ -82,30 +84,35 @@ func (p *Postgres) PutVulnSnapshot(ctx context.Context, s VulnSnapshot) error {
 	if err != nil {
 		return err
 	}
-	_, err = p.pool.Exec(ctx, `INSERT INTO vuln_history (tenant_id, day, counts, updated_at) VALUES ($1,$2,$3,now())
-		ON CONFLICT (tenant_id, day) DO UPDATE SET counts = EXCLUDED.counts, updated_at = now()`, s.TenantID, dayOf(s.Day), raw)
-	return err
+	return p.inTenant(ctx, s.TenantID, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `INSERT INTO vuln_history (tenant_id, day, counts, updated_at) VALUES ($1,$2,$3,now())
+			ON CONFLICT (tenant_id, day) DO UPDATE SET counts = EXCLUDED.counts, updated_at = now()`, s.TenantID, dayOf(s.Day), raw)
+		return err
+	})
 }
 
 func (p *Postgres) ListVulnSnapshots(ctx context.Context, tenantID string, since time.Time) ([]VulnSnapshot, error) {
-	rows, err := p.pool.Query(ctx, `SELECT day, counts FROM vuln_history WHERE tenant_id = $1 AND day >= $2 ORDER BY day`,
-		tenantID, dayOf(since))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
 	var out []VulnSnapshot
-	for rows.Next() {
-		s := VulnSnapshot{TenantID: tenantID}
-		var raw []byte
-		if err := rows.Scan(&s.Day, &raw); err != nil {
-			return nil, err
+	err := p.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT day, counts FROM vuln_history WHERE tenant_id = $1 AND day >= $2 ORDER BY day`,
+			tenantID, dayOf(since))
+		if err != nil {
+			return err
 		}
-		if err := json.Unmarshal(raw, &s.Counts); err != nil {
-			return nil, err
+		defer rows.Close()
+		for rows.Next() {
+			s := VulnSnapshot{TenantID: tenantID}
+			var raw []byte
+			if err := rows.Scan(&s.Day, &raw); err != nil {
+				return err
+			}
+			if err := json.Unmarshal(raw, &s.Counts); err != nil {
+				return err
+			}
+			s.Day = dayOf(s.Day)
+			out = append(out, s)
 		}
-		s.Day = dayOf(s.Day)
-		out = append(out, s)
-	}
-	return out, rows.Err()
+		return rows.Err()
+	})
+	return out, err
 }

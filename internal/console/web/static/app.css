@@ -336,3 +336,10 @@ circle.on.st-warning { fill:var(--st-warning); } circle.on.st-none { fill:var(--
 .card .delta.up { color:var(--danger); } .card .delta.down { color:var(--ok); }
 details.table-view { margin-top:6px; font-size:13px; }
 details.table-view table { margin-top:6px; }
+svg.hbar rect.st-good { fill:var(--st-good); } svg.hbar rect.st-warning { fill:var(--st-warning); }
+svg.hbar rect.st-serious { fill:var(--st-serious); } svg.hbar rect.st-critical { fill:var(--st-critical); }
+svg.hbar rect.st-none { fill:var(--st-none); }
+table.hbars.criteria th { white-space:normal; max-width:none; width:50%; }
+table.hbars.criteria th .small { display:block; }
+table.hbars.criteria thead th { font-weight:600; color:var(--muted); }
+table.hbars.criteria td.num { white-space:nowrap; }

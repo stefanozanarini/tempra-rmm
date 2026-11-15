@@ -17,27 +17,58 @@
 </div>
 {{if lt .History 2}}<p class="muted">{{t "Lo storico è registrato una volta al giorno da quando la console è stata aggiornata: i grafici si riempiono un giorno alla volta."}}</p>{{end}}
 <div class="viz-grid charts2">
-{{range .Charts}}
-<section class="viz">
-  <h3>{{.Title}}</h3><p class="muted small">{{.Sub}}</p>
-  <ul class="legend inline">{{range .Series}}<li><span class="swatch {{.Class}}"></span>{{.Label}}</li>{{end}}</ul>
-  <svg class="lines" viewBox="0 0 640 250" role="img" aria-label="{{.Title}}">
-    {{range .Ticks}}<line class="grid" x1="44" x2="530" y1="{{.Y}}" y2="{{.Y}}"></line><text class="tick" x="38" y="{{.Y}}" dy="4">{{.Label}}</text>{{end}}
-    {{range .XTicks}}<text class="xtick" x="{{.X}}" y="236" text-anchor="{{.Anchor}}">{{.Label}}</text>{{end}}
-    {{$single := .Single}}
-    {{range .Series}}{{$c := .Class}}
-      {{if not $single}}<path class="line {{$c}}" d="{{.Path}}"></path>{{end}}
-      {{range .Points}}<circle class="pt {{$c}}{{if $single}} on{{end}}" cx="{{.X}}" cy="{{.Y}}" r="{{if $single}}5{{else}}9{{end}}"><title>{{.Title}}</title></circle>{{end}}
-      <text class="end" x="538" y="{{.LabelY}}" dy="4">{{.Last}} {{.Short}}</text>
-    {{end}}
-  </svg>
-  <details class="table-view"><summary>{{t "Mostra come tabella"}}</summary>
-    <table><thead><tr><th>{{t "Giorno"}}</th>{{range .Series}}<th class="num">{{.Label}}</th>{{end}}</tr></thead>
-    <tbody>{{range .Rows}}<tr><td>{{.Day}}</td>{{range .Values}}<td class="num">{{.}}</td>{{end}}</tr>{{end}}</tbody></table>
-  </details>
-</section>
-{{end}}
+{{range .Charts}}{{template "linechart" .}}{{end}}
 </div>
+{{with .Posture}}
+<h2>{{t "Conformità"}}</h2>
+<div class="viz-grid">
+{{template "donut" .Compliance}}
+<section class="viz wide">
+  <h3>{{tf "%d%% dei computer conformi" .CompliantPct}}</h3><p class="muted small">{{t "Ogni criterio vale solo per i computer a cui si applica e di cui ci sono i dati."}}</p>
+  <table class="hbars criteria">
+  <thead><tr><th>{{t "Criterio"}}</th><th></th><th class="num">%</th><th class="num">{{t "Non conformi"}}</th></tr></thead>
+  {{range .Criteria}}<tr><th scope="row" title="{{.Help}}">{{.Label}} <span class="muted small">{{.Help}}</span></th>
+    <td><svg class="hbar" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect class="st-good" x="0" y="0" height="10" width="{{.Pct}}"></rect></svg></td>
+    <td class="lv">{{if or .Pass .Fail}}{{.Pct}}%{{else}}–{{end}}</td>
+    <td class="num">{{if .Fail}}<a href="{{.FailLink}}">{{.Fail}}</a>{{else}}0{{end}}{{if .NoData}} <span class="muted small" title="{{t "senza dati o non applicabile"}}">({{tf "%d n.d." .NoData}})</span>{{end}}</td></tr>{{end}}
+  </table>
+</section>
+</div>
+
+<h2>{{t "Patch e sistemi operativi"}}</h2>
+<div class="viz-grid">
+{{template "hbars" .PatchAge}}
+{{template "donut" .OSSupport}}
+{{template "hbars" .OSReleases}}
+</div>
+
+<h2>{{t "Esposizione"}}</h2>
+<div class="viz-grid charts2">
+{{template "hbars" .TopHosts}}
+<section class="viz wide">
+  <h3>{{t "Software più vulnerabile"}}</h3><p class="muted small">{{t "Applicazioni con vulnerabilità note, prima quelle sfruttate attivamente e critiche"}}</p>
+  {{if .Software}}<table>
+  <thead><tr><th>{{t "Applicazione"}}</th><th class="num">{{t "Computer"}}</th><th class="num">CVE</th><th class="num">{{t "Critiche"}}</th><th class="num">{{t "Alte"}}</th><th class="num">{{t "Sfruttate"}}</th><th></th></tr></thead>
+  <tbody>{{range .Software}}<tr><td><a href="{{.Link}}">{{.Product}}</a></td><td class="num">{{.Computers}}</td><td class="num">{{.CVEs}}</td>
+    <td class="num">{{.Critical}}</td><td class="num">{{.High}}</td><td class="num">{{if .KEV}}<span class="badge chk-failing">{{.KEV}}</span>{{else}}0{{end}}</td>
+    <td>{{if and $.CanRun .UpgradeLink}}<a href="{{.UpgradeLink}}">{{t "Aggiorna…"}}</a>{{end}}</td></tr>{{end}}</tbody>
+  </table>{{else}}<p class="muted">{{t "Nessuna applicazione con vulnerabilità note."}}</p>{{end}}
+</section>
+</div>
+
+<h2>{{t "Tempi di correzione"}}</h2>
+<div class="viz-grid charts2">
+{{if .HasWeeks}}{{template "linechart" .Weekly}}{{else}}<section class="viz"><h3>{{.Weekly.Title}}</h3><p class="muted">{{t "Ancora nessuna esposizione nuova o corretta da quando la registrazione è partita."}}</p></section>{{end}}
+<section class="viz">
+  <h3>{{t "Tempo medio di correzione"}}</h3><p class="muted small">{{t "Giorni da quando una CVE compare su un computer a quando sparisce, per le esposizioni corrette nel periodo"}}</p>
+  <table>
+  <thead><tr><th>{{t "Gravità"}}</th><th class="num">{{t "Corrette"}}</th><th class="num">{{t "Giorni in media"}}</th></tr></thead>
+  <tbody>{{range .MTTR}}<tr><td><span class="swatch {{.Class}}"></span>{{.Label}}</td><td class="num">{{.Fixed}}</td><td class="num">{{or .Days "–"}}</td></tr>{{end}}</tbody>
+  </table>
+  <p class="muted small">{{if .Tracking}}{{tf "Registrazione attiva dal %s. Le vulnerabilità già presenti quel giorno contano tra le corrette ma non nel tempo medio, perché non se ne conosce l'età." .Tracking}}{{else}}{{t "La registrazione parte al prossimo calcolo delle vulnerabilità."}}{{end}}</p>
+</section>
+</div>
+{{end}}
 <p class="muted small">{{t "Gravità dal punteggio CVSS: critica 9 o più, alta da 7, media da 4, bassa sotto 4; senza punteggio vale la gravità indicata dal produttore. I conteggi del giorno si aggiornano ogni volta che le vulnerabilità vengono ricalcolate."}}</p>
 {{end}}
 {{end}}

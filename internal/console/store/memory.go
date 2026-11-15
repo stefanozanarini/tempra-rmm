@@ -47,6 +47,7 @@ type Memory struct {
 	runs        map[string]ProvisioningRun
 	vulnFeeds   map[string]VulnFeed
 	vulnHistory map[string]map[time.Time]VulnCounts
+	exposures   map[string][]exposureRow
 }
 
 func NewMemory() *Memory {

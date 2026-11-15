@@ -1056,3 +1056,72 @@ func testAssignments(t *testing.T, s Store) {
 		t.Fatalf("unknown assignment get: %v", err)
 	}
 }
+
+func TestVulnExposures(t *testing.T) { testVulnExposures(t, NewMemory()) }
+
+func testVulnExposures(t *testing.T, s Store) {
+	ctx := context.Background()
+	tn := Tenant{ID: ids.NewUUID(), Name: "t"}
+	if err := s.CreateTenant(ctx, tn); err != nil {
+		t.Fatal(err)
+	}
+	a1, a2 := ids.NewUUID(), ids.NewUUID()
+	day := time.Date(2026, 11, 2, 10, 0, 0, 0, time.UTC) // a Monday
+	active := map[string]bool{a1: true, a2: true}
+	// The first recording is the baseline: its real age is unknown.
+	mustSync(t, s.SyncVulnExposures(ctx, tn.ID, []VulnExposure{{a1, "CVE-1", "critical"}, {a2, "CVE-1", "critical"}}, active, day))
+	// Two days later a high CVE appears on a1.
+	mustSync(t, s.SyncVulnExposures(ctx, tn.ID, []VulnExposure{{a1, "CVE-1", "critical"}, {a2, "CVE-1", "critical"}, {a1, "CVE-2", "high"}}, active, day.AddDate(0, 0, 2)))
+	// Four days later a1 is fixed, a2 left the tenant.
+	delete(active, a2)
+	mustSync(t, s.SyncVulnExposures(ctx, tn.ID, nil, active, day.AddDate(0, 0, 6)))
+
+	st, err := s.VulnExposureStats(ctx, tn.ID, day.AddDate(0, 0, -7))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !st.Tracking.Equal(day) || len(st.Weeks) != 1 {
+		t.Fatalf("stats: %+v", st)
+	}
+	w := st.Weeks[0]
+	// New: only CVE-2 (the baseline is not new). Fixed: a1's two, not a2's (removed).
+	if w.New.High != 1 || w.New.Critical != 0 || w.Fixed.Critical != 1 || w.Fixed.High != 1 {
+		t.Fatalf("week: %+v", w)
+	}
+	// Time to fix: only CVE-2 (4 days); the baseline critical has no known age.
+	if st.Fixed.High != 1 || st.MeanDays.High != 4 || st.Fixed.Critical != 0 {
+		t.Fatalf("time to fix: %+v %+v", st.Fixed, st.MeanDays)
+	}
+}
+
+func mustSync(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestVulnHistory(t *testing.T) { testVulnHistory(t, NewMemory()) }
+
+func testVulnHistory(t *testing.T, s Store) {
+	ctx := context.Background()
+	tn := Tenant{ID: ids.NewUUID(), Name: "t"}
+	if err := s.CreateTenant(ctx, tn); err != nil {
+		t.Fatal(err)
+	}
+	day := time.Date(2026, 11, 10, 15, 0, 0, 0, time.UTC)
+	for i, n := range []int{5, 7, 9} {
+		if err := s.PutVulnSnapshot(ctx, VulnSnapshot{TenantID: tn.ID, Day: day.AddDate(0, 0, i), Counts: VulnCounts{CVEs: SevCounts{High: n}}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The row of the day is replaced.
+	s.PutVulnSnapshot(ctx, VulnSnapshot{TenantID: tn.ID, Day: day.AddDate(0, 0, 2).Add(time.Hour), Counts: VulnCounts{CVEs: SevCounts{High: 4}, KEV: 1}})
+	got, err := s.ListVulnSnapshots(ctx, tn.ID, day.AddDate(0, 0, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || !got[0].Day.Equal(time.Date(2026, 11, 11, 0, 0, 0, 0, time.UTC)) || got[1].Counts.CVEs.High != 4 || got[1].Counts.KEV != 1 {
+		t.Fatalf("history: %+v", got)
+	}
+}

@@ -1,0 +1,50 @@
+{{/* Charts shared by the dashboards: a donut and a table of horizontal bars. */}}
+{{define "donut"}}
+<section class="viz">
+  <h3>{{.Title}}</h3><p class="muted small">{{.Sub}}</p>
+  {{if .Total}}
+  <div class="donut-row">
+    <svg viewBox="0 0 100 100" class="donut" role="img" aria-label="{{.Title}}: {{range $i, $s := .Segs}}{{if $i}}, {{end}}{{$s.Label}} {{$s.Count}}{{end}}">
+      <circle cx="50" cy="50" r="42" class="donut-track"></circle>
+      {{range .Segs}}<a href="{{or .Link "#"}}"{{if not .Link}} tabindex="-1"{{end}}><circle cx="50" cy="50" r="42" class="seg {{.Class}}" stroke-dasharray="{{.Dash}} {{.Gap}}" stroke-dashoffset="{{.Offset}}" transform="rotate(-90 50 50)"><title>{{.Label}}: {{.Count}} ({{.Pct}}%)</title></circle></a>{{end}}
+      <text x="50" y="50" class="donut-total">{{.Total}}</text>
+    </svg>
+    <ul class="legend">{{range .Segs}}<li>{{if .Link}}<a href="{{.Link}}">{{end}}<span class="swatch {{.Class}}"></span><span class="lv">{{.Count}}</span> {{.Label}}{{if .Link}}</a>{{end}}</li>{{end}}</ul>
+  </div>
+  {{else}}<p class="muted">{{t "Nessun dato."}}</p>{{end}}
+</section>
+{{end}}
+
+{{define "hbars"}}
+<section class="viz{{if .Wide}} wide{{end}}">
+  <h3>{{.Title}}</h3><p class="muted small">{{.Sub}}</p>
+  {{if .Bars}}
+  {{if .Legend}}<ul class="legend inline">{{range .Legend}}<li><span class="swatch {{.Class}}"></span>{{.Label}}</li>{{end}}</ul>{{end}}
+  <table class="hbars">
+  {{range .Bars}}<tr><th scope="row" title="{{.Label}}{{with .Note}} · {{.}}{{end}}">{{if .Link}}<a href="{{.Link}}">{{.Label}}</a>{{else}}{{.Label}}{{end}}{{with .Note}} <span class="muted">{{.}}</span>{{end}}</th>
+    <td><svg class="hbar" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">{{if .Parts}}{{range .Parts}}<rect class="{{.Class}}" x="{{.X}}" y="0" height="10" width="{{.W}}"><title>{{.Label}}: {{.Count}}</title></rect>{{end}}{{else}}<rect x="0" y="0" height="10" width="{{.Width}}"><title>{{.Label}}: {{.Count}}</title></rect>{{end}}</svg></td><td class="lv">{{.Count}}</td></tr>{{end}}
+  </table>
+  {{else}}<p class="muted">{{.Empty}}</p>{{end}}
+</section>
+{{end}}
+
+{{define "linechart"}}
+<section class="viz">
+  <h3>{{.Title}}</h3><p class="muted small">{{.Sub}}</p>
+  <ul class="legend inline">{{range .Series}}<li><span class="swatch {{.Class}}"></span>{{.Label}}</li>{{end}}</ul>
+  <svg class="lines" viewBox="0 0 640 250" role="img" aria-label="{{.Title}}">
+    {{range .Ticks}}<line class="grid" x1="44" x2="530" y1="{{.Y}}" y2="{{.Y}}"></line><text class="tick" x="38" y="{{.Y}}" dy="4">{{.Label}}</text>{{end}}
+    {{range .XTicks}}<text class="xtick" x="{{.X}}" y="236" text-anchor="{{.Anchor}}">{{.Label}}</text>{{end}}
+    {{$single := .Single}}
+    {{range .Series}}{{$c := .Class}}
+      {{if not $single}}<path class="line {{$c}}" d="{{.Path}}"></path>{{end}}
+      {{range .Points}}<circle class="pt {{$c}}{{if $single}} on{{end}}" cx="{{.X}}" cy="{{.Y}}" r="{{if $single}}5{{else}}9{{end}}"><title>{{.Title}}</title></circle>{{end}}
+      <text class="end" x="538" y="{{.LabelY}}" dy="4">{{.Last}} {{.Short}}</text>
+    {{end}}
+  </svg>
+  <details class="table-view"><summary>{{t "Mostra come tabella"}}</summary>
+    <table><thead><tr><th>{{t "Data"}}</th>{{range .Series}}<th class="num">{{.Label}}</th>{{end}}</tr></thead>
+    <tbody>{{range .Rows}}<tr><td>{{.Day}}</td>{{range .Values}}<td class="num">{{.}}</td>{{end}}</tr>{{end}}</tbody></table>
+  </details>
+</section>
+{{end}}

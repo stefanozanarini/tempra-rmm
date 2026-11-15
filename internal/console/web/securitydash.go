@@ -154,14 +154,36 @@ func niceMax(v int) int {
 	return v
 }
 
-// newLineChart draws one line per severity of pick over the days.
-func newLineChart(lang, title, sub string, days []store.VulnSnapshot, pick func(store.VulnCounts) store.SevCounts) lineChart {
-	ch := lineChart{Title: title, Sub: sub, Single: len(days) == 1}
+// seriesDef is a line: one value per point in time.
+type seriesDef struct {
+	Label, Short, Class string
+	Values              []int
+}
+
+// sevSeries are the lines of the severities of pick over the days.
+func sevSeries(lang string, days []store.VulnSnapshot, pick func(store.VulnCounts) store.SevCounts) ([]time.Time, []seriesDef) {
+	at := make([]time.Time, len(days))
+	for i, d := range days {
+		at[i] = d.Day
+	}
+	var defs []seriesDef
+	for _, sv := range severities {
+		def := seriesDef{Label: tr(lang, sv.Label), Short: tr(lang, sv.Short), Class: sv.Class}
+		for _, d := range days {
+			def.Values = append(def.Values, sevValue(pick(d.Counts), sv.Key))
+		}
+		defs = append(defs, def)
+	}
+	return at, defs
+}
+
+// newLineChart draws the series over the points in time (oldest first).
+func newLineChart(title, sub string, at []time.Time, defs []seriesDef) lineChart {
+	ch := lineChart{Title: title, Sub: sub, Single: len(at) == 1}
 	max := 0
-	for _, d := range days {
-		c := pick(d.Counts)
-		for _, sv := range severities {
-			max = int(math.Max(float64(max), float64(sevValue(c, sv.Key))))
+	for _, d := range defs {
+		for _, v := range d.Values {
+			max = int(math.Max(float64(max), float64(v)))
 		}
 	}
 	top := niceMax(max)
@@ -170,10 +192,10 @@ func newLineChart(lang, title, sub string, days []store.VulnSnapshot, pick func(
 		v := top * i / 4
 		ch.Ticks = append(ch.Ticks, chartTick{Y: y(v), Label: strconv.Itoa(v)})
 	}
-	if len(days) == 0 {
+	if len(at) == 0 {
 		return ch
 	}
-	first, last := days[0].Day, days[len(days)-1].Day
+	first, last := at[0], at[len(at)-1]
 	span := last.Sub(first).Hours() / 24
 	x := func(t time.Time) float64 {
 		if span == 0 {
@@ -199,18 +221,17 @@ func newLineChart(lang, title, sub string, days []store.VulnSnapshot, pick func(
 		}
 		ch.XTicks = append(ch.XTicks, chartTick{X: x(t), Label: t.Format("02/01"), Anchor: anchor})
 	}
-	for _, sv := range severities {
-		s := lineSeries{Label: tr(lang, sv.Label), Short: tr(lang, sv.Short), Class: sv.Class}
+	for _, d := range defs {
+		s := lineSeries{Label: d.Label, Short: d.Short, Class: d.Class}
 		var path strings.Builder
-		for i, d := range days {
-			v := sevValue(pick(d.Counts), sv.Key)
-			px, py := x(d.Day), y(v)
+		for i, v := range d.Values {
+			px, py := x(at[i]), y(v)
 			if i == 0 {
 				fmt.Fprintf(&path, "M%.1f %.1f", px, py)
 			} else {
 				fmt.Fprintf(&path, " L%.1f %.1f", px, py)
 			}
-			s.Points = append(s.Points, linePoint{X: px, Y: py, Title: fmt.Sprintf("%s · %s: %d", d.Day.Format("02/01/2006"), s.Label, v)})
+			s.Points = append(s.Points, linePoint{X: px, Y: py, Title: fmt.Sprintf("%s · %s: %d", at[i].Format("02/01/2006"), s.Label, v)})
 			s.Last = v
 		}
 		s.Path = path.String()
@@ -233,10 +254,10 @@ func newLineChart(lang, title, sub string, days []store.VulnSnapshot, pick func(
 			cur.LabelY = prev.LabelY + 13
 		}
 	}
-	for i := len(days) - 1; i >= 0; i-- {
-		row := chartRow{Day: days[i].Day.Format("02/01/2006")}
-		for _, sv := range severities {
-			row.Values = append(row.Values, sevValue(pick(days[i].Counts), sv.Key))
+	for i := len(at) - 1; i >= 0; i-- {
+		row := chartRow{Day: at[i].Format("02/01/2006")}
+		for _, d := range defs {
+			row.Values = append(row.Values, d.Values[i])
 		}
 		ch.Rows = append(ch.Rows, row)
 	}
@@ -262,6 +283,7 @@ type securityData struct {
 	Charts     []lineChart
 	Since      string // first day recorded in the period
 	History    int    // days recorded in the period
+	Posture    *posture
 }
 
 var securityDayChoices = []int{30, 90, 180, 365}
@@ -288,10 +310,10 @@ func (s *Server) handleSecurity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var now store.VulnCounts
+	var fs []vuln.Finding
 	if err == nil {
 		d.Ready = true
-		fs, _, err := s.vulnFindings(ctx, t, ix)
-		if err != nil {
+		if fs, _, err = s.vulnFindings(ctx, t, ix); err != nil {
 			s.fail(w, r, err)
 			return
 		}
@@ -333,11 +355,17 @@ func (s *Server) handleSecurity(w http.ResponseWriter, r *http.Request) {
 		card(tr(lang, "sfruttate attivamente (CISA)"), "bad", "/security/vulnerabilities?exploited=1", now.KEV, func(c store.VulnCounts) int { return c.KEV }),
 		card(tr(lang, "computer colpiti"), "", "/security/vulnerabilities?sort=hosts", now.Endpoints, func(c store.VulnCounts) int { return c.Endpoints }),
 	}
+	at, cves := sevSeries(lang, days, func(c store.VulnCounts) store.SevCounts { return c.CVEs })
+	_, hits := sevSeries(lang, days, func(c store.VulnCounts) store.SevCounts { return c.Hits })
 	d.Charts = []lineChart{
-		newLineChart(lang, tr(lang, "Vulnerabilità per gravità"), tr(lang, "CVE distinte che colpiscono almeno un computer, giorno per giorno"),
-			days, func(c store.VulnCounts) store.SevCounts { return c.CVEs }),
-		newLineChart(lang, tr(lang, "Esposizioni per gravità"), tr(lang, "Coppie CVE × computer: scendono quando gli aggiornamenti arrivano sui computer"),
-			days, func(c store.VulnCounts) store.SevCounts { return c.Hits }),
+		newLineChart(tr(lang, "Vulnerabilità per gravità"), tr(lang, "CVE distinte che colpiscono almeno un computer, giorno per giorno"), at, cves),
+		newLineChart(tr(lang, "Esposizioni per gravità"), tr(lang, "Coppie CVE × computer: scendono quando gli aggiornamenti arrivano sui computer"), at, hits),
+	}
+	if d.Ready {
+		if d.Posture, err = s.securityPosture(ctx, lang, t, fs, d.Days); err != nil {
+			s.fail(w, r, err)
+			return
+		}
 	}
 	s.render(w, r, "security", s.T(r, "Security"), d)
 }
@@ -356,11 +384,29 @@ func (s *Server) handleSecurityVulns(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, "security", s.T(r, "Vulnerabilità"), securityData{Tab: "vulns", Vulns: v})
 }
 
-// recordVulns writes the counts of the day after the CVEs were matched.
-func (s *Server) recordVulns(tenant string, fs []vuln.Finding) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+// recordVulns writes the counts of the day and each CVE found on each
+// computer after the CVEs were matched.
+func (s *Server) recordVulns(tenant string, agents []store.Agent, fs []vuln.Finding) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	if err := s.store.PutVulnSnapshot(ctx, store.VulnSnapshot{TenantID: tenant, Day: s.now(), Counts: vulnCounts(fs)}); err != nil {
+	now := s.now()
+	if err := s.store.PutVulnSnapshot(ctx, store.VulnSnapshot{TenantID: tenant, Day: now, Counts: vulnCounts(fs)}); err != nil {
 		s.log.Warn("vulnerability history", "tenant", tenant, "err", err)
+	}
+	active := map[string]bool{}
+	for _, a := range agents {
+		if a.Status == store.AgentActive {
+			active[a.ID] = true
+		}
+	}
+	var cur []store.VulnExposure
+	for _, f := range fs {
+		sev := severityOf(f)
+		for _, h := range f.Hits {
+			cur = append(cur, store.VulnExposure{AgentID: h.AgentID, CVE: f.ID, Severity: sev})
+		}
+	}
+	if err := s.store.SyncVulnExposures(ctx, tenant, cur, active, now); err != nil {
+		s.log.Warn("vulnerability exposures", "tenant", tenant, "err", err)
 	}
 }
