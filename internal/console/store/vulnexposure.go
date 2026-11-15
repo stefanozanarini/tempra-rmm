@@ -46,7 +46,14 @@ type VulnExposureStore interface {
 	// opened, open ones no longer found are closed (removed when their
 	// computer is not in active).
 	SyncVulnExposures(ctx context.Context, tenantID string, current []VulnExposure, active map[string]bool, at time.Time) error
-	VulnExposureStats(ctx context.Context, tenantID string, since time.Time) (ExposureStats, error)
+	// VulnExposureStats summarizes the period; agents, when not nil, limits
+	// it to some computers.
+	VulnExposureStats(ctx context.Context, tenantID string, since time.Time, agents []string) (ExposureStats, error)
+	// VulnExposureHistory rebuilds the daily counts of some computers from
+	// their exposures (VulnSnapshot only keeps the whole tenant), from the
+	// day of since or of the first recording, to the day of now. KEV is
+	// not known.
+	VulnExposureHistory(ctx context.Context, tenantID string, since, now time.Time, agents []string) ([]VulnSnapshot, error)
 }
 
 type exposureRow struct {
@@ -131,6 +138,124 @@ func exposureStats(rows []exposureRow, since time.Time) ExposureStats {
 	return st
 }
 
+// exposureHistory counts, for each day from since (or the first exposure)
+// to now, the exposures open at the end of the day: found before it ends
+// and not yet resolved.
+func exposureHistory(rows []exposureRow, since, now time.Time) []VulnSnapshot {
+	first := dayOf(since)
+	var tracking time.Time
+	for _, r := range rows {
+		if tracking.IsZero() || r.FirstSeen.Before(tracking) {
+			tracking = r.FirstSeen
+		}
+	}
+	if tracking.IsZero() {
+		return nil
+	}
+	if t := dayOf(tracking); t.After(first) {
+		first = t
+	}
+	n := int(dayOf(now).Sub(first).Hours()/24) + 1
+	if n <= 0 {
+		return nil
+	}
+	// index of the first day an exposure counts on, or stops counting on.
+	index := func(t time.Time) int {
+		i := int(dayOf(t).Sub(first).Hours() / 24)
+		return min(max(i, 0), n)
+	}
+	type span struct{ from, to int }
+	spans := func(r exposureRow) span {
+		s := span{index(r.FirstSeen), n}
+		if r.ResolvedAt != nil {
+			s.to = index(*r.ResolvedAt)
+		}
+		return s
+	}
+	hits := make([]SevCounts, n+1) // differences: +1 from, -1 to
+	byCVE := map[string][]span{}
+	sev := map[string]string{}
+	byAgent := map[string][]span{}
+	for _, r := range rows {
+		sp := spans(r)
+		if sp.from >= sp.to {
+			continue
+		}
+		addSevN(&hits[sp.from], r.Severity, 1)
+		addSevN(&hits[sp.to], r.Severity, -1)
+		byCVE[r.CVE] = append(byCVE[r.CVE], sp)
+		sev[r.CVE] = r.Severity
+		byAgent[r.AgentID] = append(byAgent[r.AgentID], sp)
+	}
+	// covered marks with +1/-1 the days covered by any of the spans.
+	covered := func(list []span, mark func(day, d int)) {
+		sort.Slice(list, func(i, j int) bool { return list[i].from < list[j].from })
+		from, to := list[0].from, list[0].to
+		for _, sp := range list[1:] {
+			if sp.from > to {
+				mark(from, 1)
+				mark(to, -1)
+				from, to = sp.from, sp.to
+			} else if sp.to > to {
+				to = sp.to
+			}
+		}
+		mark(from, 1)
+		mark(to, -1)
+	}
+	cves := make([]SevCounts, n+1)
+	for id, list := range byCVE {
+		covered(list, func(day, d int) { addSevN(&cves[day], sev[id], d) })
+	}
+	endpoints := make([]int, n+1)
+	for _, list := range byAgent {
+		covered(list, func(day, d int) { endpoints[day] += d })
+	}
+	out := make([]VulnSnapshot, n)
+	var h, c SevCounts
+	e := 0
+	for i := range out {
+		h, c, e = sumSev(h, hits[i]), sumSev(c, cves[i]), e+endpoints[i]
+		out[i] = VulnSnapshot{Day: first.AddDate(0, 0, i), Counts: VulnCounts{CVEs: c, Hits: h, Endpoints: e}}
+	}
+	return out
+}
+
+func addSevN(c *SevCounts, sev string, n int) {
+	switch sev {
+	case "critical":
+		c.Critical += n
+	case "high":
+		c.High += n
+	case "medium":
+		c.Medium += n
+	default:
+		c.Low += n
+	}
+}
+
+func sumSev(a, b SevCounts) SevCounts {
+	return SevCounts{Critical: a.Critical + b.Critical, High: a.High + b.High, Medium: a.Medium + b.Medium, Low: a.Low + b.Low}
+}
+
+// ofAgents keeps the rows of agents (all when nil).
+func ofAgents(rows []exposureRow, agents []string) []exposureRow {
+	if agents == nil {
+		return rows
+	}
+	keep := map[string]bool{}
+	for _, a := range agents {
+		keep[a] = true
+	}
+	var out []exposureRow
+	for _, r := range rows {
+		if keep[r.AgentID] {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
 // ---- memory ----
 
 func (m *Memory) SyncVulnExposures(_ context.Context, tenantID string, current []VulnExposure, active map[string]bool, at time.Time) error {
@@ -169,11 +294,21 @@ func (m *Memory) SyncVulnExposures(_ context.Context, tenantID string, current [
 	return nil
 }
 
-func (m *Memory) VulnExposureStats(_ context.Context, tenantID string, since time.Time) (ExposureStats, error) {
+func (m *Memory) VulnExposureStats(_ context.Context, tenantID string, since time.Time, agents []string) (ExposureStats, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	st := exposureStats(m.exposures[tenantID], since)
+	st := exposureStats(ofAgents(m.exposures[tenantID], agents), since)
 	return st, nil
+}
+
+func (m *Memory) VulnExposureHistory(_ context.Context, tenantID string, since, now time.Time, agents []string) ([]VulnSnapshot, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := exposureHistory(ofAgents(m.exposures[tenantID], agents), since, now)
+	for i := range out {
+		out[i].TenantID = tenantID
+	}
+	return out, nil
 }
 
 // ---- postgres ----
@@ -249,15 +384,16 @@ func (p *Postgres) SyncVulnExposures(ctx context.Context, tenantID string, curre
 	})
 }
 
-func (p *Postgres) VulnExposureStats(ctx context.Context, tenantID string, since time.Time) (ExposureStats, error) {
+func (p *Postgres) VulnExposureStats(ctx context.Context, tenantID string, since time.Time, agents []string) (ExposureStats, error) {
 	var out []exposureRow
 	var tracking *time.Time
 	err := p.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx, `SELECT min(first_seen) FROM vuln_exposures`).Scan(&tracking); err != nil {
+		if err := tx.QueryRow(ctx, `SELECT min(first_seen) FROM vuln_exposures
+			WHERE $1::uuid[] IS NULL OR agent_id = ANY($1)`, agents).Scan(&tracking); err != nil {
 			return err
 		}
 		rows, err := tx.Query(ctx, `SELECT severity, first_seen, resolved_at, baseline, removed FROM vuln_exposures
-			WHERE first_seen >= $1 OR resolved_at >= $1`, since)
+			WHERE (first_seen >= $1 OR resolved_at >= $1) AND ($2::uuid[] IS NULL OR agent_id = ANY($2))`, since, agents)
 		if err != nil {
 			return err
 		}
@@ -280,4 +416,32 @@ func (p *Postgres) VulnExposureStats(ctx context.Context, tenantID string, since
 		st.Tracking = *tracking
 	}
 	return st, nil
+}
+
+func (p *Postgres) VulnExposureHistory(ctx context.Context, tenantID string, since, now time.Time, agents []string) ([]VulnSnapshot, error) {
+	var out []exposureRow
+	err := p.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT agent_id::text, cve, severity, first_seen, resolved_at FROM vuln_exposures
+			WHERE (resolved_at IS NULL OR resolved_at >= $1) AND ($2::uuid[] IS NULL OR agent_id = ANY($2))`, dayOf(since), agents)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var r exposureRow
+			if err := rows.Scan(&r.AgentID, &r.CVE, &r.Severity, &r.FirstSeen, &r.ResolvedAt); err != nil {
+				return err
+			}
+			out = append(out, r)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, err
+	}
+	days := exposureHistory(out, since, now)
+	for i := range days {
+		days[i].TenantID = tenantID
+	}
+	return days, nil
 }

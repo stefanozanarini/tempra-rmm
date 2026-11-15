@@ -286,6 +286,8 @@ Severity comes from the CVSS score: critical 9 or more, high from 7, medium from
 
 Counts are recorded once a day, also when nobody opens the page, so the history builds up one day at a time. **Show as table** under each chart gives the numbers.
 
+**Site** and **Group** narrow the whole dashboard (cards, charts, compliance, patches, exposures) to the computers of a site or group, and the card links open the vulnerability list with the same filter, where the computers of each CVE and its prepared fix are limited to them too. For a site or group the history is rebuilt from the CVEs found on its computers, starting from when that recording began; the change of the exploited card is not shown.
+
 ### Working the vulnerability list
 
 1. Open **Security → Vulnerabilities**. Actively exploited CVEs are at the top.

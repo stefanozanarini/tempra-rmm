@@ -287,6 +287,12 @@ type vulnData struct {
 	// AgentFindings are its CVEs with the installed version and the fix.
 	Agent, Hostname string
 	AgentFindings   []agentFinding
+	// Site and Group narrow the list to the computers of a site or group
+	// (the counts, the computers of each CVE and its fix); Sites and Groups
+	// are the choices.
+	Site, Group string
+	Sites       []store.Site
+	Groups      []store.Group
 	// Sort: "" (urgency: exploited first, then score), cvss, cvss_asc,
 	// hosts or hosts_asc (affected computers).
 	Sort       string
@@ -314,7 +320,13 @@ type agentFinding struct {
 func (s *Server) vulnReport(r *http.Request, tenant string) (*vulnData, error) {
 	ctx := r.Context()
 	q := r.URL.Query()
-	d := &vulnData{Query: strings.TrimSpace(q.Get("q")), Exploited: q.Get("exploited") == "1", MaxFinding: maxVulnRows}
+	d := &vulnData{Query: strings.TrimSpace(q.Get("q")), Exploited: q.Get("exploited") == "1", MaxFinding: maxVulnRows,
+		Site: q.Get("site"), Group: q.Get("group")}
+	allow, sites, groups, err := s.securityFilter(r, tenant, d.Site, d.Group)
+	if err != nil {
+		return nil, err
+	}
+	d.Sites, d.Groups = sites, groups
 	if id := q.Get("agent"); ids.IsUUID(id) {
 		a, err := s.store.GetAgent(ctx, tenant, id)
 		if err != nil {
@@ -339,11 +351,11 @@ func (s *Server) vulnReport(r *http.Request, tenant string) (*vulnData, error) {
 		return nil, err
 	}
 	d.ComputedAt = at
-	all := cached
+	all := filterFindings(cached, allow)
 	if d.Agent != "" {
 		// Only the CVEs of the computer; the counts below are its own.
 		var mine []vuln.Finding
-		for _, f := range cached {
+		for _, f := range all {
 			for _, h := range f.Hits {
 				if h.AgentID == d.Agent {
 					mine = append(mine, f)
@@ -439,6 +451,12 @@ func (d *vulnData) SortURL(col string) string {
 	}
 	if d.Agent != "" {
 		v.Set("agent", d.Agent)
+	}
+	if d.Site != "" {
+		v.Set("site", d.Site)
+	}
+	if d.Group != "" {
+		v.Set("group", d.Group)
 	}
 	return "/security/vulnerabilities?" + v.Encode()
 }

@@ -132,8 +132,9 @@ func idsLink(ids []string) string {
 	return "/agents?" + url.Values{"ids": {strings.Join(ids, ",")}}.Encode()
 }
 
-// securityPosture computes the posture of the tenant's approved computers.
-func (s *Server) securityPosture(ctx context.Context, lang, t string, fs []vuln.Finding, days int) (*posture, error) {
+// securityPosture computes the posture of the tenant's approved computers
+// (those of allow, when not nil).
+func (s *Server) securityPosture(ctx context.Context, lang, t string, fs []vuln.Finding, days int, allow map[string]bool) (*posture, error) {
 	agents, err := s.store.ListAgents(ctx, t)
 	if err != nil {
 		return nil, err
@@ -171,7 +172,7 @@ func (s *Server) securityPosture(ctx context.Context, lang, t string, fs []vuln.
 	osState := [4][]string{}      // supported, ending within 6 months, out of support, unknown
 	releases := map[string]*bar{} // out of support or ending, by release
 	for _, a := range agents {
-		if a.Status != store.AgentActive {
+		if a.Status != store.AgentActive || (allow != nil && !allow[a.ID]) {
 			continue
 		}
 		pc := &postureCtx{a: a, inv: byInv[a.ID], now: now}
@@ -322,7 +323,7 @@ func (s *Server) securityPosture(ctx context.Context, lang, t string, fs []vuln.
 
 	p.TopHosts, p.Software = topExposed(lang, fs)
 
-	if err := s.exposureTrend(ctx, lang, t, days, p); err != nil {
+	if err := s.exposureTrend(ctx, lang, t, days, allowList(allow), p); err != nil {
 		return nil, err
 	}
 	return p, nil
@@ -450,8 +451,8 @@ func topExposed(lang string, fs []vuln.Finding) (barChart, []softwareRisk) {
 }
 
 // exposureTrend adds the weekly new and fixed exposures and the time to fix.
-func (s *Server) exposureTrend(ctx context.Context, lang, t string, days int, p *posture) error {
-	st, err := s.store.VulnExposureStats(ctx, t, s.now().AddDate(0, 0, -days))
+func (s *Server) exposureTrend(ctx context.Context, lang, t string, days int, agents []string, p *posture) error {
+	st, err := s.store.VulnExposureStats(ctx, t, s.now().AddDate(0, 0, -days), agents)
 	if err != nil {
 		return err
 	}

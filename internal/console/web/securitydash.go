@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -284,6 +285,89 @@ type securityData struct {
 	Since      string // first day recorded in the period
 	History    int    // days recorded in the period
 	Posture    *posture
+	// Site and Group narrow the dashboard to some computers (ids, as on the
+	// Reporting dashboard); Sites and Groups are the choices.
+	Site, Group string
+	Sites       []store.Site
+	Groups      []store.Group
+}
+
+// filterQS is the site and group of the filter, to keep in links.
+func filterQS(site, group string) string {
+	v := url.Values{}
+	if site != "" {
+		v.Set("site", site)
+	}
+	if group != "" {
+		v.Set("group", group)
+	}
+	return v.Encode()
+}
+
+// withFilter adds the site and group of the filter to a link.
+func (d securityData) withFilter(link string) string {
+	qs := filterQS(d.Site, d.Group)
+	switch {
+	case qs == "":
+		return link
+	case strings.Contains(link, "?"):
+		return link + "&" + qs
+	}
+	return link + "?" + qs
+}
+
+// securityFilter returns the computers of a site or group (nil: all), and
+// the sites and groups to choose from.
+func (s *Server) securityFilter(r *http.Request, t, site, group string) (map[string]bool, []store.Site, []store.Group, error) {
+	ctx := r.Context()
+	sites, err := s.store.ListSites(ctx, t)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	groups, err := s.visibleGroups(r, t)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	agents, err := s.store.ListAgents(ctx, t)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	allow, err := s.dashboardFilter(r, t, agents, site, group)
+	return allow, sites, groups, err
+}
+
+// filterFindings keeps the hits on the computers of allow (all when nil),
+// and the findings with some left.
+func filterFindings(fs []vuln.Finding, allow map[string]bool) []vuln.Finding {
+	if allow == nil {
+		return fs
+	}
+	var out []vuln.Finding
+	for _, f := range fs {
+		var hits []vuln.Hit
+		for _, h := range f.Hits {
+			if allow[h.AgentID] {
+				hits = append(hits, h)
+			}
+		}
+		if len(hits) > 0 {
+			f.Hits = hits
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// allowList lists the computers of allow (nil when all).
+func allowList(allow map[string]bool) []string {
+	if allow == nil {
+		return nil
+	}
+	out := make([]string, 0, len(allow))
+	for id := range allow {
+		out = append(out, id)
+	}
+	return out
 }
 
 var securityDayChoices = []int{30, 90, 180, 365}
@@ -296,7 +380,14 @@ func (s *Server) handleSecurity(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 	lang := s.lang(r)
-	d := securityData{Tab: "dashboard", Days: 90, DayChoices: securityDayChoices}
+	d := securityData{Tab: "dashboard", Days: 90, DayChoices: securityDayChoices,
+		Site: r.URL.Query().Get("site"), Group: r.URL.Query().Get("group")}
+	allow, sites, groups, err := s.securityFilter(r, t, d.Site, d.Group)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	d.Sites, d.Groups = sites, groups
 	if n, err := strconv.Atoi(r.URL.Query().Get("days")); err == nil {
 		for _, c := range securityDayChoices {
 			if n == c {
@@ -317,9 +408,18 @@ func (s *Server) handleSecurity(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, r, err)
 			return
 		}
+		fs = filterFindings(fs, allow)
 		now = vulnCounts(fs)
 	}
-	days, err := s.store.ListVulnSnapshots(ctx, t, s.now().AddDate(0, 0, -d.Days))
+	since := s.now().AddDate(0, 0, -d.Days)
+	var days []store.VulnSnapshot
+	if allow == nil {
+		days, err = s.store.ListVulnSnapshots(ctx, t, since)
+	} else {
+		// The daily rows keep the whole tenant: the history of some
+		// computers comes from their exposures.
+		days, err = s.store.VulnExposureHistory(ctx, t, since, s.now(), allowList(allow))
+	}
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -342,17 +442,22 @@ func (s *Server) handleSecurity(w http.ResponseWriter, r *http.Request) {
 		base = &days[0].Counts
 	}
 	card := func(label, class, link string, v int, old func(store.VulnCounts) int) secCard {
-		c := secCard{Label: label, Class: class, Link: link, Value: v}
-		if base != nil {
+		c := secCard{Label: label, Class: class, Link: d.withFilter(link), Value: v}
+		if base != nil && old != nil {
 			c.Delta, c.HasDelta = v-old(*base), true
 		}
 		return c
+	}
+	// The history rebuilt for some computers does not know KEV.
+	kevOld := func(c store.VulnCounts) int { return c.KEV }
+	if allow != nil {
+		kevOld = nil
 	}
 	d.Cards = []secCard{
 		card(tr(lang, "vulnerabilità trovate"), "", "/security/vulnerabilities", now.CVEs.Total(), func(c store.VulnCounts) int { return c.CVEs.Total() }),
 		card(tr(lang, "critiche (CVSS 9 o più)"), "bad", "/security/vulnerabilities?sort=cvss", now.CVEs.Critical, func(c store.VulnCounts) int { return c.CVEs.Critical }),
 		card(tr(lang, "alte (CVSS 7-8.9)"), "warn", "/security/vulnerabilities?sort=cvss", now.CVEs.High, func(c store.VulnCounts) int { return c.CVEs.High }),
-		card(tr(lang, "sfruttate attivamente (CISA)"), "bad", "/security/vulnerabilities?exploited=1", now.KEV, func(c store.VulnCounts) int { return c.KEV }),
+		card(tr(lang, "sfruttate attivamente (CISA)"), "bad", "/security/vulnerabilities?exploited=1", now.KEV, kevOld),
 		card(tr(lang, "computer colpiti"), "", "/security/vulnerabilities?sort=hosts", now.Endpoints, func(c store.VulnCounts) int { return c.Endpoints }),
 	}
 	at, cves := sevSeries(lang, days, func(c store.VulnCounts) store.SevCounts { return c.CVEs })
@@ -362,7 +467,7 @@ func (s *Server) handleSecurity(w http.ResponseWriter, r *http.Request) {
 		newLineChart(tr(lang, "Esposizioni per gravità"), tr(lang, "Coppie CVE × computer: scendono quando gli aggiornamenti arrivano sui computer"), at, hits),
 	}
 	if d.Ready {
-		if d.Posture, err = s.securityPosture(ctx, lang, t, fs, d.Days); err != nil {
+		if d.Posture, err = s.securityPosture(ctx, lang, t, fs, d.Days, allow); err != nil {
 			s.fail(w, r, err)
 			return
 		}

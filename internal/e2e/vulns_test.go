@@ -172,7 +172,7 @@ func TestConsoleVulnerabilities(t *testing.T) {
 
 	// Security dashboard: the counts of the day are recorded and charted;
 	// with the day before recorded, the cards show the change.
-	if st, _ := e.store.VulnExposureStats(ctx, e.tenant, now.AddDate(0, 0, -1)); st.Tracking.IsZero() {
+	if st, _ := e.store.VulnExposureStats(ctx, e.tenant, now.AddDate(0, 0, -1), nil); st.Tracking.IsZero() {
 		t.Fatal("exposures not recorded")
 	}
 	snaps, _ := e.store.ListVulnSnapshots(ctx, e.tenant, now.AddDate(0, 0, -1))

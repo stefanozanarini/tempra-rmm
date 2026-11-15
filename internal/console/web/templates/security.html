@@ -10,6 +10,7 @@
 {{else}}
 <form method="get" action="/security" class="inline autosubmit">
   <label>{{t "Periodo"}} <select name="days">{{range .DayChoices}}<option value="{{.}}"{{if eq . $.Data.Days}} selected{{end}}>{{tf "ultimi %d giorni" .}}</option>{{end}}</select></label>
+  {{template "secfilter" .}}
   <button class="primary">{{t "Applica"}}</button>
 </form>
 <div class="cards">
@@ -94,8 +95,8 @@
 </table>
 {{else}}
 <div class="cards">
-  <a class="card" href="/security/vulnerabilities{{qs "agent" .Agent}}"><span class="num">{{.Total}}</span>{{t "vulnerabilità trovate"}}</a>
-  <a class="card {{if .KEVCount}}bad{{end}}" href="/security/vulnerabilities{{qs "exploited" "1" "agent" .Agent}}"><span class="num">{{.KEVCount}}</span>{{t "sfruttate attivamente (CISA)"}}</a>
+  <a class="card" href="/security/vulnerabilities{{qs "agent" .Agent "site" .Site "group" .Group}}"><span class="num">{{.Total}}</span>{{t "vulnerabilità trovate"}}</a>
+  <a class="card {{if .KEVCount}}bad{{end}}" href="/security/vulnerabilities{{qs "exploited" "1" "agent" .Agent "site" .Site "group" .Group}}"><span class="num">{{.KEVCount}}</span>{{t "sfruttate attivamente (CISA)"}}</a>
   <span class="card {{if .Critical}}warn{{end}}"><span class="num">{{.Critical}}</span>{{t "critiche (CVSS 9 o più)"}}</span>
   {{if not .Agent}}<span class="card"><span class="num">{{.Endpoints}}</span>{{t "computer colpiti"}}</span>{{end}}
 </div>
@@ -103,6 +104,7 @@
 <h2>{{tf "Vulnerabilità di %s" .Hostname}}</h2>{{end}}
 <form method="get" action="/security/vulnerabilities" class="toolbar">
   {{with .Agent}}<input type="hidden" name="agent" value="{{.}}">{{end}}
+  {{if not .Agent}}{{template "secfilter" .}}{{end}}
   <input type="search" name="q" value="{{.Query}}" placeholder="{{t "CVE, prodotto, computer o KB"}}" aria-label="{{t "Cerca"}}">
   <label class="check"><input type="checkbox" name="exploited" value="1"{{if .Exploited}} checked{{end}}> {{t "solo sfruttate"}}</label>
   {{with .Sort}}<input type="hidden" name="sort" value="{{.}}">{{end}}
@@ -114,7 +116,7 @@
   <th><a class="sort" href="{{.SortURL "cvss"}}" title="{{t "Ordina per gravità"}}">{{t "Gravità"}}{{.SortMark "cvss"}}</a></th>
   <th>{{t "Prodotto"}}</th><th>{{t "Versione installata"}}</th><th>{{t "Correzione"}}</th></tr></thead>
 <tbody>{{range .AgentFindings}}<tr>
-  <td><a href="/security/vulnerabilities{{qs "id" .ID}}">{{.ID}}</a>{{if .KEV}} <span class="badge chk-failing" title="{{t "sfruttata attivamente (CISA KEV)"}}">KEV</span>{{else if .Exploited}} <span class="badge chk-failing">{{t "sfruttata"}}</span>{{end}}</td>
+  <td><a href="/security/vulnerabilities{{qs "id" .ID "site" $.Data.Vulns.Site "group" $.Data.Vulns.Group}}">{{.ID}}</a>{{if .KEV}} <span class="badge chk-failing" title="{{t "sfruttata attivamente (CISA KEV)"}}">KEV</span>{{else if .Exploited}} <span class="badge chk-failing">{{t "sfruttata"}}</span>{{end}}</td>
   <td><span class="badge {{cvssClass .CVSS}}">{{cvssText .CVSS}}</span>{{with .Severity}} <span class="muted small">{{label .}}</span>{{end}}</td>
   <td>{{.Product}}<br><span class="muted small">{{.Title}}</span></td>
   <td>{{.Hit.Installed}}{{if .Hit.UserScope}} <span class="badge chk-warning">{{t "profilo utente"}}</span>{{end}}{{with .Hit.Pending}} <span class="badge chk-ok">{{tf "%s pronto, manca il riavvio" .}}</span>{{end}}</td>
@@ -130,7 +132,7 @@
   <th><a class="sort" href="{{.SortURL "hosts"}}" title="{{t "Ordina per numero di computer"}}">{{t "Computer"}}{{.SortMark "hosts"}}</a></th>
   <th>{{t "Correzione"}}</th></tr></thead>
 <tbody>{{range .Findings}}<tr>
-  <td><a href="/security/vulnerabilities{{qs "id" .ID}}">{{.ID}}</a>{{if .KEV}} <span class="badge chk-failing" title="{{t "sfruttata attivamente (CISA KEV)"}}">KEV</span>{{else if .Exploited}} <span class="badge chk-failing">{{t "sfruttata"}}</span>{{end}}</td>
+  <td><a href="/security/vulnerabilities{{qs "id" .ID "site" $.Data.Vulns.Site "group" $.Data.Vulns.Group}}">{{.ID}}</a>{{if .KEV}} <span class="badge chk-failing" title="{{t "sfruttata attivamente (CISA KEV)"}}">KEV</span>{{else if .Exploited}} <span class="badge chk-failing">{{t "sfruttata"}}</span>{{end}}</td>
   <td><span class="badge {{cvssClass .CVSS}}">{{cvssText .CVSS}}</span>{{with .Severity}} <span class="muted small">{{label .}}</span>{{end}}</td>
   <td>{{.Product}}<br><span class="muted small">{{.Title}}</span></td>
   <td>{{len .Hits}}</td>
@@ -147,3 +149,9 @@
 
 {{end}}
 {{end}}
+
+{{define "secfilter"}}<label>{{t "Sede"}} <select name="site"><option value="">{{t "Tutte le sedi"}}</option>
+    {{range .Sites}}<option value="{{.ID}}"{{if eq $.Site .ID}} selected{{end}}>{{.Name}}</option>{{end}}
+    <option value="none"{{if eq .Site "none"}} selected{{end}}>{{t "Senza sede"}}</option></select></label>
+  <label>{{t "Gruppo"}} <select name="group"><option value="">{{t "Tutti i gruppi"}}</option>
+    {{range .Groups}}<option value="{{.ID}}"{{if eq $.Group .ID}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>{{end}}

@@ -1076,7 +1076,7 @@ func testVulnExposures(t *testing.T, s Store) {
 	delete(active, a2)
 	mustSync(t, s.SyncVulnExposures(ctx, tn.ID, nil, active, day.AddDate(0, 0, 6)))
 
-	st, err := s.VulnExposureStats(ctx, tn.ID, day.AddDate(0, 0, -7))
+	st, err := s.VulnExposureStats(ctx, tn.ID, day.AddDate(0, 0, -7), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1091,6 +1091,35 @@ func testVulnExposures(t *testing.T, s Store) {
 	// Time to fix: only CVE-2 (4 days); the baseline critical has no known age.
 	if st.Fixed.High != 1 || st.MeanDays.High != 4 || st.Fixed.Critical != 0 {
 		t.Fatalf("time to fix: %+v %+v", st.Fixed, st.MeanDays)
+	}
+	// a2 only had the baseline CVE, removed with it: nothing new or fixed.
+	if st, _ := s.VulnExposureStats(ctx, tn.ID, day.AddDate(0, 0, -7), []string{a2}); len(st.Weeks) != 0 || !st.Tracking.Equal(day) {
+		t.Fatalf("stats of a2: %+v", st)
+	}
+
+	// The daily counts, rebuilt from the first recording to today.
+	days, err := s.VulnExposureHistory(ctx, tn.ID, day.AddDate(0, 0, -7), day.AddDate(0, 0, 7), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(days) != 8 || !days[0].Day.Equal(dayOf(day)) {
+		t.Fatalf("history: %d days from %v", len(days), days[0].Day)
+	}
+	for i, want := range map[int]VulnCounts{
+		0: {CVEs: SevCounts{Critical: 1}, Hits: SevCounts{Critical: 2}, Endpoints: 2},
+		1: {CVEs: SevCounts{Critical: 1}, Hits: SevCounts{Critical: 2}, Endpoints: 2},
+		2: {CVEs: SevCounts{Critical: 1, High: 1}, Hits: SevCounts{Critical: 2, High: 1}, Endpoints: 2},
+		5: {CVEs: SevCounts{Critical: 1, High: 1}, Hits: SevCounts{Critical: 2, High: 1}, Endpoints: 2},
+		6: {},
+		7: {},
+	} {
+		if days[i].Counts != want {
+			t.Errorf("day %d: %+v, want %+v", i, days[i].Counts, want)
+		}
+	}
+	days, _ = s.VulnExposureHistory(ctx, tn.ID, day.AddDate(0, 0, 1), day.AddDate(0, 0, 3), []string{a2})
+	if len(days) != 3 || days[1].Counts != (VulnCounts{CVEs: SevCounts{Critical: 1}, Hits: SevCounts{Critical: 1}, Endpoints: 1}) {
+		t.Fatalf("history of a2: %+v", days)
 	}
 }
 
