@@ -280,7 +280,13 @@ function Get-Blockers {
 
     # Pinned Windows release: by policy, by MDM, or left over in the
     # effective policy state after the policy was removed.
-    $current = [string](Read-Reg 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion' 'DisplayVersion')
+    $cv = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+    # DisplayVersion (21H2-style names) is missing on some editions/older
+    # builds; ReleaseId (older naming) or the raw build number still say
+    # something useful rather than leaving the message empty.
+    $current = [string](Read-Reg $cv 'DisplayVersion')
+    if (-not $current) { $current = [string](Read-Reg $cv 'ReleaseId') }
+    if (-not $current) { $current = "build $(Read-Reg $cv 'CurrentBuild')" }
     $pinned = $false
     if ((Read-Reg $pol 'TargetReleaseVersion') -eq 1) {
         $info = [string](Read-Reg $pol 'TargetReleaseVersionInfo')

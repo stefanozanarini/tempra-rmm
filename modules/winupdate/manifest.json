@@ -1,6 +1,6 @@
 {
   "id": "winupdate",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Windows Update through the Windows Update Agent API: scan, install (never reboots), WSUS/Intune detection, settings that block updates (including an unresponsive WSUS server), logs of failed updates, component store repair, freeing disk space (download cache, Disk Cleanup, component cleanup).",
   "protocol_version": 1,
   "entrypoints": {
