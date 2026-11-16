@@ -132,7 +132,7 @@ func (p *TunnelPool) ClientConn() (*grpc.ClientConn, error) {
 	return grpc.NewClient("passthrough:///core",
 		grpc.WithContextDialer(dial),
 		// The tunnel is already mutually authenticated TLS.
-		grpc.WithTransportCredentials(insecure.NewCredentials()), // #nosec G402 -- inside the mTLS tunnel
+		grpc.WithTransportCredentials(insecure.NewCredentials()), // #nosec G402 -- inside the mTLS tunnel // nosemgrep: go.grpc.security.audit.grpc-client-insecure-connection
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: 30 * time.Second, Timeout: 10 * time.Second, PermitWithoutStream: true}),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(4<<20), grpc.MaxCallSendMsgSize(4<<20)),
 	)

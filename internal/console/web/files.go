@@ -473,7 +473,9 @@ func (s *Server) handleFilesZip(w http.ResponseWriter, r *http.Request) {
 		}
 		if err != nil {
 			details["error"] = err.Error()
-			if ew, zerr := zw.Create(folder + "/ERROR.txt"); zerr == nil {
+			// folder is an entry name inside the in-memory zip archive, not a
+			// filesystem path: zw writes to the HTTP response, never to disk.
+			if ew, zerr := zw.Create(folder + "/ERROR.txt"); zerr == nil { // nosemgrep: go.lang.security.audit.path-traversal.path-traversal
 				_, _ = io.WriteString(ew, err.Error()+"\n")
 			}
 		}

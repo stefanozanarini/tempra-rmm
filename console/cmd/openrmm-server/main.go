@@ -162,15 +162,20 @@ func run(log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	// unix:// sockets, shared only between the containers of this pod and
+	// never exposed to the network; the signer authenticates each request by
+	// its id_token, not by the channel. TLS would need a certificate with no
+	// meaningful hostname to check, so the socket's own filesystem
+	// permissions are the real boundary here.
 	conn, err := grpc.NewClient("unix://"+env("OPENRMM_SIGNER_SOCKET", "/run/openrmm-signer/signer.sock"),
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
+		grpc.WithTransportCredentials(insecure.NewCredentials())) // nosemgrep: go.grpc.security.audit.grpc-client-insecure-connection
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 	var shell openrmmv1.ShellBrokerServiceClient
 	if sock := env("OPENRMM_SHELL_SOCKET", "/run/openrmm-shell/shell.sock"); sock != "off" {
-		sc, err := grpc.NewClient("unix://"+sock, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		sc, err := grpc.NewClient("unix://"+sock, grpc.WithTransportCredentials(insecure.NewCredentials())) // nosemgrep: go.grpc.security.audit.grpc-client-insecure-connection
 		if err != nil {
 			return err
 		}
@@ -179,7 +184,7 @@ func run(log *slog.Logger) error {
 	}
 	var bld openrmmv1.BuilderServiceClient
 	if sock := env("OPENRMM_BUILDER_SOCKET", "/run/openrmm-builder/builder.sock"); sock != "off" {
-		bc, err := grpc.NewClient("unix://"+sock, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		bc, err := grpc.NewClient("unix://"+sock, grpc.WithTransportCredentials(insecure.NewCredentials())) // nosemgrep: go.grpc.security.audit.grpc-client-insecure-connection
 		if err != nil {
 			return err
 		}
