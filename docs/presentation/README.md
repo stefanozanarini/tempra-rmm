@@ -13,4 +13,4 @@ A 26-slide overview of Tempra RMM: features, security design, vulnerability mana
 
 The source files follow the format of the Claude Slides artifact, where the deck is also published and can be presented or exported to PowerPoint and PDF. `index.html` is generated from them: icons are left out, and the layout may differ slightly from the artifact.
 
-The operator manual is [USER-MANUAL.md](../USER-MANUAL.md).
+The operator manual is [USER-MANUAL.md](../USER-MANUAL.md); its training deck is [Tempra-RMM-operator-manual-EN.pptx](../Tempra-RMM-operator-manual-EN.pptx).

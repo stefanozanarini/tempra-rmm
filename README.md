@@ -49,7 +49,7 @@ Next: validation on real Windows endpoints, Entra ID and Vision One. See the [ro
 
 ## Documentation
 
-- Operator manual: [docs/USER-MANUAL.md](docs/USER-MANUAL.md)
+- Operator manual: [docs/USER-MANUAL.md](docs/USER-MANUAL.md), also as a training deck: [PowerPoint](docs/Tempra-RMM-operator-manual-EN.pptx)
 - Product presentation: [docs/presentation](docs/presentation/README.md)
 - Server installation: [docs/INSTALL.md](docs/INSTALL.md)
 - Microsoft Entra ID setup: [docs/ENTRA.md](docs/ENTRA.md)
