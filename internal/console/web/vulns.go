@@ -229,12 +229,9 @@ func activeAgents(agents []store.Agent) string {
 // vulnFindings returns the CVEs affecting a tenant's computers and when
 // they were computed. They are computed while the page waits the first
 // time and when computers were added or removed; otherwise older results
-// are shown while they are computed again in the background.
-func (s *Server) vulnFindings(ctx context.Context, tenant string, ix *vuln.Index) ([]vuln.Finding, time.Time, error) {
-	agents, err := s.store.ListAgents(ctx, tenant)
-	if err != nil {
-		return nil, time.Time{}, err
-	}
+// are shown while they are computed again in the background. agents is the
+// tenant's agent list, already fetched by the caller (securityFilter).
+func (s *Server) vulnFindings(ctx context.Context, tenant string, ix *vuln.Index, agents []store.Agent) ([]vuln.Finding, time.Time, error) {
 	set := activeAgents(agents)
 	s.vulns.mu.Lock()
 	m := s.vulns.matched[tenant]
@@ -322,7 +319,7 @@ func (s *Server) vulnReport(r *http.Request, tenant string) (*vulnData, error) {
 	q := r.URL.Query()
 	d := &vulnData{Query: strings.TrimSpace(q.Get("q")), Exploited: q.Get("exploited") == "1", MaxFinding: maxVulnRows,
 		Site: q.Get("site"), Group: q.Get("group")}
-	allow, sites, groups, err := s.securityFilter(r, tenant, d.Site, d.Group)
+	allow, sites, groups, agents, err := s.securityFilter(r, tenant, d.Site, d.Group)
 	if err != nil {
 		return nil, err
 	}
@@ -346,7 +343,7 @@ func (s *Server) vulnReport(r *http.Request, tenant string) (*vulnData, error) {
 		return nil, err
 	}
 	d.Ready, d.Months, d.Products, d.HasKEV = true, ix.Months, ix.Products, ix.HasKEV
-	cached, at, err := s.vulnFindings(ctx, tenant, ix)
+	cached, at, err := s.vulnFindings(ctx, tenant, ix, agents)
 	if err != nil {
 		return nil, err
 	}

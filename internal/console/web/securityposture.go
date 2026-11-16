@@ -133,12 +133,9 @@ func idsLink(ids []string) string {
 }
 
 // securityPosture computes the posture of the tenant's approved computers
-// (those of allow, when not nil).
-func (s *Server) securityPosture(ctx context.Context, lang, t string, fs []vuln.Finding, days int, allow map[string]bool) (*posture, error) {
-	agents, err := s.store.ListAgents(ctx, t)
-	if err != nil {
-		return nil, err
-	}
+// (those of allow, when not nil). agents is the tenant's agent list, already
+// fetched by the caller (securityFilter).
+func (s *Server) securityPosture(ctx context.Context, lang, t string, fs []vuln.Finding, agents []store.Agent, days int, allow map[string]bool) (*posture, error) {
 	invs, err := s.store.ListInventories(ctx, t)
 	if err != nil {
 		return nil, err

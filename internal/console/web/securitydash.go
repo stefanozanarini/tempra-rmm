@@ -316,24 +316,25 @@ func (d securityData) withFilter(link string) string {
 	return link + "?" + qs
 }
 
-// securityFilter returns the computers of a site or group (nil: all), and
-// the sites and groups to choose from.
-func (s *Server) securityFilter(r *http.Request, t, site, group string) (map[string]bool, []store.Site, []store.Group, error) {
+// securityFilter returns the computers of a site or group (nil: all), the
+// sites and groups to choose from, and the tenant's agents (so callers don't
+// fetch them again).
+func (s *Server) securityFilter(r *http.Request, t, site, group string) (map[string]bool, []store.Site, []store.Group, []store.Agent, error) {
 	ctx := r.Context()
 	sites, err := s.store.ListSites(ctx, t)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	groups, err := s.visibleGroups(r, t)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	agents, err := s.store.ListAgents(ctx, t)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	allow, err := s.dashboardFilter(r, t, agents, site, group)
-	return allow, sites, groups, err
+	return allow, sites, groups, agents, err
 }
 
 // filterFindings keeps the hits on the computers of allow (all when nil),
@@ -382,7 +383,7 @@ func (s *Server) handleSecurity(w http.ResponseWriter, r *http.Request) {
 	lang := s.lang(r)
 	d := securityData{Tab: "dashboard", Days: 90, DayChoices: securityDayChoices,
 		Site: r.URL.Query().Get("site"), Group: r.URL.Query().Get("group")}
-	allow, sites, groups, err := s.securityFilter(r, t, d.Site, d.Group)
+	allow, sites, groups, agents, err := s.securityFilter(r, t, d.Site, d.Group)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -404,7 +405,7 @@ func (s *Server) handleSecurity(w http.ResponseWriter, r *http.Request) {
 	var fs []vuln.Finding
 	if err == nil {
 		d.Ready = true
-		if fs, _, err = s.vulnFindings(ctx, t, ix); err != nil {
+		if fs, _, err = s.vulnFindings(ctx, t, ix, agents); err != nil {
 			s.fail(w, r, err)
 			return
 		}
@@ -467,7 +468,7 @@ func (s *Server) handleSecurity(w http.ResponseWriter, r *http.Request) {
 		newLineChart(tr(lang, "Esposizioni per gravità"), tr(lang, "Coppie CVE × computer: scendono quando gli aggiornamenti arrivano sui computer"), at, hits),
 	}
 	if d.Ready {
-		if d.Posture, err = s.securityPosture(ctx, lang, t, fs, d.Days, allow); err != nil {
+		if d.Posture, err = s.securityPosture(ctx, lang, t, fs, agents, d.Days, allow); err != nil {
 			s.fail(w, r, err)
 			return
 		}
