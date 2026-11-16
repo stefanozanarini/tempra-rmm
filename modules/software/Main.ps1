@@ -114,7 +114,7 @@ function Get-UninstallEntries {
     }
 }
 
-function Test-Agent([string]$Name) { return $Name -match '^open-rmm' }
+function Test-Agent([string]$Name) { return $Name -match '^(open-rmm|tempra rmm)' }
 
 Invoke-RmmModule @{
     install   = {
@@ -176,7 +176,7 @@ Invoke-RmmModule @{
             $target = $found[0]
         }
         else { throw 'give product_code or name' }
-        if ($target -and (Test-Agent $target.Name)) { throw 'the open-rmm agent cannot be uninstalled from the console' }
+        if ($target -and (Test-Agent $target.Name)) { throw 'the Tempra RMM agent cannot be uninstalled from the console' }
         if (-not $target -and -not $code) { throw 'application not found' }
 
         $log = Join-Path ([string]$Request.work_dir) 'uninstall.log'
