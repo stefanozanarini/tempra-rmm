@@ -69,7 +69,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <div class="card fadeup" style="--i:0"><div class="row" style="gap:16px;align-items:center"><x-icon name="Search" class="icon"></x-icon><h3>Inventory</h3></div><p class="body">Hardware, disks, BitLocker, battery, TPM, software, change history.</p></div>
 <div class="card fadeup" style="--i:1"><div class="row" style="gap:16px;align-items:center"><x-icon name="Wrench" class="icon"></x-icon><h3>Patching</h3></div><p class="body">Windows, Linux, winget apps, BIOS and firmware; blockers explained.</p></div>
 <div class="card fadeup" style="--i:2"><div class="row" style="gap:16px;align-items:center"><x-icon name="PaperPlane" class="icon"></x-icon><h3>Software</h3></div><p class="body">Package library, distribution, silent uninstall, workflows.</p></div>
-<div class="card fadeup" style="--i:3"><div class="row" style="gap:16px;align-items:center"><x-icon name="Code" class="icon"></x-icon><h3>Remote ops</h3></div><p class="body">Scripts, shell, remote control, files: time-limited, audited.</p></div>
+<div class="card fadeup" style="--i:3"><div class="row" style="gap:16px;align-items:center"><x-icon name="Code" class="icon"></x-icon><h3>Remote ops</h3></div><p class="body">Scripts, shell, remote control even at the lock screen, files.</p></div>
 <div class="card fadeup" style="--i:4"><div class="row" style="gap:16px;align-items:center"><x-icon name="Warning" class="icon"></x-icon><h3>CVEs</h3></div><p class="body">Matched per computer, exploited first, fix prepared in one click.</p></div>
 <div class="card fadeup" style="--i:5"><div class="row" style="gap:16px;align-items:center"><x-icon name="Activity" class="icon"></x-icon><h3>Alerts</h3></div><p class="body">Antivirus, firewall, Trend Micro, unusual RDP, password spraying.</p></div>
 <div class="card fadeup" style="--i:6"><div class="row" style="gap:16px;align-items:center"><x-icon name="Chart" class="icon"></x-icon><h3>Reporting</h3></div><p class="body">Dashboards, inventory search, CSV export, CVE trends.</p></div>
@@ -78,11 +78,30 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <div class="footer"><span>Tempra RMM</span><span>3</span></div>
 <aside>Eight feature areas. The rest of the deck spends most time on security, vulnerabilities and reporting, then the daily operator tools.</aside>
 </section>
+<section id="shot-agents" class="alt">
+<div class="head">
+<p class="eyebrow">The console</p>
+<h2>Every computer at a glance, by site and AD</h2>
+</div>
+<div class="row" style="gap:48px;align-items:flex-start">
+<img src="screenshots/agents-en.png" alt="Tempra RMM console: the console" style="width:1120px;height:630px;object-fit:contain;border:1px solid #D6D3C8;border-radius:12px;box-shadow:0 12px 32px rgba(20,33,61,0.14);background:#FFFFFF">
+<div style="flex:1;display:flex;flex-direction:column;gap:24px">
+<ul class="list" style="font-size:28px;gap:20px">
+<li>Filters by status: offline, issues, missing patches, pending reboot.</li>
+<li>Sites from subnets, Active Directory OUs and computer groups in one tree.</li>
+<li>New agents wait for approval before they receive any command.</li>
+</ul>
+<p class="small muted">Console with demo data.</p>
+</div>
+</div>
+<div class="footer"><span>Tempra RMM</span><span>4</span></div>
+<aside>The Agents page. Clients and Servers tabs, quick filters with counts, and the site and Active Directory tree on the left. Clicking a computer opens its panel: checks, patches, firmware, software, inventory, logons and history. The screenshots come from a console with demo data, not from a customer.</aside>
+</section>
 <section id="sec-intro" class="dark" style="justify-content:center">
 <p class="eyebrow">Security by design</p>
 <p class="statement fadeup">A compromised console must not be enough to run code on your computers.</p>
 <p class="lead fadeup" style="--i:2">RMM tools are a favourite target: one breach reaches every endpoint. Tempra RMM is built so that the console alone cannot command the fleet.</p>
-<div class="footer"><span>Tempra RMM</span><span>4</span></div>
+<div class="footer"><span>Tempra RMM</span><span>5</span></div>
 <aside>This is the core design principle. Supply-chain attacks on RMM tools have been used to deploy ransomware to thousands of endpoints at once. Our answer: separate the power to decide from the power to sign, require a human MFA for every command, and let the endpoint verify everything itself.</aside>
 </section>
 <section id="arch">
@@ -120,7 +139,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <p class="small muted">Web console stays on the LAN/VPN; only the agents endpoint faces the internet.</p>
 <p class="small muted">A compromised gateway can delay traffic — it cannot forge jobs, modules or certificates.</p>
 </div>
-<div class="footer"><span>Tempra RMM</span><span>5</span></div>
+<div class="footer"><span>Tempra RMM</span><span>6</span></div>
 <aside>The DMZ split: openrmm-gateway is a relay in the DMZ; openrmm-core in the LAN opens a long-lived mTLS tunnel to it. On the tunnel the roles are reversed. The gateway never decodes payloads, so new features never touch it, and internal services are unreachable from the internet.</aside>
 </section>
 <section id="mfa" class="alt">
@@ -140,7 +159,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <div class="card"><h3>Session approval</h3><p class="body">Shell, screen and files: one MFA per timed session.</p></div>
 <div class="card"><h3>Collections</h3><p class="body">Read-only inventory and scans need no new sign-in.</p></div>
 </div>
-<div class="footer"><span>Tempra RMM</span><span>6</span></div>
+<div class="footer"><span>Tempra RMM</span><span>7</span></div>
 <aside>The signer is a separate container reachable only by a local socket. It signs only if the request carries an id_token issued by Entra ID for that exact request, recent, with MFA, by an Operator or Admin of that tenant, never used before. The console cannot mint commands by itself. Then the agent checks signature, that the job is addressed to it, the validity window, a persistent anti-replay cache and the module manifest hash.</aside>
 </section>
 <section id="threats">
@@ -159,7 +178,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <tr><td>Operator abuse</td><td>Roles, per-command MFA, immutable hash-chained audit log</td></tr>
 </table>
 <p class="small muted">Supply chain: few dependencies; govulncheck, gosec, staticcheck and race detector in CI.</p>
-<div class="footer"><span>Tempra RMM</span><span>7</span></div>
+<div class="footer"><span>Tempra RMM</span><span>8</span></div>
 <aside>Summary of the threat model in the architecture document, section 6.1. Four-eyes approval for mass actions is on the roadmap.</aside>
 </section>
 <section id="keys" class="alt">
@@ -180,8 +199,35 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <p class="small muted">The builder passphrase is asked at each use and <b>never stored</b> by the console.</p>
 <p class="small muted">Revocation disconnects an agent <b>immediately</b>, even mid-session.</p>
 </div>
-<div class="footer"><span>Tempra RMM</span><span>8</span></div>
+<div class="footer"><span>Tempra RMM</span><span>9</span></div>
 <aside>Consoles that want the strictest model keep module and release keys offline: then even a fully compromised console cannot publish code to agents. With keys in the builder, an attacker would also need the passphrase, which is entered per operation.</aside>
+</section>
+<section id="access">
+<div class="head">
+<p class="eyebrow">Least privilege</p>
+<h2>Each operator reaches only their own computers</h2>
+</div>
+<div class="row" style="gap:48px;flex:1">
+<div style="flex:1;display:flex;flex-direction:column;gap:20px">
+<table class="t">
+<tr class="th"><th style="width:44%">Entra app role</th><th style="width:56%">Reaches</th></tr>
+<tr><td>OpenRMM.Admin</td><td>Everything, including settings</td></tr>
+<tr><td>Admin.Clients / .Servers</td><td>Administers PCs only, or servers only</td></tr>
+<tr><td>OpenRMM.Operator</td><td>Commands on every computer</td></tr>
+<tr><td>Operator.Clients / .Servers</td><td>Commands on PCs only, or servers only</td></tr>
+<tr><td>OpenRMM.Reader</td><td>Read only</td></tr>
+</table>
+<p class="small muted">Roles add up. The signer copies the OS family into every job, and the agent refuses a job meant for the other family.</p>
+</div>
+<div class="card accent" style="width:620px">
+<p class="tag">Scopes</p>
+<h3>By site or computer group</h3>
+<p class="body">An operator, or an Entra security group, is limited to some sites or groups. Checked on commands, approvals, revocations, site moves and provisioning.</p>
+<p class="body">Only <b>OpenRMM.Admin</b> can change a site or group that a scope depends on.</p>
+</div>
+</div>
+<div class="footer"><span>Tempra RMM</span><span>10</span></div>
+<aside>The OS-family limit comes from the step-up token, so it is enforced by the signer and by the agent too, not only by the console. Scopes are set on the Scopes page under Administration. Settings, tokens, policies, agent versions, installers and federation links stay with OpenRMM.Admin.</aside>
 </section>
 <section id="endpoint" class="dark">
 <div class="head">
@@ -206,7 +252,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 </div>
 </div>
 <p class="muted small">Plus: per-tenant row-level security in PostgreSQL · the console refuses superuser database roles · server-rendered UI with strict CSP and no third-party JavaScript.</p>
-<div class="footer"><span>Tempra RMM</span><span>9</span></div>
+<div class="footer"><span>Tempra RMM</span><span>11</span></div>
 <aside>Even with valid signatures, an endpoint whose Group Policy sets AllowAdHocScripts to 0 refuses scripts. Policies can never schedule a shell, a remote-control or a file session. The audit log cannot be edited from the console.</aside>
 </section>
 <section id="vuln-flow">
@@ -225,7 +271,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <div class="card"><h3>Knows the edge cases</h3><p class="body">Flags apps in a user profile, out of winget’s reach, and fixes waiting for an app restart.</p></div>
 <div class="card"><h3>Robust to supersedence</h3><p class="body">Windows fixes install current security updates, not an old, replaced KB.</p></div>
 </div>
-<div class="footer"><span>Tempra RMM</span><span>10</span></div>
+<div class="footer"><span>Tempra RMM</span><span>12</span></div>
 <aside>The vulnerability engine runs on the console, comparing the inventory with public data. No agent change is needed. The fix button opens a bulk action already filled with the affected computers; the operator reviews it and approves with MFA. For apps installed in a user profile, winget (running as SYSTEM) cannot update them: the console proposes a machine-wide install where safe, and explains why not for Firefox and Thunderbird.</aside>
 </section>
 <section id="vuln-dash" class="alt">
@@ -263,11 +309,30 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <p style="font-size:28px">Five cards with the change over 30 to 365 days; each opens the filtered list.</p>
 <p style="font-size:28px"><b>Vulnerabilities</b>: distinct CVEs on at least one computer.</p>
 <p style="font-size:28px"><b>Exposures</b>: CVE × computer pairs — they drop as updates land.</p>
-<p style="font-size:28px">Recorded <b>daily per tenant</b>, even when nobody opens the page.</p>
+<p style="font-size:28px">Recorded <b>daily</b>; cards, charts and trend filter by <b>site or group</b>.</p>
 </div>
 </div>
-<div class="footer"><span>Tempra RMM</span><span>11</span></div>
-<aside>The chart here is an illustration of the shape, not customer data. The real dashboard draws two line charts, vulnerabilities and exposures, by severity: critical CVSS 9 or more, high 7 or more, medium 4 or more, low or unscored. Each chart also has a show-as-table view.</aside>
+<div class="footer"><span>Tempra RMM</span><span>13</span></div>
+<aside>The chart here is an illustration of the shape, not customer data. The real dashboard draws two line charts, vulnerabilities and exposures, by severity: critical CVSS 9 or more, high 7 or more, medium 4 or more, low or unscored. Each chart also has a show-as-table view. History is recorded daily per tenant even when nobody opens the page; for a site or group it is rebuilt from the exposures of its computers.</aside>
+</section>
+<section id="shot-security" class="alt">
+<div class="head">
+<p class="eyebrow">Security dashboard</p>
+<h2>Real exposure, tracked day by day</h2>
+</div>
+<div class="row" style="gap:48px;align-items:flex-start">
+<img src="screenshots/security-en.png" alt="Tempra RMM console: security dashboard" style="width:1120px;height:630px;object-fit:contain;border:1px solid #D6D3C8;border-radius:12px;box-shadow:0 12px 32px rgba(20,33,61,0.14);background:#FFFFFF">
+<div style="flex:1;display:flex;flex-direction:column;gap:24px">
+<ul class="list" style="font-size:28px;gap:20px">
+<li>Five cards with the change over the chosen period.</li>
+<li>Vulnerabilities and exposures by severity, for a site or group too.</li>
+<li>Compliance: BitLocker, Secure Boot, TPM, updates, OS support.</li>
+</ul>
+<p class="small muted">Console with demo data.</p>
+</div>
+</div>
+<div class="footer"><span>Tempra RMM</span><span>14</span></div>
+<aside>The Security dashboard with ninety days of history. The spikes are new Patch Tuesday CVEs, which fall as the updates reach the computers. Below the charts: compliance, patches by age, operating system support, most exposed computers and software. The screenshots come from a console with demo data, not from a customer.</aside>
 </section>
 <section id="vuln-fix">
 <div class="head">
@@ -282,6 +347,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <li>Links to Microsoft and NVD</li>
 <li>Affected computers, installed version, fix</li>
 <li>The prepared action for exactly those computers</li>
+<li>Per computer: its CVEs, version installed and fix</li>
 </ul>
 </div>
 <div class="card accent">
@@ -295,8 +361,27 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <p class="body">The operator reviews the computer list and approves once with MFA.</p>
 </div>
 </div>
-<div class="footer"><span>Tempra RMM</span><span>12</span></div>
+<div class="footer"><span>Tempra RMM</span><span>15</span></div>
 <aside>The list view can be filtered to only exploited CVEs, searched by CVE, product, computer or KB, and sorted by severity or by number of computers. After the next scan, fixed computers drop out of the list and the exposure trend goes down.</aside>
+</section>
+<section id="shot-cve" class="alt">
+<div class="head">
+<p class="eyebrow">Vulnerability detail</p>
+<h2>From a CVE to its fix, in one screen</h2>
+</div>
+<div class="row" style="gap:48px;align-items:flex-start">
+<img src="screenshots/cve-en.png" alt="Tempra RMM console: vulnerability detail" style="width:1120px;height:630px;object-fit:contain;border:1px solid #D6D3C8;border-radius:12px;box-shadow:0 12px 32px rgba(20,33,61,0.14);background:#FFFFFF">
+<div style="flex:1;display:flex;flex-direction:column;gap:24px">
+<ul class="list" style="font-size:28px;gap:20px">
+<li>CVSS, severity and links to Microsoft and NVD.</li>
+<li>Affected computers, with the installed build and the KB that fixes it.</li>
+<li>One button opens the prepared update, ready for MFA approval.</li>
+</ul>
+<p class="small muted">Console with demo data.</p>
+</div>
+</div>
+<div class="footer"><span>Tempra RMM</span><span>16</span></div>
+<aside>One CVE: four computers are still on a build that lacks the fix. The button opens the bulk action already filled in with those computers and the security update classifications. The screenshots come from a console with demo data, not from a customer.</aside>
 </section>
 <section id="patch" class="alt">
 <div class="head">
@@ -313,8 +398,27 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <div class="card accent" style="flex:1"><h3>Reboots on your terms</h3><p class="body">Modules never reboot. A policy picks the window, the notice and when to skip.</p></div>
 <div class="card" style="flex:1"><h3>One approval, the whole fleet</h3><p class="body">An outdated app on many PCs → <b>Update…</b> → review → one MFA.</p></div>
 </div>
-<div class="footer"><span>Tempra RMM</span><span>13</span></div>
+<div class="footer"><span>Tempra RMM</span><span>17</span></div>
 <aside>The update score combines missing security updates and their age, other updates, how long a reboot has been pending and outdated third-party applications. Linux: apt, dnf/yum and zypper.</aside>
+</section>
+<section id="shot-patches" class="alt">
+<div class="head">
+<p class="eyebrow">Patch dashboard</p>
+<h2>Who is furthest behind, and why</h2>
+</div>
+<div class="row" style="gap:48px;align-items:flex-start">
+<img src="screenshots/patches-en.png" alt="Tempra RMM console: patch dashboard" style="width:1120px;height:630px;object-fit:contain;border:1px solid #D6D3C8;border-radius:12px;box-shadow:0 12px 32px rgba(20,33,61,0.14);background:#FFFFFF">
+<div style="flex:1;display:flex;flex-direction:column;gap:24px">
+<ul class="list" style="font-size:28px;gap:20px">
+<li>Compliance, missing security updates, pending reboots.</li>
+<li>WSUS and Intune computers are observed, not touched.</li>
+<li>The most widespread outdated apps, one click to upgrade.</li>
+</ul>
+<p class="small muted">Console with demo data.</p>
+</div>
+</div>
+<div class="footer"><span>Tempra RMM</span><span>18</span></div>
+<aside>The Patch dashboard ranks computers by how far behind they are: missing security updates, the age of the oldest one in Patch Tuesdays, other updates, pending reboot, applications to update and firmware. The screenshots come from a console with demo data, not from a customer.</aside>
 </section>
 <section id="reports">
 <div class="head">
@@ -332,7 +436,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <tr><td>Logons and failed attempts</td></tr>
 <tr><td>Activity (audit log)</td></tr>
 </table>
-<p class="small muted">Every table exports to CSV. From a software search, the upgrade action opens ready to approve.</p>
+<p class="small muted">Simple filters turn into an editable query. Every table exports to CSV; a software search offers the upgrade ready to approve.</p>
 </div>
 <div style="flex:1;display:flex;flex-direction:column;gap:10px">
 <p class="eyebrow" style="letter-spacing:1px;text-transform:none">Advanced search: AND, OR, NOT, parentheses</p>
@@ -346,8 +450,27 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <p class="small muted">Not rebooted for over 30 days</p>
 </div>
 </div>
-<div class="footer"><span>Tempra RMM</span><span>14</span></div>
+<div class="footer"><span>Tempra RMM</span><span>19</span></div>
 <aside>More than 50 fields from the latest inventory: hardware, BIOS, disks, BitLocker, TPM, battery, network, users, software with versions, remote-access IDs, last seen. Numbers, versions and dates support greater-than and less-than, like last_seen less than 30 days.</aside>
+</section>
+<section id="shot-reports" class="alt">
+<div class="head">
+<p class="eyebrow">Reporting dashboard</p>
+<h2>The state of the fleet on one page</h2>
+</div>
+<div class="row" style="gap:48px;align-items:flex-start">
+<img src="screenshots/reports-en.png" alt="Tempra RMM console: reporting dashboard" style="width:1120px;height:630px;object-fit:contain;border:1px solid #D6D3C8;border-radius:12px;box-shadow:0 12px 32px rgba(20,33,61,0.14);background:#FFFFFF">
+<div style="flex:1;display:flex;flex-direction:column;gap:24px">
+<ul class="list" style="font-size:28px;gap:20px">
+<li>Servers, workstations, patches, antivirus, disks, BitLocker, battery.</li>
+<li>Hardware age, last reboot, agent versions, computers furthest behind.</li>
+<li>Filter by site or group; every list exports to CSV.</li>
+</ul>
+<p class="small muted">Console with demo data.</p>
+</div>
+</div>
+<div class="footer"><span>Tempra RMM</span><span>20</span></div>
+<aside>The Reporting dashboard. Every chart is computed from the latest inventory and checks of each computer. The screenshots come from a console with demo data, not from a customer.</aside>
 </section>
 <section id="remote" class="alt">
 <div class="head">
@@ -358,13 +481,13 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <tr class="th"><th style="width:22%">Tool</th><th style="width:20%">Approval</th><th style="width:16%">Limit</th><th style="width:42%">Safeguards</th></tr>
 <tr><td>Script</td><td>MFA per command</td><td>15 min–48 h</td><td>Full text audited; AMSI and logging stay on</td></tr>
 <tr><td>Shell</td><td>MFA per session</td><td>60 min</td><td>Off unless GPO allows; every line audited</td></tr>
-<tr><td>Remote control</td><td>MFA per session</td><td>60 min</td><td>Off unless GPO allows; needs a user</td></tr>
+<tr><td>Remote control</td><td>MFA per session</td><td>60 min</td><td>Off unless GPO allows; lock screen, UAC, Ctrl+Alt+Del</td></tr>
 <tr><td>Files</td><td>MFA per session</td><td>240 min</td><td>Agent folders refused; SHA-256 audited</td></tr>
 <tr><td>Bulk action</td><td>One MFA</td><td>500 PCs</td><td>One signed job per computer</td></tr>
 </table>
 <p class="small muted">Shell and remote control open in the browser (xterm.js and a JPEG stream over the agent’s own connection): no extra port, no third-party tool.</p>
-<div class="footer"><span>Tempra RMM</span><span>15</span></div>
-<aside>Remote-access IDs for Supremo, AnyDesk and TeamViewer are also collected by the inventory, so existing tools stay usable. Sessions are usable only by the operator who approved them and end at the time limit.</aside>
+<div class="footer"><span>Tempra RMM</span><span>21</span></div>
+<aside>Remote-access IDs for Supremo, AnyDesk and TeamViewer are also collected by the inventory, so existing tools stay usable. Since agent 1.2.0 remote control works with nobody signed in: the operator sees and controls the sign-in and lock screens and UAC prompts, and can send Ctrl+Alt+Del. Sessions are usable only by the operator who approved them and end at the time limit.</aside>
 </section>
 <section id="software">
 <div class="head">
@@ -379,7 +502,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <div class="card accent" style="flex:1"><p class="tag">Provisioning</p><h3>Profiles</h3><p class="body">Up to 30 workflow and reboot steps. Admin approves a version once; operators run it on new clients.</p></div>
 </div>
 <p class="small muted">Silent uninstall from the console too: the right method per installer type, verified afterwards. Provisioning refuses servers and asks to confirm data loss.</p>
-<div class="footer"><span>Tempra RMM</span><span>16</span></div>
+<div class="footer"><span>Tempra RMM</span><span>22</span></div>
 <aside>Coming next for provisioning: automatic start at enrollment with a dedicated token, offline domain join without AD credentials on the console, ready-made Microsoft 365 Apps workflows.</aside>
 </section>
 <section id="scale" class="dark">
@@ -388,13 +511,13 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <h2>One central console, many customers, control stays local</h2>
 </div>
 <div class="grid3" style="flex:1">
-<div class="card fadeup" style="--i:0"><x-icon name="Users" class="icon"></x-icon><h3>Multi-tenant</h3><p class="body">A tenant id in every row, API and job, enforced by PostgreSQL row-level security.</p></div>
+<div class="card fadeup" style="--i:0"><x-icon name="Users" class="icon"></x-icon><h3>Multi-tenant</h3><p class="body">A tenant id in every row, API and job, enforced by row-level security. MSP mode creates customer tenants from the console.</p></div>
 <div class="card fadeup" style="--i:1"><x-icon name="Link" class="icon"></x-icon><h3>Federation</h3><p class="body">The customer console dials out to the central one over a pinned link. Everything doable locally is doable centrally.</p></div>
 <div class="card fadeup" style="--i:2"><x-icon name="Verified" class="icon"></x-icon><h3>Customer in charge</h3><p class="body">Commands still signed by the customer’s signer with the operator’s MFA. Role cap, suspend, local audit.</p></div>
 </div>
-<p class="small muted">Only a summary syncs every 5 minutes; pages are fetched live. The customer console stays fully autonomous when the link is down.</p>
-<div class="footer"><span>Tempra RMM</span><span>17</span></div>
-<aside>The central console never holds customer signing keys and cannot create commands or policies by itself. Every action appears in the customer's audit log as operator so-and-so via central console.</aside>
+<p class="small muted">Two levels at most. Each link keeps a set number of tunnels; shell and remote-control sessions take one each. The customer console stays autonomous when the link is down.</p>
+<div class="footer"><span>Tempra RMM</span><span>23</span></div>
+<aside>Only a summary syncs every 5 minutes; pages are fetched live. The tunnel count, default 6, is set on both sides and the Linked consoles page warns when a link is busy. The central console never holds customer signing keys and cannot create commands or policies by itself. Every action appears in the customer's audit log as operator so-and-so via central console.</aside>
 </section>
 <section id="tech">
 <div class="head">
@@ -412,7 +535,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <tr><td>Packaging</td><td>Signed MSI and ADMX for Group Policy; self-extracting Linux installer</td></tr>
 <tr><td>Licence</td><td>GNU AGPL-3.0</td></tr>
 </table>
-<div class="footer"><span>Tempra RMM</span><span>18</span></div>
+<div class="footer"><span>Tempra RMM</span><span>24</span></div>
 <aside>Three levels of self-healing on the endpoint: service recovery, a watchdog that restarts a hung agent, and a scheduled task every 15 minutes. Features ship as modules, so the agent itself is updated only for protocol or security fixes.</aside>
 </section>
 <section id="status" class="alt">
@@ -429,7 +552,8 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <li>Windows, Linux, winget and firmware patching</li>
 <li>Vulnerabilities and security dashboard</li>
 <li>Shell, remote control, files, bulk actions</li>
-<li>Library, workflows, provisioning, federation</li>
+<li>Library, workflows, provisioning, federation, MSP mode</li>
+<li>Roles by OS family, scopes by site or group</li>
 </ul>
 </div>
 <div class="card accent">
@@ -444,14 +568,14 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 </ul>
 </div>
 </div>
-<div class="footer"><span>Tempra RMM</span><span>19</span></div>
+<div class="footer"><span>Tempra RMM</span><span>25</span></div>
 <aside>Phases 0 to 12 of the roadmap are implemented. Several modules, notably firmware, Trend Micro and Vision One, still need validation on real customer endpoints.</aside>
 </section>
 <section id="close" class="dark" style="justify-content:center">
 <p class="eyebrow">In one sentence</p>
 <p class="statement">Every command a person approved, every key in its place, every action on the record.</p>
 <p class="lead">Tempra RMM — open source, hosted at the customer, secure by design.</p>
-<div class="footer"><span>Tempra RMM</span><span>20</span></div>
+<div class="footer"><span>Tempra RMM</span><span>26</span></div>
 <aside>Close with questions. The operator manual covers day-to-day use: enrolling computers, remote actions, patches, vulnerabilities, reports and provisioning.</aside>
 </section>
 <script>

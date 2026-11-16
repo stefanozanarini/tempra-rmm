@@ -1,0 +1,27 @@
+<section id="access">
+<div class="head">
+<p class="eyebrow">Least privilege</p>
+<h2>Each operator reaches only their own computers</h2>
+</div>
+<div class="row" style="gap:48px;flex:1">
+<div style="flex:1;display:flex;flex-direction:column;gap:20px">
+<table class="t">
+<tr class="th"><th style="width:44%">Entra app role</th><th style="width:56%">Reaches</th></tr>
+<tr><td>OpenRMM.Admin</td><td>Everything, including settings</td></tr>
+<tr><td>Admin.Clients / .Servers</td><td>Administers PCs only, or servers only</td></tr>
+<tr><td>OpenRMM.Operator</td><td>Commands on every computer</td></tr>
+<tr><td>Operator.Clients / .Servers</td><td>Commands on PCs only, or servers only</td></tr>
+<tr><td>OpenRMM.Reader</td><td>Read only</td></tr>
+</table>
+<p class="small muted">Roles add up. The signer copies the OS family into every job, and the agent refuses a job meant for the other family.</p>
+</div>
+<div class="card accent" style="width:620px">
+<p class="tag">Scopes</p>
+<h3>By site or computer group</h3>
+<p class="body">An operator, or an Entra security group, is limited to some sites or groups. Checked on commands, approvals, revocations, site moves and provisioning.</p>
+<p class="body">Only <b>OpenRMM.Admin</b> can change a site or group that a scope depends on.</p>
+</div>
+</div>
+<div class="footer"><span>Tempra RMM</span><span>10</span></div>
+<aside>The OS-family limit comes from the step-up token, so it is enforced by the signer and by the agent too, not only by the console. Scopes are set on the Scopes page under Administration. Settings, tokens, policies, agent versions, installers and federation links stay with OpenRMM.Admin.</aside>
+</section>

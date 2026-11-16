@@ -4,11 +4,11 @@
 <h2>One central console, many customers, control stays local</h2>
 </div>
 <div class="grid3" style="flex:1">
-<div class="card fadeup" style="--i:0"><x-icon name="Users" class="icon"></x-icon><h3>Multi-tenant</h3><p class="body">A tenant id in every row, API and job, enforced by PostgreSQL row-level security.</p></div>
+<div class="card fadeup" style="--i:0"><x-icon name="Users" class="icon"></x-icon><h3>Multi-tenant</h3><p class="body">A tenant id in every row, API and job, enforced by row-level security. MSP mode creates customer tenants from the console.</p></div>
 <div class="card fadeup" style="--i:1"><x-icon name="Link" class="icon"></x-icon><h3>Federation</h3><p class="body">The customer console dials out to the central one over a pinned link. Everything doable locally is doable centrally.</p></div>
 <div class="card fadeup" style="--i:2"><x-icon name="Verified" class="icon"></x-icon><h3>Customer in charge</h3><p class="body">Commands still signed by the customer’s signer with the operator’s MFA. Role cap, suspend, local audit.</p></div>
 </div>
-<p class="small muted">Only a summary syncs every 5 minutes; pages are fetched live. The customer console stays fully autonomous when the link is down.</p>
-<div class="footer"><span>Tempra RMM</span><span>17</span></div>
-<aside>The central console never holds customer signing keys and cannot create commands or policies by itself. Every action appears in the customer's audit log as operator so-and-so via central console.</aside>
+<p class="small muted">Two levels at most. Each link keeps a set number of tunnels; shell and remote-control sessions take one each. The customer console stays autonomous when the link is down.</p>
+<div class="footer"><span>Tempra RMM</span><span>23</span></div>
+<aside>Only a summary syncs every 5 minutes; pages are fetched live. The tunnel count, default 6, is set on both sides and the Linked consoles page warns when a link is busy. The central console never holds customer signing keys and cannot create commands or policies by itself. Every action appears in the customer's audit log as operator so-and-so via central console.</aside>
 </section>
