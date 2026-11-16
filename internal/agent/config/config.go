@@ -75,8 +75,13 @@ func Load(path string) (*Config, error) {
 	// TempraRMM rename, so it keeps its identity instead of finding itself
 	// unenrolled (the enrollment token is erased from the registry right
 	// after the first enrollment, so the agent could not re-enroll on its
-	// own). No-op on Linux and once already migrated.
-	migrateOS()
+	// own). No-op on Linux and once already migrated. A service already
+	// running keeps the exact -config path its Windows service entry was
+	// last set to, typically the pre-rebrand default: migrateOS also
+	// redirects path itself when it just moved that very file, so the read
+	// below finds it at its new home instead of a path that no longer
+	// exists.
+	path = migrateOS(path)
 	c := &Config{}
 	if path != "" {
 		data, err := os.ReadFile(path)

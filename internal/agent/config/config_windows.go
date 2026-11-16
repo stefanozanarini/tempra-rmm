@@ -48,10 +48,25 @@ func DefaultInstallDir() string {
 // open-rmm to ProgramData\TempraRMM, the first time a renamed build runs on
 // a machine that still has the old layout. A rename is atomic and, since
 // both folders are on the same ProgramData volume, effectively instant.
-func migrateOS() {
+//
+// A service already running keeps the -config path its Windows service
+// entry was last set to; a self-update (the normal path in the field, as
+// opposed to a fresh MSI run) never rewrites that argument, so it is
+// typically still the pre-rebrand default path itself. When path is exactly
+// that legacy file, it is the one just moved: return the new path so the
+// caller reads the migrated file instead of one that no longer exists.
+func migrateOS(path string) string {
 	old := filepath.Join(programData(), "open-rmm")
-	moveIfMissing(filepath.Join(old, "agent.json"), DefaultConfigPath())
+	legacyConfigPath := filepath.Join(old, "agent.json")
+	moveIfMissing(legacyConfigPath, DefaultConfigPath())
 	moveIfMissing(filepath.Join(old, "data"), DefaultDataDir())
+	// Windows paths are case-insensitive; the -config argument on an
+	// existing service was written by code that may have cased it
+	// differently (e.g. a lowercase drive letter).
+	if strings.EqualFold(filepath.Clean(path), filepath.Clean(legacyConfigPath)) {
+		return DefaultConfigPath()
+	}
+	return path
 }
 
 // moveIfMissing renames old to dst when dst does not exist yet and old
