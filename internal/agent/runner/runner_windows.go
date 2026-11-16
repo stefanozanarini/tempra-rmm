@@ -28,11 +28,11 @@ func command(spec Spec) (*exec.Cmd, error) {
 	var cmd *exec.Cmd
 	switch spec.Type {
 	case modules.TypeBinary:
-		cmd = exec.Command(spec.Path) // #nosec G204 -- verified module entrypoint
+		cmd = exec.Command(spec.Path) // #nosec G204 -- verified module entrypoint // nosemgrep: dangerous-exec-command
 	case modules.TypePowerShell:
 		// Absolute path: never resolve powershell.exe through PATH.
 		exe := filepath.Join(systemRoot(), `System32\WindowsPowerShell\v1.0\powershell.exe`)
-		cmd = exec.Command(exe, "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", spec.Path) // #nosec G204 -- verified module entrypoint
+		cmd = exec.Command(exe, "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", spec.Path) // #nosec G204 -- verified module entrypoint // nosemgrep: dangerous-exec-command
 	default:
 		return nil, fmt.Errorf("entrypoint type %q not supported on Windows", spec.Type)
 	}

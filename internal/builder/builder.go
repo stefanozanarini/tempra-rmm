@@ -407,7 +407,7 @@ func parsePlainKey(out []byte) (*rsa.PrivateKey, error) {
 // runWithPipes runs a tool with data on file descriptors 3, 4… (pipes, so
 // nothing lands on disk) and returns its standard output.
 func runWithPipes(ctx context.Context, name string, args []string, dir string, fds ...[]byte) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, name, args...) // #nosec G204 -- fixed tools, arguments built here
+	cmd := exec.CommandContext(ctx, name, args...) // #nosec G204 -- fixed tools, arguments built here // nosemgrep: dangerous-exec-command
 	cmd.Dir = dir
 	type feed struct {
 		w    *os.File

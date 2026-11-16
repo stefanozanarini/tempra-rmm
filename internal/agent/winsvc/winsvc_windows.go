@@ -188,7 +188,7 @@ func InstallHealthTask() error {
 	cmd := filepath.Join(os.Getenv("SystemRoot"), "System32", "cmd.exe")
 	action := fmt.Sprintf(`"%s" /c "%s" start openrmm-watchdog ^& "%s" start openrmm-agent`, cmd, sc, sc)
 	schtasks := filepath.Join(os.Getenv("SystemRoot"), "System32", "schtasks.exe")
-	out, err := exec.Command(schtasks, "/Create", "/F", "/TN", taskName, "/RU", "SYSTEM", "/RL", "HIGHEST", // #nosec G204 -- fixed system binaries
+	out, err := exec.Command(schtasks, "/Create", "/F", "/TN", taskName, "/RU", "SYSTEM", "/RL", "HIGHEST", // #nosec G204 -- fixed system binaries // nosemgrep: dangerous-exec-command
 		"/SC", "MINUTE", "/MO", "15", "/TR", action).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("schtasks: %v: %s", err, out)
@@ -199,7 +199,7 @@ func InstallHealthTask() error {
 // UninstallHealthTask removes the scheduled task.
 func UninstallHealthTask() error {
 	schtasks := filepath.Join(os.Getenv("SystemRoot"), "System32", "schtasks.exe")
-	out, err := exec.Command(schtasks, "/Delete", "/F", "/TN", taskName).CombinedOutput() // #nosec G204 -- fixed system binary
+	out, err := exec.Command(schtasks, "/Delete", "/F", "/TN", taskName).CombinedOutput() // #nosec G204 -- fixed system binary // nosemgrep: dangerous-exec-command
 	if err != nil {
 		return fmt.Errorf("schtasks: %v: %s", err, out)
 	}

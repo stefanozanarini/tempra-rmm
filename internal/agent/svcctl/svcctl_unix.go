@@ -33,7 +33,7 @@ func systemctl(args ...string) ([]byte, error) {
 	if _, err := os.Stat(exe); err != nil {
 		exe = "/bin/systemctl"
 	}
-	return exec.Command(exe, args...).CombinedOutput() // #nosec G204 -- fixed binary, unit names are constants
+	return exec.Command(exe, args...).CombinedOutput() // #nosec G204 -- fixed binary, unit names are constants // nosemgrep: dangerous-exec-command
 }
 
 func (Systemd) Running(name string) (bool, error) {

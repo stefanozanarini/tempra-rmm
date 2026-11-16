@@ -69,7 +69,9 @@
     im.src = url;
   }
 
-  var ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + canvas.dataset.ws);
+  // wss:// whenever the page itself is https:, which it always is outside
+  // local development: this already matches the page's own scheme.
+  var ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + canvas.dataset.ws); // nosemgrep: detect-insecure-websocket
   ws.binaryType = "arraybuffer";
   function send(m) {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m));

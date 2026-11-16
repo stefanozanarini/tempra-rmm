@@ -46,7 +46,7 @@ func Start(argv, env []string, dir string, cols, rows uint16) (*Process, error) 
 		master.Close()
 		return nil, err
 	}
-	cmd := exec.Command(argv[0], argv[1:]...) // #nosec G204 -- fixed shell chosen by the agent
+	cmd := exec.Command(argv[0], argv[1:]...) // #nosec G204 -- fixed shell chosen by the agent // nosemgrep: dangerous-exec-command
 	cmd.Env, cmd.Dir = env, dir
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = slave, slave, slave
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true, Setctty: true, Ctty: 0}

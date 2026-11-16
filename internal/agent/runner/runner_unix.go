@@ -19,9 +19,9 @@ func command(spec Spec) (*exec.Cmd, error) {
 	var cmd *exec.Cmd
 	switch spec.Type {
 	case modules.TypeBinary:
-		cmd = exec.Command(spec.Path) // #nosec G204 -- verified module entrypoint
+		cmd = exec.Command(spec.Path) // #nosec G204 -- verified module entrypoint // nosemgrep: dangerous-exec-command
 	case modules.TypeShell:
-		cmd = exec.Command("/bin/sh", spec.Path) // #nosec G204 -- verified module entrypoint
+		cmd = exec.Command("/bin/sh", spec.Path) // #nosec G204 -- verified module entrypoint // nosemgrep: dangerous-exec-command
 	case modules.TypePowerShell:
 		exe := ""
 		for _, c := range pwshCandidates {
@@ -33,7 +33,7 @@ func command(spec Spec) (*exec.Cmd, error) {
 		if exe == "" {
 			return nil, errors.New("PowerShell (pwsh) is not installed")
 		}
-		cmd = exec.Command(exe, "-NoLogo", "-NoProfile", "-NonInteractive", "-File", spec.Path) // #nosec G204 -- verified module entrypoint
+		cmd = exec.Command(exe, "-NoLogo", "-NoProfile", "-NonInteractive", "-File", spec.Path) // #nosec G204 -- verified module entrypoint // nosemgrep: dangerous-exec-command
 	default:
 		return nil, fmt.Errorf("entrypoint type %q not supported on this platform", spec.Type)
 	}
