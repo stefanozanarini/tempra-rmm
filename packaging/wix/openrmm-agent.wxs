@@ -2,9 +2,9 @@
 <!--
   Tempra RMM agent installer (WiX v3 schema, built with msitools/wixl on Linux).
 
-  Installs agent and watchdog in %ProgramFiles%\open-rmm\versions\<version>\,
+  Installs agent and watchdog in %ProgramFiles%\TempraRMM\versions\<version>\,
   registers the two services and, optionally, writes the configuration passed
-  as public properties to HKLM\SOFTWARE\open-rmm:
+  as public properties to HKLM\SOFTWARE\TempraRMM:
 
     SERVER              agent.example.com:443
     ENROLLTOKEN         enrollment token (removed from the registry by the
@@ -21,7 +21,7 @@
 
   With Group Policy the recommended way is to assign the MSI unchanged and
   set the same values through the ADMX template (packaging/admx), which
-  writes HKLM\SOFTWARE\Policies\open-rmm and takes precedence.
+  writes HKLM\SOFTWARE\Policies\TempraRMM and takes precedence.
 
   Settings wixl cannot express (service recovery actions, delayed start, the
   scheduled health check, registry permissions) are applied by the services
@@ -45,7 +45,7 @@
 
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFiles64Folder">
-        <Directory Id="OPENRMMDIR" Name="open-rmm">
+        <Directory Id="OPENRMMDIR" Name="TempraRMM">
           <Directory Id="VERSIONSDIR" Name="versions">
             <Directory Id="VERSIONDIR" Name="$(var.Version)">
 
@@ -54,7 +54,7 @@
                 <ServiceInstall Id="AgentService" Name="openrmm-agent" DisplayName="Tempra RMM agent"
                                 Description="Tempra RMM endpoint management agent" Type="ownProcess" Start="auto"
                                 ErrorControl="normal" Account="LocalSystem"
-                                Arguments='run -service -config "[CommonAppDataFolder]open-rmm\agent.json"'/>
+                                Arguments='run -service -config "[CommonAppDataFolder]TempraRMM\agent.json"'/>
                 <ServiceControl Id="AgentServiceControl" Name="openrmm-agent" Start="install" Stop="both" Remove="uninstall" Wait="yes"/>
               </Component>
 
@@ -63,7 +63,7 @@
                 <ServiceInstall Id="WatchdogService" Name="openrmm-watchdog" DisplayName="Tempra RMM watchdog"
                                 Description="Keeps the Tempra RMM agent running and applies its updates" Type="ownProcess"
                                 Start="auto" ErrorControl="normal" Account="LocalSystem"
-                                Arguments='run -service -config "[CommonAppDataFolder]open-rmm\agent.json"'/>
+                                Arguments='run -service -config "[CommonAppDataFolder]TempraRMM\agent.json"'/>
                 <ServiceControl Id="WatchdogServiceControl" Name="openrmm-watchdog" Start="install" Stop="both" Remove="uninstall" Wait="yes"/>
               </Component>
 
@@ -73,8 +73,8 @@
       </Directory>
 
       <Directory Id="CommonAppDataFolder">
-        <Directory Id="DATADIR" Name="open-rmm">
-          <Component Id="DataDir" Guid="8F0F4A6E-2D1B-4B7E-9A51-6C0D3E9F2B11" Win64="yes">
+        <Directory Id="DATADIR" Name="TempraRMM">
+          <Component Id="DataDir" Guid="35D6CEC5-231C-43F1-9E3E-8A2B4F48EA61" Win64="yes">
             <CreateFolder/>
           </Component>
         </Directory>
@@ -86,17 +86,17 @@
         values, and AllowAdHocScripts is a string for that reason (an empty
         DWORD could read as 0 and silently disable scripts).
       -->
-      <Component Id="Registry" Guid="0C3B8F6A-2F2E-4B0B-8A0E-1A7F3D1C9A01" Win64="yes">
-        <RegistryValue Root="HKLM" Key="SOFTWARE\open-rmm" Name="InstalledVersion" Type="string" Value="$(var.Version)" KeyPath="yes"/>
-        <RegistryValue Root="HKLM" Key="SOFTWARE\open-rmm" Name="Server" Type="string" Value="[SERVER]"/>
-        <RegistryValue Root="HKLM" Key="SOFTWARE\open-rmm" Name="EnrollToken" Type="string" Value="[ENROLLTOKEN]"/>
-        <RegistryValue Root="HKLM" Key="SOFTWARE\open-rmm" Name="RootCA" Type="string" Value="[ROOTCA]"/>
-        <RegistryValue Root="HKLM" Key="SOFTWARE\open-rmm" Name="JobSigningKeys" Type="string" Value="[JOBSIGNINGKEYS]"/>
-        <RegistryValue Root="HKLM" Key="SOFTWARE\open-rmm" Name="ModuleSigningKeys" Type="string" Value="[MODULESIGNINGKEYS]"/>
-        <RegistryValue Root="HKLM" Key="SOFTWARE\open-rmm" Name="ReleaseSigningKeys" Type="string" Value="[RELEASESIGNINGKEYS]"/>
-        <RegistryValue Root="HKLM" Key="SOFTWARE\open-rmm" Name="AllowAdHocScripts" Type="string" Value="[ALLOWADHOCSCRIPTS]"/>
-        <RegistryValue Root="HKLM" Key="SOFTWARE\open-rmm" Name="AllowInteractiveShell" Type="integer" Value="[ALLOWINTERACTIVESHELL]"/>
-        <RegistryValue Root="HKLM" Key="SOFTWARE\open-rmm" Name="AllowRemoteControl" Type="integer" Value="[ALLOWREMOTECONTROL]"/>
+      <Component Id="Registry" Guid="DF45321C-D016-44EF-94EF-B2EAD59FD59B" Win64="yes">
+        <RegistryValue Root="HKLM" Key="SOFTWARE\TempraRMM" Name="InstalledVersion" Type="string" Value="$(var.Version)" KeyPath="yes"/>
+        <RegistryValue Root="HKLM" Key="SOFTWARE\TempraRMM" Name="Server" Type="string" Value="[SERVER]"/>
+        <RegistryValue Root="HKLM" Key="SOFTWARE\TempraRMM" Name="EnrollToken" Type="string" Value="[ENROLLTOKEN]"/>
+        <RegistryValue Root="HKLM" Key="SOFTWARE\TempraRMM" Name="RootCA" Type="string" Value="[ROOTCA]"/>
+        <RegistryValue Root="HKLM" Key="SOFTWARE\TempraRMM" Name="JobSigningKeys" Type="string" Value="[JOBSIGNINGKEYS]"/>
+        <RegistryValue Root="HKLM" Key="SOFTWARE\TempraRMM" Name="ModuleSigningKeys" Type="string" Value="[MODULESIGNINGKEYS]"/>
+        <RegistryValue Root="HKLM" Key="SOFTWARE\TempraRMM" Name="ReleaseSigningKeys" Type="string" Value="[RELEASESIGNINGKEYS]"/>
+        <RegistryValue Root="HKLM" Key="SOFTWARE\TempraRMM" Name="AllowAdHocScripts" Type="string" Value="[ALLOWADHOCSCRIPTS]"/>
+        <RegistryValue Root="HKLM" Key="SOFTWARE\TempraRMM" Name="AllowInteractiveShell" Type="integer" Value="[ALLOWINTERACTIVESHELL]"/>
+        <RegistryValue Root="HKLM" Key="SOFTWARE\TempraRMM" Name="AllowRemoteControl" Type="integer" Value="[ALLOWREMOTECONTROL]"/>
       </Component>
     </Directory>
 

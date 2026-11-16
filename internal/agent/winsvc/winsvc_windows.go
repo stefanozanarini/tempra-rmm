@@ -142,8 +142,9 @@ func Ensure(name string) error {
 // protectedSDDL grants full control to LocalSystem and Administrators only.
 const protectedKeySDDL = "D:P(A;CI;KA;;;SY)(A;CI;KA;;;BA)"
 
-// Harden restricts HKLM\SOFTWARE\open-rmm (written by the MSI, may hold the
-// enrollment token) to SYSTEM and Administrators. By default HKLM\SOFTWARE
+// Harden restricts HKLM\SOFTWARE\TempraRMM (written by the MSI, may hold
+// the enrollment token), and the pre-rebrand HKLM\SOFTWARE\open-rmm still
+// read as a fallback, to SYSTEM and Administrators. By default HKLM\SOFTWARE
 // is readable by every user.
 func Harden() error {
 	sd, err := windows.SecurityDescriptorFromString(protectedKeySDDL)
@@ -154,12 +155,14 @@ func Harden() error {
 	if err != nil {
 		return err
 	}
-	err = windows.SetNamedSecurityInfo(`MACHINE\SOFTWARE\open-rmm`, windows.SE_REGISTRY_KEY,
-		windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION, nil, nil, dacl, nil)
-	if errors.Is(err, windows.ERROR_FILE_NOT_FOUND) {
-		return nil
+	for _, key := range []string{`MACHINE\SOFTWARE\TempraRMM`, `MACHINE\SOFTWARE\open-rmm`} {
+		err = windows.SetNamedSecurityInfo(key, windows.SE_REGISTRY_KEY,
+			windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION, nil, nil, dacl, nil)
+		if err != nil && !errors.Is(err, windows.ERROR_FILE_NOT_FOUND) {
+			return err
+		}
 	}
-	return err
+	return nil
 }
 
 // Uninstall removes a service.
@@ -178,16 +181,24 @@ func Uninstall(name string) error {
 	return s.Delete()
 }
 
-const taskName = `\open-rmm\Controllo servizi`
+const (
+	taskName = `\TempraRMM\Controllo servizi`
+	// legacyTaskName is what pre-rebrand installs created; removed on every
+	// InstallHealthTask call so an upgraded machine doesn't end up with two.
+	legacyTaskName = `\open-rmm\Controllo servizi`
+)
 
 // InstallHealthTask creates the scheduled task that, every 15 minutes and at
 // startup, starts both services if they are stopped. It only calls sc.exe,
 // whose path never changes when Tempra RMM is updated.
 func InstallHealthTask() error {
+	schtasks := filepath.Join(os.Getenv("SystemRoot"), "System32", "schtasks.exe")
+	// Best effort: a machine installed before the TempraRMM rebrand has this
+	// task under the old name; a missing task is not an error worth surfacing.
+	_, _ = exec.Command(schtasks, "/Delete", "/F", "/TN", legacyTaskName).CombinedOutput() // #nosec G204 -- fixed system binary // nosemgrep: dangerous-exec-command
 	sc := filepath.Join(os.Getenv("SystemRoot"), "System32", "sc.exe")
 	cmd := filepath.Join(os.Getenv("SystemRoot"), "System32", "cmd.exe")
 	action := fmt.Sprintf(`"%s" /c "%s" start openrmm-watchdog ^& "%s" start openrmm-agent`, cmd, sc, sc)
-	schtasks := filepath.Join(os.Getenv("SystemRoot"), "System32", "schtasks.exe")
 	out, err := exec.Command(schtasks, "/Create", "/F", "/TN", taskName, "/RU", "SYSTEM", "/RL", "HIGHEST", // #nosec G204 -- fixed system binaries // nosemgrep: dangerous-exec-command
 		"/SC", "MINUTE", "/MO", "15", "/TR", action).CombinedOutput()
 	if err != nil {
@@ -196,10 +207,13 @@ func InstallHealthTask() error {
 	return nil
 }
 
-// UninstallHealthTask removes the scheduled task.
+// UninstallHealthTask removes the scheduled task (both the current name and,
+// best effort, the pre-rebrand one in case the machine never ran
+// InstallHealthTask after updating).
 func UninstallHealthTask() error {
 	schtasks := filepath.Join(os.Getenv("SystemRoot"), "System32", "schtasks.exe")
-	out, err := exec.Command(schtasks, "/Delete", "/F", "/TN", taskName).CombinedOutput() // #nosec G204 -- fixed system binary // nosemgrep: dangerous-exec-command
+	_, _ = exec.Command(schtasks, "/Delete", "/F", "/TN", legacyTaskName).CombinedOutput() // #nosec G204 -- fixed system binary // nosemgrep: dangerous-exec-command
+	out, err := exec.Command(schtasks, "/Delete", "/F", "/TN", taskName).CombinedOutput()  // #nosec G204 -- fixed system binary // nosemgrep: dangerous-exec-command
 	if err != nil {
 		return fmt.Errorf("schtasks: %v: %s", err, out)
 	}

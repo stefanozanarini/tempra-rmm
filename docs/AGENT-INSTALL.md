@@ -10,7 +10,7 @@ Once, as a console administrator:
 2. Same page, **Module and release keys**: create them with the same passphrase.
 Then, for each installer, **Installer → Build the installer** for an agent version: you approve with MFA and enter the passphrase. The console image ships the Windows agent and watchdog of its own version (the `VERSION` file): the first installer for that version also signs and publishes it as a release, so there is nothing to upload. The resulting MSI is signed and already contains the gateway address, the root certificate, the public keys and an enrollment token:
 
-- **double click** on a PC (or `msiexec /i openrmm-agent-x.y.z.msi /qn`): nothing to enter;
+- **double click** on a PC (or `msiexec /i temprarmm-agent-<customer>-x.y.z.msi /qn`): nothing to enter;
 - **Group Policy**: assign the same MSI; the ADMX settings are optional and take precedence;
 - the PC appears in the console **pending approval**: the token in the MSI never approves agents by itself. Revoke it on the Token page if the MSI leaks.
 
@@ -62,8 +62,9 @@ Both executables are signed before they go into the MSI, then the MSI itself, wi
 ## Group Policy deployment (recommended)
 
 1. **Administrative templates.** Copy to the domain *Central Store* (`\\domain\SYSVOL\domain\Policies\PolicyDefinitions`):
-   - `packaging/admx/open-rmm.admx`
-   - `packaging/admx/en-US/open-rmm.adml` into the `en-US` subfolder (and `it-IT` if needed).
+   - `packaging/admx/TempraRMM.admx`
+   - `packaging/admx/en-US/TempraRMM.adml` into the `en-US` subfolder (and `it-IT` if needed).
+   - Upgrading from a pre-rebrand deployment: also remove the old `open-rmm.admx`/`open-rmm.adml` from the Central Store, and reconfigure the GPO objects (an existing GPO keeps writing the old `SOFTWARE\Policies\open-rmm`, which the agent still reads as a fallback, but editing it further needs the new template).
 2. **Configuration.** In the computers' Group Policy Object: **Computer Configuration → Policies → Administrative Templates → Tempra RMM**:
    - console address and enrollment token;
    - *Trust and keys*: root certificate and the three public keys;
@@ -83,7 +84,7 @@ Group Policy values take precedence over those written by the MSI and stay under
 ## Manual installation or other tools
 
 ```bat
-msiexec /i openrmm-agent-1.0.0-x64.msi /qn ^
+msiexec /i temprarmm-agent-1.0.0-x64.msi /qn ^
   SERVER=agent.example.com:443 ^
   ENROLLTOKEN=<token> ^
   ROOTCA=<base64 of the root CA> ^
@@ -93,7 +94,7 @@ msiexec /i openrmm-agent-1.0.0-x64.msi /qn ^
   ALLOWADHOCSCRIPTS=1
 ```
 
-The values go to `HKLM\SOFTWARE\open-rmm`. At first start the agent:
+The values go to `HKLM\SOFTWARE\TempraRMM`. At first start the agent:
 
 - restricts that key's permissions to SYSTEM and Administrators;
 - deletes the token once enrolled.
@@ -102,10 +103,12 @@ The values go to `HKLM\SOFTWARE\open-rmm`. At first start the agent:
 
 | Item | Where |
 |---|---|
-| Agent and watchdog | `C:\Program Files\open-rmm\versions\<version>\` |
+| Agent and watchdog | `C:\Program Files\TempraRMM\versions\<version>\` |
 | Services | `openrmm-agent`, `openrmm-watchdog` (LocalSystem, delayed automatic start, automatic restart on failure) |
-| Configuration and state | `C:\ProgramData\open-rmm\` (SYSTEM and Administrators only) |
-| Periodic check | Scheduled task `\open-rmm\Controllo servizi`, every 15 minutes |
+| Configuration and state | `C:\ProgramData\TempraRMM\` (SYSTEM and Administrators only) |
+| Periodic check | Scheduled task `\TempraRMM\Controllo servizi`, every 15 minutes |
+
+A PC already enrolled under the pre-rebrand layout (`open-rmm`) moves to the paths above the moment it updates: the agent moves its configuration file and data directory across on first start, and keeps reading `HKLM\SOFTWARE\open-rmm`/`HKLM\SOFTWARE\Policies\open-rmm` as a fallback, so nothing needs re-enrolling.
 
 What the MSI cannot express is applied by the services themselves at every start:
 

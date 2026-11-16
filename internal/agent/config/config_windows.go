@@ -12,8 +12,14 @@ import (
 )
 
 const (
-	installKey = `SOFTWARE\open-rmm`
-	policyKey  = `SOFTWARE\Policies\open-rmm`
+	installKey = `SOFTWARE\TempraRMM`
+	policyKey  = `SOFTWARE\Policies\TempraRMM`
+	// legacy{Install,Policy}Key are where versions before the TempraRMM
+	// rebrand kept these values. Still read, at lower precedence, so an
+	// already-enrolled agent keeps working immediately after it updates,
+	// before a GPO or a fresh MSI run has caught up to the new key.
+	legacyInstallKey = `SOFTWARE\open-rmm`
+	legacyPolicyKey  = `SOFTWARE\Policies\open-rmm`
 )
 
 func programData() string {
@@ -24,24 +30,60 @@ func programData() string {
 }
 
 // DefaultConfigPath is where the agent looks for its configuration.
-func DefaultConfigPath() string { return filepath.Join(programData(), "open-rmm", "agent.json") }
+func DefaultConfigPath() string { return filepath.Join(programData(), "TempraRMM", "agent.json") }
 
 // DefaultDataDir is where the agent keeps keys and state.
-func DefaultDataDir() string { return filepath.Join(programData(), "open-rmm", "data") }
+func DefaultDataDir() string { return filepath.Join(programData(), "TempraRMM", "data") }
 
 // DefaultInstallDir holds the installed versions.
 func DefaultInstallDir() string {
 	if p := os.Getenv("ProgramFiles"); p != "" {
-		return filepath.Join(p, "open-rmm")
+		return filepath.Join(p, "TempraRMM")
 	}
-	return `C:\Program Files\open-rmm`
+	return `C:\Program Files\TempraRMM`
+}
+
+// migrateOS moves an already-enrolled agent's configuration file and data
+// directory (keys, certificate, state) from the pre-rebrand ProgramData\
+// open-rmm to ProgramData\TempraRMM, the first time a renamed build runs on
+// a machine that still has the old layout. A rename is atomic and, since
+// both folders are on the same ProgramData volume, effectively instant.
+func migrateOS() {
+	old := filepath.Join(programData(), "open-rmm")
+	moveIfMissing(filepath.Join(old, "agent.json"), DefaultConfigPath())
+	moveIfMissing(filepath.Join(old, "data"), DefaultDataDir())
+}
+
+// moveIfMissing renames old to dst when dst does not exist yet and old
+// does; the MSI pre-creates an empty TempraRMM ProgramData folder, so dst's
+// parent may already exist even when dst itself has never been written.
+func moveIfMissing(old, dst string) {
+	if _, err := os.Stat(dst); err == nil {
+		return
+	}
+	if _, err := os.Stat(old); err != nil {
+		return
+	}
+	_ = os.MkdirAll(filepath.Dir(dst), 0o700)
+	_ = os.Rename(old, dst)
 }
 
 // ForgetEnrollToken deletes the token written by the MSI once the agent is
-// enrolled, so it does not linger in the registry. A token set by GPO
-// (Policies key) is managed by the domain and left alone.
+// enrolled, so it does not linger in the registry (both the current key and,
+// on a machine enrolled before the TempraRMM rebrand, the legacy one). A
+// token set by GPO (Policies key) is managed by the domain and left alone.
 func ForgetEnrollToken() error {
-	k, err := registry.OpenKey(registry.LOCAL_MACHINE, installKey, registry.SET_VALUE)
+	var last error
+	for _, path := range []string{installKey, legacyInstallKey} {
+		if err := forgetEnrollTokenAt(path); err != nil {
+			last = err
+		}
+	}
+	return last
+}
+
+func forgetEnrollTokenAt(path string) error {
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, path, registry.SET_VALUE)
 	if errors.Is(err, registry.ErrNotExist) {
 		return nil
 	}
@@ -72,7 +114,7 @@ func ForgetEnrollToken() error {
 //	AllowRemoteControl REG_DWORD 0/1 (default 1; the MSI writes 1)
 //	MaxConcurrentJobs REG_DWORD     1-32
 func overlayOS(c *Config) error {
-	for _, path := range []string{installKey, policyKey} {
+	for _, path := range []string{legacyInstallKey, legacyPolicyKey, installKey, policyKey} {
 		if err := overlayKey(c, path); err != nil {
 			return err
 		}

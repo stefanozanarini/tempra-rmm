@@ -488,8 +488,8 @@ A console can manage **local tenants** (its own agents) and **linked customer co
 
 ## 10. Packaging and installation ✅
 
-- **MSI** built on Linux with msitools/wixl (LGPL): agent and watchdog in `Program Files\open-rmm\versions\<version>\`, two services, configuration from public properties (`SERVER`, `ENROLLTOKEN`, `ROOTCA`, `JOBSIGNINGKEYS`, `MODULESIGNINGKEYS`, `RELEASESIGNINGKEYS`, `ALLOWADHOCSCRIPTS`).
-- With Group Policy the MSI is assigned unchanged and configured through the **ADMX** templates (`HKLM\SOFTWARE\Policies\open-rmm`, Italian and English).
+- **MSI** built on Linux with msitools/wixl (LGPL): agent and watchdog in `Program Files\TempraRMM\versions\<version>\`, two services, configuration from public properties (`SERVER`, `ENROLLTOKEN`, `ROOTCA`, `JOBSIGNINGKEYS`, `MODULESIGNINGKEYS`, `RELEASESIGNINGKEYS`, `ALLOWADHOCSCRIPTS`).
+- With Group Policy the MSI is assigned unchanged and configured through the **ADMX** templates (`HKLM\SOFTWARE\Policies\TempraRMM`, Italian and English).
 - Services re-apply at every start what wixl cannot express: recovery actions, delayed start, scheduled check, registry and folder ACLs. Without a complete configuration they keep running and retry every minute. They are registered with an explicit `-service` flag.
 - Removal deletes services, scheduled task, update-installed versions and agent state including its private key (not during upgrades).
 - ✅ Authenticode signing of executables and MSI at build time (§12). 📋 Uninstall protection, Linux packages.

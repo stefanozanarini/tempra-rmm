@@ -23,7 +23,7 @@
   </categories>
   <policies>
     <policy name="Server" class="Machine" displayName="$(string.Server)" explainText="$(string.Server_Help)"
-            presentation="$(presentation.Server)" key="SOFTWARE\Policies\open-rmm">
+            presentation="$(presentation.Server)" key="SOFTWARE\Policies\TempraRMM">
       <parentCategory ref="OpenRMM"/>
       <supportedOn ref="SUPPORTED_OPENRMM"/>
       <elements>
@@ -31,7 +31,7 @@
       </elements>
     </policy>
     <policy name="EnrollToken" class="Machine" displayName="$(string.EnrollToken)" explainText="$(string.EnrollToken_Help)"
-            presentation="$(presentation.EnrollToken)" key="SOFTWARE\Policies\open-rmm">
+            presentation="$(presentation.EnrollToken)" key="SOFTWARE\Policies\TempraRMM">
       <parentCategory ref="OpenRMM"/>
       <supportedOn ref="SUPPORTED_OPENRMM"/>
       <elements>
@@ -39,7 +39,7 @@
       </elements>
     </policy>
     <policy name="RootCA" class="Machine" displayName="$(string.RootCA)" explainText="$(string.RootCA_Help)"
-            presentation="$(presentation.RootCA)" key="SOFTWARE\Policies\open-rmm">
+            presentation="$(presentation.RootCA)" key="SOFTWARE\Policies\TempraRMM">
       <parentCategory ref="OpenRMM_Trust"/>
       <supportedOn ref="SUPPORTED_OPENRMM"/>
       <elements>
@@ -47,7 +47,7 @@
       </elements>
     </policy>
     <policy name="JobSigningKeys" class="Machine" displayName="$(string.JobSigningKeys)" explainText="$(string.Keys_Help)"
-            presentation="$(presentation.JobSigningKeys)" key="SOFTWARE\Policies\open-rmm">
+            presentation="$(presentation.JobSigningKeys)" key="SOFTWARE\Policies\TempraRMM">
       <parentCategory ref="OpenRMM_Trust"/>
       <supportedOn ref="SUPPORTED_OPENRMM"/>
       <elements>
@@ -55,7 +55,7 @@
       </elements>
     </policy>
     <policy name="ModuleSigningKeys" class="Machine" displayName="$(string.ModuleSigningKeys)" explainText="$(string.Keys_Help)"
-            presentation="$(presentation.ModuleSigningKeys)" key="SOFTWARE\Policies\open-rmm">
+            presentation="$(presentation.ModuleSigningKeys)" key="SOFTWARE\Policies\TempraRMM">
       <parentCategory ref="OpenRMM_Trust"/>
       <supportedOn ref="SUPPORTED_OPENRMM"/>
       <elements>
@@ -63,7 +63,7 @@
       </elements>
     </policy>
     <policy name="ReleaseSigningKeys" class="Machine" displayName="$(string.ReleaseSigningKeys)" explainText="$(string.Keys_Help)"
-            presentation="$(presentation.ReleaseSigningKeys)" key="SOFTWARE\Policies\open-rmm">
+            presentation="$(presentation.ReleaseSigningKeys)" key="SOFTWARE\Policies\TempraRMM">
       <parentCategory ref="OpenRMM_Trust"/>
       <supportedOn ref="SUPPORTED_OPENRMM"/>
       <elements>
@@ -71,28 +71,28 @@
       </elements>
     </policy>
     <policy name="AllowAdHocScripts" class="Machine" displayName="$(string.AllowAdHocScripts)" explainText="$(string.AllowAdHocScripts_Help)"
-            key="SOFTWARE\Policies\open-rmm" valueName="AllowAdHocScripts">
+            key="SOFTWARE\Policies\TempraRMM" valueName="AllowAdHocScripts">
       <parentCategory ref="OpenRMM_Local"/>
       <supportedOn ref="SUPPORTED_OPENRMM"/>
       <enabledValue><decimal value="1"/></enabledValue>
       <disabledValue><decimal value="0"/></disabledValue>
     </policy>
     <policy name="AllowInteractiveShell" class="Machine" displayName="$(string.AllowInteractiveShell)" explainText="$(string.AllowInteractiveShell_Help)"
-            key="SOFTWARE\Policies\open-rmm" valueName="AllowInteractiveShell">
+            key="SOFTWARE\Policies\TempraRMM" valueName="AllowInteractiveShell">
       <parentCategory ref="OpenRMM_Local"/>
       <supportedOn ref="SUPPORTED_OPENRMM"/>
       <enabledValue><decimal value="1"/></enabledValue>
       <disabledValue><decimal value="0"/></disabledValue>
     </policy>
     <policy name="AllowRemoteControl" class="Machine" displayName="$(string.AllowRemoteControl)" explainText="$(string.AllowRemoteControl_Help)"
-            key="SOFTWARE\Policies\open-rmm" valueName="AllowRemoteControl">
+            key="SOFTWARE\Policies\TempraRMM" valueName="AllowRemoteControl">
       <parentCategory ref="OpenRMM_Local"/>
       <supportedOn ref="SUPPORTED_OPENRMM"/>
       <enabledValue><decimal value="1"/></enabledValue>
       <disabledValue><decimal value="0"/></disabledValue>
     </policy>
     <policy name="MaxConcurrentJobs" class="Machine" displayName="$(string.MaxConcurrentJobs)" explainText="$(string.MaxConcurrentJobs_Help)"
-            presentation="$(presentation.MaxConcurrentJobs)" key="SOFTWARE\Policies\open-rmm">
+            presentation="$(presentation.MaxConcurrentJobs)" key="SOFTWARE\Policies\TempraRMM">
       <parentCategory ref="OpenRMM_Local"/>
       <supportedOn ref="SUPPORTED_OPENRMM"/>
       <elements>

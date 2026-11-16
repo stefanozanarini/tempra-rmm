@@ -119,7 +119,7 @@ func msiUninstall(_ string) error {
 	}
 	selfDir := filepath.Dir(self)
 	versions := filepath.Dir(selfDir)
-	if filepath.Base(versions) != "versions" || filepath.Base(filepath.Dir(versions)) != "open-rmm" {
+	if filepath.Base(versions) != "versions" || filepath.Base(filepath.Dir(versions)) != "TempraRMM" {
 		return fmt.Errorf("%s is not an Tempra RMM installation, nothing removed", selfDir)
 	}
 	entries, _ := os.ReadDir(versions)

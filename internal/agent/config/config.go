@@ -2,8 +2,10 @@
 //
 // Sources, from lowest to highest precedence:
 //  1. the JSON file (agent.json),
-//  2. on Windows, HKLM\SOFTWARE\open-rmm (written by the MSI),
-//  3. on Windows, HKLM\SOFTWARE\Policies\open-rmm (written by GPO).
+//  2. on Windows, the pre-rebrand HKLM\SOFTWARE\open-rmm and
+//     HKLM\SOFTWARE\Policies\open-rmm, still read as a fallback,
+//  3. on Windows, HKLM\SOFTWARE\TempraRMM (written by the MSI),
+//  4. on Windows, HKLM\SOFTWARE\Policies\TempraRMM (written by GPO).
 //
 // Values set by policy cannot be changed by the console: they are the local
 // guard rails described in the architecture document (§6.4).
@@ -68,6 +70,13 @@ type Config struct {
 // Load reads the file at path (which may be missing when the registry
 // provides everything) and overlays OS-specific sources.
 func Load(path string) (*Config, error) {
+	// On Windows, move an already-enrolled agent's state from the pre-rebrand
+	// ProgramData folder to the new one the first time it runs after the
+	// TempraRMM rename, so it keeps its identity instead of finding itself
+	// unenrolled (the enrollment token is erased from the registry right
+	// after the first enrollment, so the agent could not re-enroll on its
+	// own). No-op on Linux and once already migrated.
+	migrateOS()
 	c := &Config{}
 	if path != "" {
 		data, err := os.ReadFile(path)

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -615,6 +616,23 @@ func (s *Server) recordInstaller(w http.ResponseWriter, r *http.Request, inst st
 	s.flash(w, r, s.Tf(r, "Installer %s creato e firmato.", inst.Version), "/agent-installer")
 }
 
+var installerSlugClean = regexp.MustCompile(`[^a-z0-9]+`)
+
+// customerSlug is the tenant's name, lowercased and reduced to
+// filename-safe characters, for the downloaded installer's name; "cliente"
+// when the tenant can't be read or its name is empty after cleaning.
+func (s *Server) customerSlug(ctx context.Context, tenant string) string {
+	t, err := s.store.GetTenant(ctx, tenant)
+	if err != nil {
+		return "cliente"
+	}
+	slug := strings.Trim(installerSlugClean.ReplaceAllString(strings.ToLower(t.Name), "-"), "-")
+	if slug == "" {
+		return "cliente"
+	}
+	return slug
+}
+
 func (s *Server) handleDownloadInstaller(w http.ResponseWriter, r *http.Request) {
 	t, ok := tenantOf(r)
 	id := r.PathValue("id")
@@ -634,7 +652,7 @@ func (s *Server) handleDownloadInstaller(w http.ResponseWriter, r *http.Request)
 	}
 	defer f.Close()
 	extendDeadlines(w, 30*time.Minute)
-	name, ctype := "openrmm-agent-"+inst.Version+".msi", "application/x-msi"
+	name, ctype := "temprarmm-agent-"+s.customerSlug(r.Context(), t)+"-"+inst.Version+".msi", "application/x-msi"
 	if strings.HasPrefix(inst.Platform, "linux/") {
 		name, ctype = linuxinst.FileName(inst.Version, inst.Platform), "application/octet-stream"
 	}

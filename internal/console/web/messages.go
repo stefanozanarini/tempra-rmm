@@ -56,7 +56,7 @@ var messages = []message{
 	msg("Accesso a Windows Update disattivato da Gestione comunicazioni Internet (DisableWindowsUpdateAccess)", "Access to Windows Update turned off by Internet Communication Management (DisableWindowsUpdateAccess)"),
 	msg("Il file hosts reindirizza i server di Windows Update: {}", "The hosts file redirects the Windows Update servers: ${1}"),
 	msg("Connessione a Windows Update su internet disattivata (DoNotConnectToWindowsUpdateInternetLocations) senza un server WSUS", "Connection to Windows Update on the internet turned off (DoNotConnectToWindowsUpdateInternetLocations) without a WSUS server"),
-	msg("Aggiornamenti automatici disattivati da policy (NoAutoUpdate): li installa open-rmm", "Automatic updates turned off by policy (NoAutoUpdate): Tempra RMM installs them"),
+	msg("Aggiornamenti automatici disattivati da policy (NoAutoUpdate): li installa Tempra RMM", "Automatic updates turned off by policy (NoAutoUpdate): Tempra RMM installs them"),
 	msg("Aggiornamenti di qualità differiti di {} giorni da policy", "Quality updates deferred by ${1} days by policy"),
 	msg("Aggiornamenti di funzionalità differiti di {} giorni da policy", "Feature updates deferred by ${1} days by policy"),
 	msg("Aggiornamenti in pausa fino al {}", "Updates paused until ${1}"),
