@@ -309,6 +309,24 @@ func run(log *slog.Logger) error {
 		}
 	}()
 
+	// Winget catalog: re-check followed applications against the winget
+	// catalog every 8 hours, so a newer upstream version is noticed without
+	// an operator having to click "Controlla nuove versioni".
+	go func() {
+		t := time.NewTicker(8 * time.Hour)
+		defer t.Stop()
+		for {
+			if err := srv.RefreshCatalogApps(ctx); err != nil {
+				log.Error("winget catalog refresh", "err", err)
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+			}
+		}
+	}()
+
 	hs := &http.Server{
 		Addr:              env("OPENRMM_HTTP_LISTEN", ":8080"),
 		Handler:           srv.Handler(),

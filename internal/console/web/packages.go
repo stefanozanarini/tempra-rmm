@@ -124,6 +124,31 @@ func (s *Server) catalogStatus(ctx context.Context, tenant string) ([]catalogVie
 	return out, nil
 }
 
+// RefreshCatalogApps re-checks every tenant's followed winget applications
+// against the winget catalog, so a newer upstream version is noticed
+// without an operator having to click "Controlla nuove versioni". Called
+// periodically by openrmm-server.
+func (s *Server) RefreshCatalogApps(ctx context.Context) error {
+	tenants, err := s.store.ListTenants(ctx)
+	if err != nil {
+		return err
+	}
+	var errs []error
+	for _, t := range tenants {
+		apps, err := s.store.ListCatalogApps(ctx, t.ID)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		for _, a := range apps {
+			if _, err := s.catalogApp(ctx, t.ID, a.WingetID, a.AddedBy, a.MatchName); err != nil {
+				s.log.Warn("winget catalog refresh", "tenant", t.ID, "id", a.WingetID, "err", err)
+			}
+		}
+	}
+	return errors.Join(errs...)
+}
+
 func (s *Server) handlePackages(w http.ResponseWriter, r *http.Request) {
 	t, ok := tenantOf(r)
 	if !ok {
