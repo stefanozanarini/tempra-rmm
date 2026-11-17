@@ -128,7 +128,7 @@
   <header>
     <h2>{{.Agent.Host.Hostname}}</h2>
     <a href="/agents/{{.Agent.ID}}">{{t "apri la pagina"}}</a>
-    <a href="{{$.Data.ClearURL}}">{{t "chiudi"}}</a>
+    <a href="{{$.Data.ClearURL}}" class="panel-close">{{t "chiudi"}}</a>
   </header>
   <nav class="tabs">{{range $.Data.Tabs}}<a href="{{.URL}}"{{if .Current}} class="current"{{end}}>{{.Label}}</a>{{end}}</nav>
   {{$p := panelCtx $ .}}

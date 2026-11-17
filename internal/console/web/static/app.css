@@ -112,6 +112,12 @@ a.open { text-decoration:none; color:var(--muted); font-size:12px; }
 .panel header { display:flex; gap:16px; align-items:baseline; }
 .panel header h2 { margin-right:auto; }
 .panel nav.tabs { flex-wrap:wrap; margin-bottom:12px; }
+/* With JS, the selected agent's panel floats in front instead of sitting at
+   the bottom of a long list (see app.js); without JS it stays inline above. */
+.panel-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:40; }
+body.panel-open .panel { position:fixed; top:6vh; left:50%; transform:translateX(-50%); z-index:41;
+  width:min(960px, 94vw); max-height:88vh; overflow:auto; margin-top:0; box-shadow:0 12px 40px rgba(0,0,0,.45); }
+.panel header a.panel-close { font-weight:600; }
 .note { border-left:3px solid var(--line); padding:2px 12px; margin:8px 0; }
 .note p { margin:4px 0; white-space:pre-wrap; }
 @media (max-width: 900px) { .workspace { grid-template-columns:1fr; } .tree { position:static; } }

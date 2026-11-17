@@ -19,6 +19,26 @@
   window.addEventListener("hashchange", openTarget);
   openTarget();
 
+  // The selected agent's panel (rendered at the end of a possibly long list)
+  // floats in front as a modal instead, so it stays visible regardless of
+  // list length or scroll position. Closing it follows the panel's own
+  // "chiudi" link, which keeps the list's filters/search.
+  var panel = document.querySelector("section.panel");
+  if (panel) {
+    var closeLink = panel.querySelector("a.panel-close");
+    var backdrop = document.createElement("div");
+    backdrop.className = "panel-backdrop";
+    document.body.appendChild(backdrop);
+    document.body.classList.add("panel-open");
+    function closePanel() {
+      if (closeLink) location.href = closeLink.href;
+    }
+    backdrop.addEventListener("click", closePanel);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closePanel();
+    });
+  }
+
   // "Select all" boxes tick every agent box of their form.
   document.querySelectorAll("input[data-check-all]").forEach(function (all) {
     all.addEventListener("change", function () {
