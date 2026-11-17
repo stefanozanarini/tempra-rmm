@@ -478,6 +478,12 @@ func testSecurity(t *testing.T, s Store) {
 	if byID, _ := s.ChecksByID(ctx, tenant.ID, "no/such"); len(byID) != 0 {
 		t.Fatalf("unknown check id = %+v", byID)
 	}
+	if err := s.DeleteCheck(ctx, tenant.ID, agent.ID, c.CheckID); err != nil {
+		t.Fatalf("delete check: %v", err)
+	}
+	if cs, _ := s.ListChecks(ctx, tenant.ID, agent.ID); len(cs) != 0 {
+		t.Fatalf("checks after delete = %+v", cs)
+	}
 
 	// Alerts: merged while open, new after acknowledgement.
 	a := Alert{TenantID: tenant.ID, AgentID: agent.ID, Severity: SeverityWarning, Kind: "k", Summary: "one", DedupeKey: "key",

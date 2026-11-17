@@ -129,6 +129,9 @@ type SecurityStore interface {
 	// returns the previous status ("" when the check is new).
 	PutCheck(ctx context.Context, c Check) (prev string, err error)
 	ListChecks(ctx context.Context, tenantID, agentID string) ([]Check, error)
+	// DeleteCheck removes a check no longer reported by its module (e.g. a
+	// condition that no longer applies), so it stops counting as a problem.
+	DeleteCheck(ctx context.Context, tenantID, agentID, checkID string) error
 	// WorstChecks returns the worst check status of each agent.
 	WorstChecks(ctx context.Context, tenantID string) (map[string]string, error)
 	// ChecksByID returns one specific check (e.g. "protection-status/antivirus")
@@ -230,6 +233,13 @@ func (m *Memory) PutCheck(_ context.Context, c Check) (string, error) {
 	}
 	m.sec().checks[k] = c
 	return prev.Status, nil
+}
+
+func (m *Memory) DeleteCheck(_ context.Context, tenantID, agentID, checkID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.sec().checks, tenantID+"/"+agentID+"/"+checkID)
+	return nil
 }
 
 func (m *Memory) ListChecks(_ context.Context, tenantID, agentID string) ([]Check, error) {
@@ -522,6 +532,13 @@ func (p *Postgres) PutCheck(ctx context.Context, c Check) (string, error) {
 		return err
 	})
 	return prev, fkNotFound(err)
+}
+
+func (p *Postgres) DeleteCheck(ctx context.Context, tenantID, agentID, checkID string) error {
+	return p.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `DELETE FROM agent_checks WHERE agent_id = $1 AND check_id = $2`, agentID, checkID)
+		return err
+	})
 }
 
 func (p *Postgres) ListChecks(ctx context.Context, tenantID, agentID string) ([]Check, error) {

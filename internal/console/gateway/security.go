@@ -35,15 +35,22 @@ type reportedCheck struct {
 
 // ingestChecks stores the checks of a result. A check that starts failing
 // raises an alert, closed on its own when the check is no longer failing.
+//
+// A module's "checks" list is the complete, declarative set of checks it
+// currently finds applicable to this agent: any check it reported before
+// but omits this time (fixed, or no longer applicable, e.g. a demoted
+// domain controller or a removed battery) is cleared rather than left
+// showing its last, now-stale, status forever.
 func (s *Server) ingestChecks(ctx context.Context, a store.Agent, module string, raw []byte) {
-	var res struct {
-		Checks []reportedCheck `json:"checks"`
+	var top struct {
+		Checks *[]reportedCheck `json:"checks"`
 	}
-	if json.Unmarshal(raw, &res) != nil || len(res.Checks) == 0 {
+	if json.Unmarshal(raw, &top) != nil || top.Checks == nil {
 		return
 	}
 	now := s.now()
-	for i, c := range res.Checks {
+	seen := make(map[string]bool, len(*top.Checks))
+	for i, c := range *top.Checks {
 		if i >= maxChecks {
 			break
 		}
@@ -55,6 +62,7 @@ func (s *Server) ingestChecks(ctx context.Context, a store.Agent, module string,
 		default:
 			continue
 		}
+		seen[c.ID] = true
 		chk := store.Check{TenantID: a.TenantID, AgentID: a.ID, CheckID: module + "/" + c.ID, Status: c.Status,
 			Summary: clip(c.Summary, 500), UpdatedAt: now}
 		prev, err := s.store.PutCheck(ctx, chk)
@@ -73,6 +81,34 @@ func (s *Server) ingestChecks(ctx context.Context, a store.Agent, module string,
 			} else if closed {
 				s.audit(ctx, a.TenantID, "agent:"+a.ID, "alert.resolved", a.ID, map[string]any{"check": chk.CheckID, "status": c.Status})
 			}
+		}
+	}
+	s.clearStaleChecks(ctx, a, module, seen, now)
+}
+
+// clearStaleChecks removes this module's checks for the agent that were not
+// part of its latest report, and resolves any alert still open for them.
+func (s *Server) clearStaleChecks(ctx context.Context, a store.Agent, module string, seen map[string]bool, now time.Time) {
+	existing, err := s.store.ListChecks(ctx, a.TenantID, a.ID)
+	if err != nil {
+		s.log.Error("list checks", "agent", a.ID, "err", err)
+		return
+	}
+	prefix := module + "/"
+	for _, c := range existing {
+		id, ok := strings.CutPrefix(c.CheckID, prefix)
+		if !ok || seen[id] {
+			continue
+		}
+		if err := s.store.DeleteCheck(ctx, a.TenantID, a.ID, c.CheckID); err != nil {
+			s.log.Error("delete check", "agent", a.ID, "check", c.CheckID, "err", err)
+			continue
+		}
+		closed, err := s.store.ResolveAlert(ctx, a.TenantID, a.ID+"/check/"+c.CheckID, "check:cleared", now)
+		if err != nil {
+			s.log.Error("resolve alert", "agent", a.ID, "check", c.CheckID, "err", err)
+		} else if closed {
+			s.audit(ctx, a.TenantID, "agent:"+a.ID, "alert.resolved", a.ID, map[string]any{"check": c.CheckID, "status": "cleared"})
 		}
 	}
 }

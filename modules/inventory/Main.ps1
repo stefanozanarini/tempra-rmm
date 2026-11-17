@@ -493,7 +493,11 @@ Invoke-RmmModule @{
         }
         $battery = Get-BatteryCheck $inv.batteries
         if ($battery) { $checks += $battery }
-        if ($checks.Count) { $inv.checks = @($checks) }
+        # Always report checks, even empty: the console treats this list as
+        # the complete, current set and clears any check (e.g. for a group
+        # no longer privileged, or a battery that was removed) left out of
+        # it, instead of it showing its last status forever.
+        $inv.checks = @($checks)
         $inv
     }
 }
