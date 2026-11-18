@@ -18,7 +18,10 @@ function Get-BitlockerBackups([string]$ModulusB64, [string]$ExponentB64) {
     $rsaParams = New-Object System.Security.Cryptography.RSAParameters
     $rsaParams.Modulus = [Convert]::FromBase64String($ModulusB64)
     $rsaParams.Exponent = [Convert]::FromBase64String($ExponentB64)
-    $rsa = [System.Security.Cryptography.RSA]::Create()
+    # RSA.Create() returns an RSACryptoServiceProvider on Windows PowerShell
+    # 5.1 (.NET Framework), which only supports OAEP-SHA1/PKCS#1v1.5; OAEP
+    # with SHA-256 needs the CNG-backed implementation explicitly.
+    $rsa = New-Object System.Security.Cryptography.RSACng
     try {
         $rsa.ImportParameters($rsaParams)
         foreach ($v in $vols) {

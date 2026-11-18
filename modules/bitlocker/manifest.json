@@ -1,6 +1,6 @@
 {
   "id": "bitlocker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Backs up BitLocker recovery keys, encrypted on the endpoint itself with the console's public key: the console never sees a recovery key in clear.",
   "protocol_version": 1,
   "entrypoints": {
