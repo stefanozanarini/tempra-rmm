@@ -549,7 +549,7 @@ func (s *Server) auth(h ctxHandler) http.Handler {
 		}
 		// A role withdrawn since sign-in takes effect at once; changing
 		// tenant and signing out still work.
-		if s.access(r.Context(), sess).Role() == "" && r.URL.Path != "/tenant" && r.URL.Path != "/logout" {
+		if s.access(r.Context(), sess).Role() == "" && r.URL.Path != "/tenant" && r.URL.Path != "/federation/tenant" && r.URL.Path != "/logout" {
 			s.log.Warn("operator without a role", "operator", sess.data.Operator.Username, "tenant", sess.data.Tenant, "path", r.URL.Path)
 			http.Error(w, tr(langOf(r, sess), "accesso negato: nessun ruolo Tempra RMM assegnato"), http.StatusForbidden)
 			return
@@ -644,21 +644,10 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, name, title stri
 				p.ShowCustomers = cs.MSPMode
 			}
 		}
-		for _, id := range op.Tenants {
-			if t, err := s.store.GetTenant(r.Context(), id); err == nil {
-				p.Tenants = append(p.Tenants, t)
-				if id == sess.data.Tenant {
-					p.Tenant = t
-				}
-			}
-			if s.hub != nil && !op.Federated {
-				if ls, err := s.store.ListLinks(r.Context(), id); err == nil {
-					for _, l := range ls {
-						if l.Status == store.LinkActive {
-							p.Links = append(p.Links, l)
-						}
-					}
-				}
+		p.Tenants, p.Links = s.switchOptions(r, sess)
+		for _, t := range p.Tenants {
+			if t.ID == sess.data.Tenant {
+				p.Tenant = t
 			}
 		}
 		p.Link = sess.data.Link

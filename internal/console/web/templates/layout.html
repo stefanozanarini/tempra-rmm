@@ -60,6 +60,7 @@
       <select name="tenant" aria-label="{{t "Tenant"}}">{{range .Tenants}}<option value="{{.ID}}" {{if and (not $.Link) (eq .ID $.Tenant.ID)}}selected{{end}}>{{.Name}}</option>{{end}}{{if .Links}}<optgroup label="{{t "Console collegate"}}">{{range .Links}}<option value="link:{{.ID}}" {{if eq .ID $.Link}}selected{{end}}>🔗 {{.Name}}</option>{{end}}</optgroup>{{end}}</select>
       <button>{{t "Cambia"}}</button>
     </form>
+    {{else if .Federated}}<span data-central-switch><span class="tenant">{{.Tenant.Name}}</span></span>
     {{else}}<span class="tenant">{{.Tenant.Name}}</span>{{end}}
     <form method="post" action="/theme" class="inline theme">
       <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="return" value="{{.Path}}">

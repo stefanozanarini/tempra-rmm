@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"html/template"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -13,6 +14,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -139,10 +141,95 @@ func (s *Server) forward(w http.ResponseWriter, r *http.Request, sess *session, 
 			w.Header().Set(h, v)
 		}
 	}
+	if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/html") {
+		s.relayPage(w, r, sess, resp)
+		return
+	}
 	w.WriteHeader(resp.StatusCode)
 	if _, err := io.Copy(w, resp.Body); err != nil {
 		s.log.Debug("relay response", "err", err)
 	}
+}
+
+// maxRelayedPage bounds the HTML pages of a linked console that are
+// buffered to place the tenant selector.
+const maxRelayedPage = 16 << 20
+
+// centralSwitchRe is the place a linked console leaves in its header for
+// the central console's tenant selector (its own tenant name inside).
+var centralSwitchRe = regexp.MustCompile(`<span data-central-switch>(?:<span class="tenant">[^<]*</span>)?</span>`)
+
+// relayPage relays an HTML page of a linked console with this console's
+// tenant selector in the header, so the operator can change tenant or
+// linked console from there. The selector is filled in here: the linked
+// console never learns this console's tenants or its other links.
+func (s *Server) relayPage(w http.ResponseWriter, r *http.Request, sess *session, resp *http.Response) {
+	page, err := io.ReadAll(io.LimitReader(resp.Body, maxRelayedPage+1))
+	if err != nil || len(page) > maxRelayedPage {
+		s.fail(w, r, errors.New("linked console page too large or truncated"))
+		return
+	}
+	if loc := centralSwitchRe.FindIndex(page); loc != nil {
+		var b strings.Builder
+		if err := s.centralSwitch(&b, r, sess); err == nil {
+			page = slices.Concat(page[:loc[0]], []byte(b.String()), page[loc[1]:])
+		}
+	}
+	w.Header().Set("Content-Length", strconv.Itoa(len(page)))
+	w.WriteHeader(resp.StatusCode)
+	if _, err := w.Write(page); err != nil {
+		s.log.Debug("relay response", "err", err)
+	}
+}
+
+var centralSwitchTmpl = template.Must(template.New("switch").Parse(
+	`<form method="post" action="/federation/tenant" class="inline">` +
+		`<input type="hidden" name="switch" value="{{.Token}}">` +
+		`<select name="tenant" aria-label="{{.Label}}">{{range .Tenants}}<option value="{{.ID}}">{{.Name}}</option>{{end}}` +
+		`<optgroup label="{{.Group}}">{{range .Links}}<option value="link:{{.ID}}" {{if eq .ID $.Link}}selected{{end}}>🔗 {{.Name}}</option>{{end}}</optgroup></select>` +
+		` <button>{{.Button}}</button></form>`))
+
+// centralSwitch writes the tenant selector of this console, for a page of
+// the open linked console.
+func (s *Server) centralSwitch(w io.Writer, r *http.Request, sess *session) error {
+	lang := langOf(r, sess)
+	tenants, links := s.switchOptions(r, sess)
+	return centralSwitchTmpl.Execute(w, map[string]any{
+		"Token": switchToken(sess.data.CSRF), "Label": tr(lang, "Tenant"), "Group": tr(lang, "Console collegate"),
+		"Button": tr(lang, "Cambia"), "Tenants": tenants, "Links": links, "Link": sess.data.Link,
+	})
+}
+
+// switchOptions returns the operator's tenants and, on a central console,
+// their active linked consoles: the choices of the tenant selector.
+func (s *Server) switchOptions(r *http.Request, sess *session) ([]store.Tenant, []store.FederationLink) {
+	op := sess.data.Operator
+	var tenants []store.Tenant
+	var links []store.FederationLink
+	for _, id := range op.Tenants {
+		if t, err := s.store.GetTenant(r.Context(), id); err == nil {
+			tenants = append(tenants, t)
+		}
+		if s.hub != nil && !op.Federated {
+			if ls, err := s.store.ListLinks(r.Context(), id); err == nil {
+				for _, l := range ls {
+					if l.Status == store.LinkActive {
+						links = append(links, l)
+					}
+				}
+			}
+		}
+	}
+	return tenants, links
+}
+
+// switchToken is the token of the tenant selector shown inside a linked
+// console's pages: derived from the session's CSRF token, it is accepted
+// only for changing tenant, so the linked console's page never holds the
+// CSRF token itself.
+func switchToken(csrf string) string {
+	sum := sha256.Sum256([]byte("openrmm/federation-switch\x00" + csrf))
+	return hex.EncodeToString(sum[:])
 }
 
 // forwardUpgrade relays a WebSocket (interactive shell) to a linked

@@ -183,6 +183,13 @@ func (s *Server) checkCSRF(r *http.Request, sess *session) error {
 		// and refuses the request without it.
 		return nil
 	}
+	// The tenant selector shown inside a linked console's pages carries a
+	// token good for switching only, never the session's CSRF token.
+	if r.URL.Path == "/federation/tenant" {
+		if sw := r.PostFormValue("switch"); sw != "" && subtle.ConstantTimeCompare([]byte(sw), []byte(switchToken(sess.data.CSRF))) == 1 {
+			return nil
+		}
+	}
 	tok := r.PostFormValue("csrf")
 	if tok == "" || subtle.ConstantTimeCompare([]byte(tok), []byte(sess.data.CSRF)) != 1 {
 		return errCSRF

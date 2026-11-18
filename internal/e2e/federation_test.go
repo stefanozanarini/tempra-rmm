@@ -207,6 +207,8 @@ func TestFederationRoleCapAndUntrustedSigner(t *testing.T) {
 	}
 }
 
+var switchRe = regexp.MustCompile(`name="switch" value="([0-9a-f]{64})"`)
+
 func TestFederationTenantSelector(t *testing.T) {
 	var hub *federation.Hub
 	central := startConsole(t, withHub(t, &hub))
@@ -231,8 +233,21 @@ func TestFederationTenantSelector(t *testing.T) {
 		t.Fatalf("link not opened from the selector: at %s: %s", final, body)
 	}
 
-	// Choosing the central tenant again, from a central page, closes it.
-	post(t, c, central.console.URL+"/federation/tenant", url.Values{"csrf": {csrfOf(t, c, central)}, "tenant": {central.tenant}})
+	// The linked console's pages carry the central selector, with a token
+	// good for switching only (never the central CSRF token).
+	sw := switchRe.FindStringSubmatch(body)
+	if sw == nil || !strings.Contains(body, `selected>🔗 Cliente Alfa`) || strings.Contains(body, csrfOf(t, c, central)) {
+		t.Fatalf("central selector not in the linked console's page: %s", body)
+	}
+	if code, _, _ := post(t, c, central.console.URL+"/federation/tenant", url.Values{"switch": {"x" + sw[1]}, "tenant": {central.tenant}}); code != http.StatusForbidden {
+		t.Fatalf("bad switch token: %d", code)
+	}
+	if code, _, _ := post(t, c, central.console.URL+"/federation/open", url.Values{"csrf": {sw[1]}, "link": {l.ID}}); code != http.StatusForbidden {
+		t.Fatalf("switch token accepted as CSRF token: %d", code)
+	}
+
+	// Choosing the central tenant there closes the linked console.
+	post(t, c, central.console.URL+"/federation/tenant", url.Values{"switch": {sw[1]}, "tenant": {central.tenant}})
 	if _, body = get(t, c, central.console.URL+"/agents"); strings.Contains(body, "PC-CLIENTE") {
 		t.Fatal("linked console still open after choosing a tenant")
 	}

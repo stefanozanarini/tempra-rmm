@@ -35,7 +35,7 @@ Trust, in short: a central console that is compromised could read the customer's
 
    Publish port 8445 to the internet (or to the networks the customer consoles come from). The web console itself stays on the provider's LAN or VPN.
 2. **Linked consoles (Console collegate) → New link**: give the customer's name. The page shows a **link token** once (valid 24 hours, single use). Send it to the customer's administrator over a channel you trust.
-3. Operators open a linked customer from **Linked consoles → Open**, or from the tenant selector in the header, where active links are listed under *Console collegate* with a 🔗 next to the name (they belong to the tenant the link was created in, which the selector switches to). Choosing a tenant of the central console, or **Close** on the linked consoles page, goes back.
+3. Operators open a linked customer from **Linked consoles → Open**, or from the tenant selector in the header, where active links are listed under *Console collegate* with a 🔗 next to the name (they belong to the tenant the link was created in, which the selector switches to). The selector stays in the header while a linked console is open: the central console places it in the linked console's pages as it relays them, so the linked console never sees the central tenants or other links. Choosing a tenant of the central console, or **Close** on the linked consoles page, goes back.
 
 ## Customer console
 
