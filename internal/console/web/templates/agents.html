@@ -4,11 +4,10 @@
 <tbody>
 {{range .Rows}}<tr data-agent="{{.ID}}" data-name="{{.Host.Hostname}}" data-status="{{.Status}}" data-os="{{.Host.OS}}"{{if filesAgent .Host.AgentVersion}} data-files{{end}}{{if screenAgent .Host.AgentVersion}} data-screen{{end}}{{if .Current}} class="current"{{end}}>
   {{if $.Select}}<td><input type="checkbox" name="agent" value="{{.ID}}"{{if .Checked}} checked{{end}} aria-label="{{tf "seleziona %s" .Host.Hostname}}"></td>{{end}}
-  <td><span class="dotcol">{{if .Online}}<span class="dot online" title="online"></span>{{else}}<span class="dot" title="offline"></span>{{end}}
-    {{if and .Online (logonScreenAgent .Host.AgentVersion)}}<a href="{{rowTab $.View .ID "commands" "act-screen"}}" title="{{t "Controllo remoto disponibile"}}">🖥️</a>{{else if and .Online (screenAgent .Host.AgentVersion) .User.Name (not .User.Last) (not .Inv.ScreenLocked)}}<a href="{{rowTab $.View .ID "commands" "act-screen"}}" title="{{tf "%s collegato: controllo remoto disponibile" .User.Name}}">🖥️</a>{{end}}</span>
+  <td><span class="dotcol">{{if .Online}}<span class="dot online" title="online"></span>{{else}}<span class="dot" title="offline"></span>{{end}}</span>
     {{navicon .DeviceIcon}}<a href="{{rowLink $.View .ID}}">{{.Host.Hostname}}</a>{{if eq .UpdateRing "pilot"}} <span class="badge pending" title="{{t "Anello aggiornamenti"}}">pilot</span>{{end}}
     <a class="open" href="/agents/{{.ID}}" title="{{t "apri la pagina dell'agente"}}">↗</a>
-    <div class="muted small">{{.Site}}{{if .SiteManual}} <span title="{{t "assegnata a mano"}}">✎</span>{{end}}{{with .Inv.SupremoID}} · <code title="Supremo: {{.}}">{{.}}</code>{{end}}</div></td>
+    <div class="muted small">{{.Site}}{{if .SiteManual}} <span title="{{t "assegnata a mano"}}">✎</span>{{end}}</div></td>
   <td class="icons">{{$id := .ID}}{{with .Alerts}}<a class="badge sev-critical" href="/alerts?agent={{$id}}" title="{{t "avvisi aperti"}}">{{tf "%d avvisi" .}}</a>{{end}}
     {{with .Checks}}{{if ne . "ok"}}<a class="badge chk-{{.}}" href="{{rowTab $.View $id "checks" ""}}" title="{{t "apri i controlli"}}">{{label .}}</a>{{end}}{{end}}
     {{with .Missing}}<a class="badge chk-failing" href="{{rowTab $.View $id "patches" "patches"}}" title="{{t "apri l'elenco delle patch"}}">{{tf "%d patch" .}}</a>{{end}}
