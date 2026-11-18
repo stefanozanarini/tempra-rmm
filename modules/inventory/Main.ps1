@@ -319,6 +319,40 @@ function Get-SoftwareInfo {
     }
 }
 
+# Get-MappedShares: network drives currently connected in the session of
+# each user whose profile is loaded. The agent runs as SYSTEM, which has
+# none of its own; HKEY_USERS\<SID>\Network\<letter> exists only while that
+# user's own session has the drive connected (created on connect, removed
+# on disconnect), the same way Get-SoftwareInfo reads per-user installs.
+function Get-MappedShares {
+    $users = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::Users, [Microsoft.Win32.RegistryView]::Registry64)
+    foreach ($sid in $users.GetSubKeyNames()) {
+        if ($sid -notmatch '^S-1-5-21-[\d-]+$') { continue }
+        $net = $users.OpenSubKey("$sid\Network")
+        if ($null -eq $net) { continue }
+        try {
+            $user = $sid
+            try { $user = (New-Object System.Security.Principal.SecurityIdentifier($sid)).Translate([System.Security.Principal.NTAccount]).Value } catch { }
+            foreach ($letter in $net.GetSubKeyNames()) {
+                $d = $net.OpenSubKey($letter)
+                if ($null -eq $d) { continue }
+                try {
+                    $remote = Get-Str $d.GetValue('RemotePath')
+                    if (-not $remote) { continue }
+                    @{
+                        user        = $user
+                        drive       = "$($letter):"
+                        remote_path = $remote
+                        provider    = Get-Str $d.GetValue('ProviderName')
+                    }
+                }
+                finally { $d.Close() }
+            }
+        }
+        finally { $net.Close() }
+    }
+}
+
 # Remote-access tool ids. Supremo (NanoSystems) is 32-bit and normally
 # registers under WOW6432Node; the id may be a string with spaces or a DWORD.
 function Get-RegistryId([string[]]$Paths, [string]$Name) {
@@ -485,6 +519,7 @@ Invoke-RmmModule @{
         $inv.remote_access = Get-Section 'remote_access' { Get-RemoteAccessInfo } @{}
         $inv.pending_updates = @(Get-Section 'pending_updates' { Get-PendingBrowserUpdates } @())
         $inv.local_admins = @(Get-Section 'local_admins' { Get-LocalAdmins } @())
+        $inv.network_shares = @(Get-Section 'network_shares' { Get-MappedShares } @())
         $checks = @()
         $groups = @(Get-Section 'privileged_groups' { Get-PrivilegedGroups } @())
         if ($groups.Count) {

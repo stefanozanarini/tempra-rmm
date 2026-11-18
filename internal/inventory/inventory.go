@@ -58,6 +58,21 @@ type Inventory struct {
 	// PendingUpdates: browser updates downloaded and applied at the next
 	// browser restart (Chrome, Edge; inventory 1.3.0).
 	PendingUpdates []PendingUpdate `json:"pending_updates,omitempty"`
+	// NetworkShares: mapped network drives currently connected, of every
+	// user whose profile is loaded (inventory 1.3.5). The agent runs as
+	// SYSTEM, which has no mapped drives of its own; a drive mapped by a
+	// logged-on user is read from that user's own loaded registry hive
+	// (HKEY_USERS\<SID>\Network), the same way per-user software is (see
+	// Get-SoftwareInfo in the module), not from the agent's own session.
+	NetworkShares []NetworkShare `json:"network_shares,omitempty"`
+}
+
+// NetworkShare is a mapped network drive connected in a user's session.
+type NetworkShare struct {
+	User       string `json:"user"` // DOMAIN\name, COMPUTER\name or a SID
+	Drive      string `json:"drive"`
+	RemotePath string `json:"remote_path"`
+	Provider   string `json:"provider,omitempty"`
 }
 
 // PendingUpdate is an application update waiting for a restart of the
@@ -407,6 +422,11 @@ func (inv *Inventory) normalize() {
 		for j := range g.Members {
 			g.Members[j].Name, g.Members[j].Type = clip(g.Members[j].Name), clip(g.Members[j].Type)
 		}
+	}
+	inv.NetworkShares = bound(inv.NetworkShares, maxItems)
+	for i := range inv.NetworkShares {
+		s := &inv.NetworkShares[i]
+		s.User, s.Drive, s.RemotePath, s.Provider = clip(s.User), clip(s.Drive), clip(s.RemotePath), clip(s.Provider)
 	}
 }
 

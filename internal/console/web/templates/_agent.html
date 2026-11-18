@@ -324,6 +324,14 @@
 <td>{{range .IPv4}}{{.}}<br>{{end}}{{range .IPv6}}<span class="muted">{{.}}</span><br>{{end}}</td><td>{{range .Gateway}}{{.}}<br>{{end}}</td><td>{{range .DNS}}{{.}}<br>{{end}}</td></tr>{{end}}</tbody>
 </table>
 
+{{if .NetworkShares}}
+<h3>{{t "Share di rete montate"}}{{help "section:network_shares"}}</h3>
+<table>
+<thead><tr><th>{{t "Unità"}}</th><th>{{t "Percorso"}}</th><th>{{t "Utente"}}</th><th>{{t "Provider"}}</th></tr></thead>
+<tbody>{{range .NetworkShares}}<tr><td>{{.Drive}}</td><td><code>{{.RemotePath}}</code></td><td>{{.User}}</td><td>{{.Provider}}</td></tr>{{end}}</tbody>
+</table>
+{{end}}
+
 {{if .Monitors}}
 <h3>Monitor</h3>
 <table>
