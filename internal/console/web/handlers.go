@@ -108,8 +108,9 @@ type agentData struct {
 	Return string
 	Panel  bool
 	// BitlockerKeys: the encrypted recovery key backed up for each drive
-	// (by drive letter, e.g. "C:"), if any.
-	BitlockerKeys map[string]store.BitlockerKey
+	// (by drive letter, e.g. "C:"), if any. A pointer, so a missing drive is
+	// nil (falsy in {{with}}), not a zero-value struct (always truthy).
+	BitlockerKeys map[string]*store.BitlockerKey
 	// ApprovedBitlockerDrive: the drive a fresh MFA approval in this
 	// session covers right now, waiting for the signing passphrase ("" if
 	// none or expired).
@@ -187,9 +188,9 @@ func (s *Server) agentDetails(r *http.Request, t, id string) (*agentData, error)
 	if err != nil {
 		return nil, err
 	}
-	d.BitlockerKeys = map[string]store.BitlockerKey{}
-	for _, k := range keys {
-		d.BitlockerKeys[k.Drive] = k
+	d.BitlockerKeys = map[string]*store.BitlockerKey{}
+	for i := range keys {
+		d.BitlockerKeys[keys[i].Drive] = &keys[i]
 	}
 	if sess := sessionFrom(r.Context()); sess != nil {
 		if a := sess.data.BitlockerApproval; a != nil && a.AgentID == id && s.now().Sub(a.At) < bitlockerApprovalTTL {
