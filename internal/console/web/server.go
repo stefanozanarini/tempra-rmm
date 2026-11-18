@@ -176,7 +176,8 @@ func funcs(lang string) template.FuncMap {
 		} {
 			return assignmentValidities
 		},
-		"isDell": func(m string) bool { return strings.HasPrefix(strings.ToLower(strings.TrimSpace(m)), "dell") },
+		"isDell":  func(m string) bool { return strings.HasPrefix(strings.ToLower(strings.TrimSpace(m)), "dell") },
+		"navicon": navicon,
 		"filterCount": func(filters []filterView, key string) int {
 			for _, f := range filters {
 				if f.Key == key {

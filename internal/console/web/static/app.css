@@ -183,6 +183,7 @@ header img.brandmark.dark { display:none; }
 }
 header img.logo { display:block; max-height:48px; max-width:160px; object-fit:contain; }
 img.logo-preview { max-height:80px; max-width:320px; background:var(--card); padding:6px; border:1px solid var(--line); border-radius:4px; }
+.navicon { vertical-align:-3px; margin-right:5px; flex:none; }
 nav details.menu { position:relative; }
 nav details.menu > summary { cursor:pointer; list-style:none; color:var(--fg); }
 nav details.menu > summary::-webkit-details-marker { display:none; }

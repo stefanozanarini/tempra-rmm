@@ -14,44 +14,44 @@
   <a class="brand" href="/agents">{{if .HasLogo}}<img class="logo" src="/logo" alt="">{{end}}<img class="brandmark light" src="/static/logo-light.svg" alt="Tempra RMM"><img class="brandmark dark" src="/static/logo-dark.svg" alt="Tempra RMM"><span class="tagline"><b>T</b>EMPRA <b>E</b>ndpoint <b>M</b>onitoring, <b>P</b>atching &amp; <b>R</b>emote <b>A</b>dministration</span></a>
   {{if .Operator}}
   <nav class="main">
-    <details class="menu"><summary>{{t "Agenti"}}</summary><div>
+    <details class="menu"><summary>{{navicon "monitor"}}{{t "Agenti"}}</summary><div>
       <a href="/agents?family=client">{{t "Client"}}</a>
       <a href="/agents?family=server">{{t "Server"}}</a>
       <a href="/agents">{{t "Tutti gli agenti"}}</a>
       <a href="/groups">{{t "Gruppi"}}</a>
     </div></details>
-    <a href="/jobs">{{t "Job"}}</a>
-    <a href="/patches">{{t "Patch"}}</a>
-    <details class="menu"><summary>Software</summary><div>
+    <a href="/jobs">{{navicon "terminal"}}{{t "Job"}}</a>
+    <a href="/patches">{{navicon "shield-check"}}{{t "Patch"}}</a>
+    <details class="menu"><summary>{{navicon "grid"}}Software</summary><div>
       <a href="/packages">{{t "Libreria"}}</a>
       <a href="/workflows">{{t "Workflow"}}</a>
     </div></details>
-    <details class="menu"><summary>Provisioning</summary><div>
+    <details class="menu"><summary>{{navicon "laptop"}}Provisioning</summary><div>
       <a href="/provisioning">{{t "Profili"}}</a>
       <a href="/provisioning/runs">{{t "Esecuzioni"}}</a>
     </div></details>
-    <details class="menu"><summary>{{t "Distribuzione"}}</summary><div>
+    <details class="menu"><summary>{{navicon "package"}}{{t "Distribuzione"}}</summary><div>
       {{if .CanRun}}<a href="/agent-installer">{{t "Installer"}}</a>{{end}}
       <a href="/updates">{{t "Versioni agente"}}</a>
       <a href="/modules">{{t "Moduli"}}</a>
       <a href="/policies">Policy</a>
     </div></details>
-    <details class="menu"><summary>Reporting{{if .OpenAlerts}} <span class="badge sev-critical">{{.OpenAlerts}}</span>{{end}}</summary><div>
+    <details class="menu"><summary>{{navicon "bar-chart"}}Reporting{{if .OpenAlerts}} <span class="badge sev-critical">{{.OpenAlerts}}</span>{{end}}</summary><div>
       <a href="/reports">Reporting</a>
       <a href="/alerts">{{t "Avvisi"}}{{if .OpenAlerts}} <span class="badge sev-critical">{{.OpenAlerts}}</span>{{end}}</a>
       <a href="/audit">{{t "Attività"}}</a>
     </div></details>
-    <details class="menu"><summary>Security</summary><div>
+    <details class="menu"><summary>{{navicon "shield"}}Security</summary><div>
       <a href="/security">Dashboard</a>
       <a href="/security/vulnerabilities">{{t "Vulnerabilità"}}</a>
     </div></details>
-    {{if .IsSuper}}<details class="menu"><summary>{{t "Amministrazione"}}</summary><div>
+    {{if .IsSuper}}<details class="menu"><summary>{{navicon "settings"}}{{t "Amministrazione"}}</summary><div>
       <a href="/settings">{{t "Impostazioni"}}</a>
       <a href="/setup">{{t "Configurazione"}}</a>
       <a href="/scopes">{{t "Ambiti"}}</a>
       {{if .ShowCustomers}}<a href="/customers">{{t "Clienti"}}</a>{{end}}
     </div></details>{{end}}
-    {{if or .ShowLinks .Federated}}<a href="/federation">{{t "Console collegate"}}</a>{{end}}
+    {{if or .ShowLinks .Federated}}<a href="/federation">{{navicon "link"}}{{t "Console collegate"}}</a>{{end}}
   </nav>
   <div class="who">
     {{if or (gt (len .Tenants) 1) .Links}}
