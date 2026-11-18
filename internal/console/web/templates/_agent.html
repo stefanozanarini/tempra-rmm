@@ -314,10 +314,22 @@
 <td>{{if eq .Health "Healthy"}}<span class="badge succeeded">ok</span>{{else if .Health}}<span class="badge failed">{{.Health}}</span>{{else}}-{{end}}</td></tr>{{end}}</tbody>
 </table>
 <table>
-<thead><tr><th>Volume</th><th>File system</th><th>{{t "Dimensione"}}</th><th>{{t "Libero"}}</th><th>BitLocker</th></tr></thead>
+<thead><tr><th>Volume</th><th>File system</th><th>{{t "Dimensione"}}</th><th>{{t "Libero"}}</th><th>BitLocker</th><th>{{t "Recovery key"}}{{help "section:bitlocker"}}</th></tr></thead>
 <tbody>{{range .Volumes}}<tr><td>{{.Mount}} {{.Label}}</td><td>{{.FS}}</td><td>{{bytes .SizeBytes}}</td>
 <td>{{bytes .FreeBytes}} <span class="muted">({{pctFree .FreeBytes .SizeBytes}}%)</span></td>
-<td>{{with .BitLocker}}<span class="badge bl-{{.}}">{{label .}}</span>{{else}}-{{end}}{{with .Encryption}} <span class="muted">{{.}}</span>{{end}}</td></tr>{{end}}</tbody>
+<td>{{with .BitLocker}}<span class="badge bl-{{.}}">{{label .}}</span>{{else}}-{{end}}{{with .Encryption}} <span class="muted">{{.}}</span>{{end}}</td>
+<td>{{if eq .BitLocker "on"}}{{with index $.Data.BitlockerKeys .Mount}}
+  {{if and $.CanRun (eq $.Data.ApprovedBitlockerDrive .Drive)}}
+  <form method="post" action="/agents/{{$.Data.Agent.ID}}/bitlocker/{{.Drive}}/decrypt" class="inline">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <input type="password" name="passphrase" placeholder="{{t "passphrase"}}" required autocomplete="current-password" size="14">
+    <button class="primary">{{t "Leggi"}}</button>
+  </form>
+  {{else}}<span class="muted">{{tf "salvata il %s" (fmtTime .UpdatedAt)}}</span>{{if $.CanRun}} <form method="post" action="/agents/{{$.Data.Agent.ID}}/bitlocker/{{.Drive}}/view" class="inline">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <button>{{t "Visualizza chiave"}}</button>
+  </form>{{end}}{{end}}
+  {{else}}<span class="muted">{{t "nessun backup ancora"}}</span>{{end}}{{else}}-{{end}}</td></tr>{{end}}</tbody>
 </table>
 
 {{if .Batteries}}

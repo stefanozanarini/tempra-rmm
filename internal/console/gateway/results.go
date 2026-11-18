@@ -55,6 +55,8 @@ func (s *Server) afterSuccess(ctx context.Context, a store.Agent, module, action
 		s.ingestUpdates(ctx, a, updates.SourceOf(module, action), raw)
 	case module == adinv.ModuleID && action == adinv.Action:
 		s.ingestAD(ctx, a, raw)
+	case module == "bitlocker" && action == "backup":
+		s.ingestBitlockerKeys(ctx, a, raw)
 	}
 }
 

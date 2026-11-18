@@ -76,7 +76,7 @@ func (x UpdateStatus_State) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use UpdateStatus_State.Descriptor instead.
 func (UpdateStatus_State) EnumDescriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{15, 0}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{17, 0}
 }
 
 type JobUpdate_State int32
@@ -134,7 +134,7 @@ func (x JobUpdate_State) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use JobUpdate_State.Descriptor instead.
 func (JobUpdate_State) EnumDescriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{25, 0}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{27, 0}
 }
 
 // ShellFrame is a piece of an interactive shell session: terminal output
@@ -336,6 +336,97 @@ func (x *ReleaseChunk) GetData() []byte {
 	return nil
 }
 
+type GetBitlockerPublicKeyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBitlockerPublicKeyRequest) Reset() {
+	*x = GetBitlockerPublicKeyRequest{}
+	mi := &file_openrmm_v1_agent_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBitlockerPublicKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBitlockerPublicKeyRequest) ProtoMessage() {}
+
+func (x *GetBitlockerPublicKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_openrmm_v1_agent_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBitlockerPublicKeyRequest.ProtoReflect.Descriptor instead.
+func (*GetBitlockerPublicKeyRequest) Descriptor() ([]byte, []int) {
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{3}
+}
+
+// Raw RSA public key (modulus, big-endian; exponent, big-endian), not PEM:
+// the module runs on Windows PowerShell 5.1 too, whose .NET Framework has
+// no PEM/DER import, but has had RSAParameters since .NET 1.1.
+type GetBitlockerPublicKeyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Modulus       []byte                 `protobuf:"bytes,1,opt,name=modulus,proto3" json:"modulus,omitempty"` // empty: the key pair has not been created yet
+	Exponent      []byte                 `protobuf:"bytes,2,opt,name=exponent,proto3" json:"exponent,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBitlockerPublicKeyResponse) Reset() {
+	*x = GetBitlockerPublicKeyResponse{}
+	mi := &file_openrmm_v1_agent_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBitlockerPublicKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBitlockerPublicKeyResponse) ProtoMessage() {}
+
+func (x *GetBitlockerPublicKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_openrmm_v1_agent_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBitlockerPublicKeyResponse.ProtoReflect.Descriptor instead.
+func (*GetBitlockerPublicKeyResponse) Descriptor() ([]byte, []int) {
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetBitlockerPublicKeyResponse) GetModulus() []byte {
+	if x != nil {
+		return x.Modulus
+	}
+	return nil
+}
+
+func (x *GetBitlockerPublicKeyResponse) GetExponent() []byte {
+	if x != nil {
+		return x.Exponent
+	}
+	return nil
+}
+
 type GetModuleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Module        string                 `protobuf:"bytes,1,opt,name=module,proto3" json:"module,omitempty"`
@@ -346,7 +437,7 @@ type GetModuleRequest struct {
 
 func (x *GetModuleRequest) Reset() {
 	*x = GetModuleRequest{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[3]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -358,7 +449,7 @@ func (x *GetModuleRequest) String() string {
 func (*GetModuleRequest) ProtoMessage() {}
 
 func (x *GetModuleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[3]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -371,7 +462,7 @@ func (x *GetModuleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetModuleRequest.ProtoReflect.Descriptor instead.
 func (*GetModuleRequest) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{3}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetModuleRequest) GetModule() string {
@@ -400,7 +491,7 @@ type GetPackageRequest struct {
 
 func (x *GetPackageRequest) Reset() {
 	*x = GetPackageRequest{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[4]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -412,7 +503,7 @@ func (x *GetPackageRequest) String() string {
 func (*GetPackageRequest) ProtoMessage() {}
 
 func (x *GetPackageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[4]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -425,7 +516,7 @@ func (x *GetPackageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPackageRequest.ProtoReflect.Descriptor instead.
 func (*GetPackageRequest) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{4}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetPackageRequest) GetJobId() string {
@@ -461,7 +552,7 @@ type PackageChunk struct {
 
 func (x *PackageChunk) Reset() {
 	*x = PackageChunk{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[5]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -473,7 +564,7 @@ func (x *PackageChunk) String() string {
 func (*PackageChunk) ProtoMessage() {}
 
 func (x *PackageChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[5]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -486,7 +577,7 @@ func (x *PackageChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PackageChunk.ProtoReflect.Descriptor instead.
 func (*PackageChunk) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{5}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PackageChunk) GetData() []byte {
@@ -515,7 +606,7 @@ type PackageRef struct {
 
 func (x *PackageRef) Reset() {
 	*x = PackageRef{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[6]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -527,7 +618,7 @@ func (x *PackageRef) String() string {
 func (*PackageRef) ProtoMessage() {}
 
 func (x *PackageRef) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[6]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -540,7 +631,7 @@ func (x *PackageRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PackageRef.ProtoReflect.Descriptor instead.
 func (*PackageRef) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{6}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *PackageRef) GetSha256() []byte {
@@ -575,7 +666,7 @@ type ModuleChunk struct {
 
 func (x *ModuleChunk) Reset() {
 	*x = ModuleChunk{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[7]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -587,7 +678,7 @@ func (x *ModuleChunk) String() string {
 func (*ModuleChunk) ProtoMessage() {}
 
 func (x *ModuleChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[7]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -600,7 +691,7 @@ func (x *ModuleChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModuleChunk.ProtoReflect.Descriptor instead.
 func (*ModuleChunk) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{7}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ModuleChunk) GetManifest() *SignedEnvelope {
@@ -626,7 +717,7 @@ type RenewCertificateRequest struct {
 
 func (x *RenewCertificateRequest) Reset() {
 	*x = RenewCertificateRequest{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[8]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -638,7 +729,7 @@ func (x *RenewCertificateRequest) String() string {
 func (*RenewCertificateRequest) ProtoMessage() {}
 
 func (x *RenewCertificateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[8]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -651,7 +742,7 @@ func (x *RenewCertificateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenewCertificateRequest.ProtoReflect.Descriptor instead.
 func (*RenewCertificateRequest) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{8}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *RenewCertificateRequest) GetCsrDer() []byte {
@@ -671,7 +762,7 @@ type RenewCertificateResponse struct {
 
 func (x *RenewCertificateResponse) Reset() {
 	*x = RenewCertificateResponse{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[9]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -683,7 +774,7 @@ func (x *RenewCertificateResponse) String() string {
 func (*RenewCertificateResponse) ProtoMessage() {}
 
 func (x *RenewCertificateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[9]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -696,7 +787,7 @@ func (x *RenewCertificateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenewCertificateResponse.ProtoReflect.Descriptor instead.
 func (*RenewCertificateResponse) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{9}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RenewCertificateResponse) GetCertificateDer() []byte {
@@ -728,7 +819,7 @@ type HostInfo struct {
 
 func (x *HostInfo) Reset() {
 	*x = HostInfo{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[10]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -740,7 +831,7 @@ func (x *HostInfo) String() string {
 func (*HostInfo) ProtoMessage() {}
 
 func (x *HostInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[10]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -753,7 +844,7 @@ func (x *HostInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostInfo.ProtoReflect.Descriptor instead.
 func (*HostInfo) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{10}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *HostInfo) GetHostname() string {
@@ -816,7 +907,7 @@ type EnrollRequest struct {
 
 func (x *EnrollRequest) Reset() {
 	*x = EnrollRequest{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[11]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -828,7 +919,7 @@ func (x *EnrollRequest) String() string {
 func (*EnrollRequest) ProtoMessage() {}
 
 func (x *EnrollRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[11]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -841,7 +932,7 @@ func (x *EnrollRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnrollRequest.ProtoReflect.Descriptor instead.
 func (*EnrollRequest) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{11}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *EnrollRequest) GetToken() string {
@@ -878,7 +969,7 @@ type EnrollResponse struct {
 
 func (x *EnrollResponse) Reset() {
 	*x = EnrollResponse{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[12]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -890,7 +981,7 @@ func (x *EnrollResponse) String() string {
 func (*EnrollResponse) ProtoMessage() {}
 
 func (x *EnrollResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[12]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -903,7 +994,7 @@ func (x *EnrollResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnrollResponse.ProtoReflect.Descriptor instead.
 func (*EnrollResponse) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{12}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *EnrollResponse) GetTenantId() string {
@@ -950,7 +1041,7 @@ type AgentMessage struct {
 
 func (x *AgentMessage) Reset() {
 	*x = AgentMessage{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[13]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -962,7 +1053,7 @@ func (x *AgentMessage) String() string {
 func (*AgentMessage) ProtoMessage() {}
 
 func (x *AgentMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[13]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -975,7 +1066,7 @@ func (x *AgentMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentMessage.ProtoReflect.Descriptor instead.
 func (*AgentMessage) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{13}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *AgentMessage) GetMsg() isAgentMessage_Msg {
@@ -1083,7 +1174,7 @@ type PolicyResult struct {
 
 func (x *PolicyResult) Reset() {
 	*x = PolicyResult{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[14]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1095,7 +1186,7 @@ func (x *PolicyResult) String() string {
 func (*PolicyResult) ProtoMessage() {}
 
 func (x *PolicyResult) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[14]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1108,7 +1199,7 @@ func (x *PolicyResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PolicyResult.ProtoReflect.Descriptor instead.
 func (*PolicyResult) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{14}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *PolicyResult) GetRunId() string {
@@ -1186,7 +1277,7 @@ type UpdateStatus struct {
 
 func (x *UpdateStatus) Reset() {
 	*x = UpdateStatus{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[15]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1198,7 +1289,7 @@ func (x *UpdateStatus) String() string {
 func (*UpdateStatus) ProtoMessage() {}
 
 func (x *UpdateStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[15]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1211,7 +1302,7 @@ func (x *UpdateStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateStatus.ProtoReflect.Descriptor instead.
 func (*UpdateStatus) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{15}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *UpdateStatus) GetVersion() string {
@@ -1251,7 +1342,7 @@ type ConsoleMessage struct {
 
 func (x *ConsoleMessage) Reset() {
 	*x = ConsoleMessage{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[16]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1263,7 +1354,7 @@ func (x *ConsoleMessage) String() string {
 func (*ConsoleMessage) ProtoMessage() {}
 
 func (x *ConsoleMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[16]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1276,7 +1367,7 @@ func (x *ConsoleMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConsoleMessage.ProtoReflect.Descriptor instead.
 func (*ConsoleMessage) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{16}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ConsoleMessage) GetMsg() isConsoleMessage_Msg {
@@ -1377,7 +1468,7 @@ type PolicySet struct {
 
 func (x *PolicySet) Reset() {
 	*x = PolicySet{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[17]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1389,7 +1480,7 @@ func (x *PolicySet) String() string {
 func (*PolicySet) ProtoMessage() {}
 
 func (x *PolicySet) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[17]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1402,7 +1493,7 @@ func (x *PolicySet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PolicySet.ProtoReflect.Descriptor instead.
 func (*PolicySet) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{17}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *PolicySet) GetPolicies() []*SignedEnvelope {
@@ -1423,7 +1514,7 @@ type AgentUpdateOffer struct {
 
 func (x *AgentUpdateOffer) Reset() {
 	*x = AgentUpdateOffer{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[18]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1435,7 +1526,7 @@ func (x *AgentUpdateOffer) String() string {
 func (*AgentUpdateOffer) ProtoMessage() {}
 
 func (x *AgentUpdateOffer) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[18]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1448,7 +1539,7 @@ func (x *AgentUpdateOffer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentUpdateOffer.ProtoReflect.Descriptor instead.
 func (*AgentUpdateOffer) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{18}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *AgentUpdateOffer) GetManifest() *SignedEnvelope {
@@ -1469,7 +1560,7 @@ type JobUpdateAck struct {
 
 func (x *JobUpdateAck) Reset() {
 	*x = JobUpdateAck{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[19]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1481,7 +1572,7 @@ func (x *JobUpdateAck) String() string {
 func (*JobUpdateAck) ProtoMessage() {}
 
 func (x *JobUpdateAck) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[19]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1494,7 +1585,7 @@ func (x *JobUpdateAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JobUpdateAck.ProtoReflect.Descriptor instead.
 func (*JobUpdateAck) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{19}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *JobUpdateAck) GetJobId() string {
@@ -1513,7 +1604,7 @@ type Hello struct {
 
 func (x *Hello) Reset() {
 	*x = Hello{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[20]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1525,7 +1616,7 @@ func (x *Hello) String() string {
 func (*Hello) ProtoMessage() {}
 
 func (x *Hello) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[20]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1538,7 +1629,7 @@ func (x *Hello) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Hello.ProtoReflect.Descriptor instead.
 func (*Hello) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{20}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *Hello) GetHost() *HostInfo {
@@ -1560,7 +1651,7 @@ type HelloAck struct {
 
 func (x *HelloAck) Reset() {
 	*x = HelloAck{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[21]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1572,7 +1663,7 @@ func (x *HelloAck) String() string {
 func (*HelloAck) ProtoMessage() {}
 
 func (x *HelloAck) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[21]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1585,7 +1676,7 @@ func (x *HelloAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HelloAck.ProtoReflect.Descriptor instead.
 func (*HelloAck) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{21}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *HelloAck) GetHeartbeatIntervalSeconds() int32 {
@@ -1611,7 +1702,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[22]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1623,7 +1714,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[22]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1636,7 +1727,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{22}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *Heartbeat) GetSentAtUnixMs() int64 {
@@ -1660,7 +1751,7 @@ type SignedEnvelope struct {
 
 func (x *SignedEnvelope) Reset() {
 	*x = SignedEnvelope{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[23]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1672,7 +1763,7 @@ func (x *SignedEnvelope) String() string {
 func (*SignedEnvelope) ProtoMessage() {}
 
 func (x *SignedEnvelope) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[23]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1685,7 +1776,7 @@ func (x *SignedEnvelope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignedEnvelope.ProtoReflect.Descriptor instead.
 func (*SignedEnvelope) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{23}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *SignedEnvelope) GetKeyId() string {
@@ -1735,7 +1826,7 @@ type Job struct {
 
 func (x *Job) Reset() {
 	*x = Job{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[24]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1747,7 +1838,7 @@ func (x *Job) String() string {
 func (*Job) ProtoMessage() {}
 
 func (x *Job) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[24]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1760,7 +1851,7 @@ func (x *Job) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Job.ProtoReflect.Descriptor instead.
 func (*Job) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{24}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *Job) GetJobId() string {
@@ -1868,7 +1959,7 @@ type JobUpdate struct {
 
 func (x *JobUpdate) Reset() {
 	*x = JobUpdate{}
-	mi := &file_openrmm_v1_agent_proto_msgTypes[25]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1880,7 +1971,7 @@ func (x *JobUpdate) String() string {
 func (*JobUpdate) ProtoMessage() {}
 
 func (x *JobUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_openrmm_v1_agent_proto_msgTypes[25]
+	mi := &file_openrmm_v1_agent_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1893,7 +1984,7 @@ func (x *JobUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JobUpdate.ProtoReflect.Descriptor instead.
 func (*JobUpdate) Descriptor() ([]byte, []int) {
-	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{25}
+	return file_openrmm_v1_agent_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *JobUpdate) GetJobId() string {
@@ -1958,7 +2049,11 @@ const file_openrmm_v1_agent_proto_rawDesc = "" +
 	"\bplatform\x18\x02 \x01(\tR\bplatform\"6\n" +
 	"\fReleaseChunk\x12\x12\n" +
 	"\x04file\x18\x01 \x01(\tR\x04file\x12\x12\n" +
-	"\x04data\x18\x02 \x01(\fR\x04data\"D\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\"\x1e\n" +
+	"\x1cGetBitlockerPublicKeyRequest\"U\n" +
+	"\x1dGetBitlockerPublicKeyResponse\x12\x18\n" +
+	"\amodulus\x18\x01 \x01(\fR\amodulus\x12\x1a\n" +
+	"\bexponent\x18\x02 \x01(\fR\bexponent\"D\n" +
 	"\x10GetModuleRequest\x12\x16\n" +
 	"\x06module\x18\x01 \x01(\tR\x06module\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\"Z\n" +
@@ -2088,14 +2183,15 @@ const file_openrmm_v1_agent_proto_rawDesc = "" +
 	"\x0fSTATE_SUCCEEDED\x10\x04\x12\x10\n" +
 	"\fSTATE_FAILED\x10\x052T\n" +
 	"\x11EnrollmentService\x12?\n" +
-	"\x06Enroll\x12\x19.openrmm.v1.EnrollRequest\x1a\x1a.openrmm.v1.EnrollResponse2\xd1\x03\n" +
+	"\x06Enroll\x12\x19.openrmm.v1.EnrollRequest\x1a\x1a.openrmm.v1.EnrollResponse2\xbf\x04\n" +
 	"\fAgentService\x12C\n" +
 	"\aConnect\x12\x18.openrmm.v1.AgentMessage\x1a\x1a.openrmm.v1.ConsoleMessage(\x010\x01\x12]\n" +
 	"\x10RenewCertificate\x12#.openrmm.v1.RenewCertificateRequest\x1a$.openrmm.v1.RenewCertificateResponse\x12D\n" +
 	"\tGetModule\x12\x1c.openrmm.v1.GetModuleRequest\x1a\x17.openrmm.v1.ModuleChunk0\x01\x12G\n" +
 	"\n" +
 	"GetPackage\x12\x1d.openrmm.v1.GetPackageRequest\x1a\x18.openrmm.v1.PackageChunk0\x01\x12Q\n" +
-	"\x0fGetAgentRelease\x12\".openrmm.v1.GetAgentReleaseRequest\x1a\x18.openrmm.v1.ReleaseChunk0\x01\x12;\n" +
+	"\x0fGetAgentRelease\x12\".openrmm.v1.GetAgentReleaseRequest\x1a\x18.openrmm.v1.ReleaseChunk0\x01\x12l\n" +
+	"\x15GetBitlockerPublicKey\x12(.openrmm.v1.GetBitlockerPublicKeyRequest\x1a).openrmm.v1.GetBitlockerPublicKeyResponse\x12;\n" +
 	"\x05Shell\x12\x16.openrmm.v1.ShellFrame\x1a\x16.openrmm.v1.ShellFrame(\x010\x01B@Z>github.com/stefanozanarini/tempra-rmm/gen/openrmm/v1;openrmmv1b\x06proto3"
 
 var (
@@ -2111,73 +2207,77 @@ func file_openrmm_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_openrmm_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_openrmm_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_openrmm_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_openrmm_v1_agent_proto_goTypes = []any{
-	(UpdateStatus_State)(0),          // 0: openrmm.v1.UpdateStatus.State
-	(JobUpdate_State)(0),             // 1: openrmm.v1.JobUpdate.State
-	(*ShellFrame)(nil),               // 2: openrmm.v1.ShellFrame
-	(*GetAgentReleaseRequest)(nil),   // 3: openrmm.v1.GetAgentReleaseRequest
-	(*ReleaseChunk)(nil),             // 4: openrmm.v1.ReleaseChunk
-	(*GetModuleRequest)(nil),         // 5: openrmm.v1.GetModuleRequest
-	(*GetPackageRequest)(nil),        // 6: openrmm.v1.GetPackageRequest
-	(*PackageChunk)(nil),             // 7: openrmm.v1.PackageChunk
-	(*PackageRef)(nil),               // 8: openrmm.v1.PackageRef
-	(*ModuleChunk)(nil),              // 9: openrmm.v1.ModuleChunk
-	(*RenewCertificateRequest)(nil),  // 10: openrmm.v1.RenewCertificateRequest
-	(*RenewCertificateResponse)(nil), // 11: openrmm.v1.RenewCertificateResponse
-	(*HostInfo)(nil),                 // 12: openrmm.v1.HostInfo
-	(*EnrollRequest)(nil),            // 13: openrmm.v1.EnrollRequest
-	(*EnrollResponse)(nil),           // 14: openrmm.v1.EnrollResponse
-	(*AgentMessage)(nil),             // 15: openrmm.v1.AgentMessage
-	(*PolicyResult)(nil),             // 16: openrmm.v1.PolicyResult
-	(*UpdateStatus)(nil),             // 17: openrmm.v1.UpdateStatus
-	(*ConsoleMessage)(nil),           // 18: openrmm.v1.ConsoleMessage
-	(*PolicySet)(nil),                // 19: openrmm.v1.PolicySet
-	(*AgentUpdateOffer)(nil),         // 20: openrmm.v1.AgentUpdateOffer
-	(*JobUpdateAck)(nil),             // 21: openrmm.v1.JobUpdateAck
-	(*Hello)(nil),                    // 22: openrmm.v1.Hello
-	(*HelloAck)(nil),                 // 23: openrmm.v1.HelloAck
-	(*Heartbeat)(nil),                // 24: openrmm.v1.Heartbeat
-	(*SignedEnvelope)(nil),           // 25: openrmm.v1.SignedEnvelope
-	(*Job)(nil),                      // 26: openrmm.v1.Job
-	(*JobUpdate)(nil),                // 27: openrmm.v1.JobUpdate
+	(UpdateStatus_State)(0),               // 0: openrmm.v1.UpdateStatus.State
+	(JobUpdate_State)(0),                  // 1: openrmm.v1.JobUpdate.State
+	(*ShellFrame)(nil),                    // 2: openrmm.v1.ShellFrame
+	(*GetAgentReleaseRequest)(nil),        // 3: openrmm.v1.GetAgentReleaseRequest
+	(*ReleaseChunk)(nil),                  // 4: openrmm.v1.ReleaseChunk
+	(*GetBitlockerPublicKeyRequest)(nil),  // 5: openrmm.v1.GetBitlockerPublicKeyRequest
+	(*GetBitlockerPublicKeyResponse)(nil), // 6: openrmm.v1.GetBitlockerPublicKeyResponse
+	(*GetModuleRequest)(nil),              // 7: openrmm.v1.GetModuleRequest
+	(*GetPackageRequest)(nil),             // 8: openrmm.v1.GetPackageRequest
+	(*PackageChunk)(nil),                  // 9: openrmm.v1.PackageChunk
+	(*PackageRef)(nil),                    // 10: openrmm.v1.PackageRef
+	(*ModuleChunk)(nil),                   // 11: openrmm.v1.ModuleChunk
+	(*RenewCertificateRequest)(nil),       // 12: openrmm.v1.RenewCertificateRequest
+	(*RenewCertificateResponse)(nil),      // 13: openrmm.v1.RenewCertificateResponse
+	(*HostInfo)(nil),                      // 14: openrmm.v1.HostInfo
+	(*EnrollRequest)(nil),                 // 15: openrmm.v1.EnrollRequest
+	(*EnrollResponse)(nil),                // 16: openrmm.v1.EnrollResponse
+	(*AgentMessage)(nil),                  // 17: openrmm.v1.AgentMessage
+	(*PolicyResult)(nil),                  // 18: openrmm.v1.PolicyResult
+	(*UpdateStatus)(nil),                  // 19: openrmm.v1.UpdateStatus
+	(*ConsoleMessage)(nil),                // 20: openrmm.v1.ConsoleMessage
+	(*PolicySet)(nil),                     // 21: openrmm.v1.PolicySet
+	(*AgentUpdateOffer)(nil),              // 22: openrmm.v1.AgentUpdateOffer
+	(*JobUpdateAck)(nil),                  // 23: openrmm.v1.JobUpdateAck
+	(*Hello)(nil),                         // 24: openrmm.v1.Hello
+	(*HelloAck)(nil),                      // 25: openrmm.v1.HelloAck
+	(*Heartbeat)(nil),                     // 26: openrmm.v1.Heartbeat
+	(*SignedEnvelope)(nil),                // 27: openrmm.v1.SignedEnvelope
+	(*Job)(nil),                           // 28: openrmm.v1.Job
+	(*JobUpdate)(nil),                     // 29: openrmm.v1.JobUpdate
 }
 var file_openrmm_v1_agent_proto_depIdxs = []int32{
-	25, // 0: openrmm.v1.ModuleChunk.manifest:type_name -> openrmm.v1.SignedEnvelope
-	12, // 1: openrmm.v1.EnrollRequest.host:type_name -> openrmm.v1.HostInfo
-	22, // 2: openrmm.v1.AgentMessage.hello:type_name -> openrmm.v1.Hello
-	24, // 3: openrmm.v1.AgentMessage.heartbeat:type_name -> openrmm.v1.Heartbeat
-	27, // 4: openrmm.v1.AgentMessage.job_update:type_name -> openrmm.v1.JobUpdate
-	17, // 5: openrmm.v1.AgentMessage.update_status:type_name -> openrmm.v1.UpdateStatus
-	16, // 6: openrmm.v1.AgentMessage.policy_result:type_name -> openrmm.v1.PolicyResult
+	27, // 0: openrmm.v1.ModuleChunk.manifest:type_name -> openrmm.v1.SignedEnvelope
+	14, // 1: openrmm.v1.EnrollRequest.host:type_name -> openrmm.v1.HostInfo
+	24, // 2: openrmm.v1.AgentMessage.hello:type_name -> openrmm.v1.Hello
+	26, // 3: openrmm.v1.AgentMessage.heartbeat:type_name -> openrmm.v1.Heartbeat
+	29, // 4: openrmm.v1.AgentMessage.job_update:type_name -> openrmm.v1.JobUpdate
+	19, // 5: openrmm.v1.AgentMessage.update_status:type_name -> openrmm.v1.UpdateStatus
+	18, // 6: openrmm.v1.AgentMessage.policy_result:type_name -> openrmm.v1.PolicyResult
 	1,  // 7: openrmm.v1.PolicyResult.state:type_name -> openrmm.v1.JobUpdate.State
 	0,  // 8: openrmm.v1.UpdateStatus.state:type_name -> openrmm.v1.UpdateStatus.State
-	23, // 9: openrmm.v1.ConsoleMessage.hello_ack:type_name -> openrmm.v1.HelloAck
-	25, // 10: openrmm.v1.ConsoleMessage.job:type_name -> openrmm.v1.SignedEnvelope
-	21, // 11: openrmm.v1.ConsoleMessage.job_update_ack:type_name -> openrmm.v1.JobUpdateAck
-	20, // 12: openrmm.v1.ConsoleMessage.agent_update:type_name -> openrmm.v1.AgentUpdateOffer
-	19, // 13: openrmm.v1.ConsoleMessage.policy_set:type_name -> openrmm.v1.PolicySet
-	25, // 14: openrmm.v1.PolicySet.policies:type_name -> openrmm.v1.SignedEnvelope
-	25, // 15: openrmm.v1.AgentUpdateOffer.manifest:type_name -> openrmm.v1.SignedEnvelope
-	12, // 16: openrmm.v1.Hello.host:type_name -> openrmm.v1.HostInfo
-	8,  // 17: openrmm.v1.Job.packages:type_name -> openrmm.v1.PackageRef
+	25, // 9: openrmm.v1.ConsoleMessage.hello_ack:type_name -> openrmm.v1.HelloAck
+	27, // 10: openrmm.v1.ConsoleMessage.job:type_name -> openrmm.v1.SignedEnvelope
+	23, // 11: openrmm.v1.ConsoleMessage.job_update_ack:type_name -> openrmm.v1.JobUpdateAck
+	22, // 12: openrmm.v1.ConsoleMessage.agent_update:type_name -> openrmm.v1.AgentUpdateOffer
+	21, // 13: openrmm.v1.ConsoleMessage.policy_set:type_name -> openrmm.v1.PolicySet
+	27, // 14: openrmm.v1.PolicySet.policies:type_name -> openrmm.v1.SignedEnvelope
+	27, // 15: openrmm.v1.AgentUpdateOffer.manifest:type_name -> openrmm.v1.SignedEnvelope
+	14, // 16: openrmm.v1.Hello.host:type_name -> openrmm.v1.HostInfo
+	10, // 17: openrmm.v1.Job.packages:type_name -> openrmm.v1.PackageRef
 	1,  // 18: openrmm.v1.JobUpdate.state:type_name -> openrmm.v1.JobUpdate.State
-	13, // 19: openrmm.v1.EnrollmentService.Enroll:input_type -> openrmm.v1.EnrollRequest
-	15, // 20: openrmm.v1.AgentService.Connect:input_type -> openrmm.v1.AgentMessage
-	10, // 21: openrmm.v1.AgentService.RenewCertificate:input_type -> openrmm.v1.RenewCertificateRequest
-	5,  // 22: openrmm.v1.AgentService.GetModule:input_type -> openrmm.v1.GetModuleRequest
-	6,  // 23: openrmm.v1.AgentService.GetPackage:input_type -> openrmm.v1.GetPackageRequest
+	15, // 19: openrmm.v1.EnrollmentService.Enroll:input_type -> openrmm.v1.EnrollRequest
+	17, // 20: openrmm.v1.AgentService.Connect:input_type -> openrmm.v1.AgentMessage
+	12, // 21: openrmm.v1.AgentService.RenewCertificate:input_type -> openrmm.v1.RenewCertificateRequest
+	7,  // 22: openrmm.v1.AgentService.GetModule:input_type -> openrmm.v1.GetModuleRequest
+	8,  // 23: openrmm.v1.AgentService.GetPackage:input_type -> openrmm.v1.GetPackageRequest
 	3,  // 24: openrmm.v1.AgentService.GetAgentRelease:input_type -> openrmm.v1.GetAgentReleaseRequest
-	2,  // 25: openrmm.v1.AgentService.Shell:input_type -> openrmm.v1.ShellFrame
-	14, // 26: openrmm.v1.EnrollmentService.Enroll:output_type -> openrmm.v1.EnrollResponse
-	18, // 27: openrmm.v1.AgentService.Connect:output_type -> openrmm.v1.ConsoleMessage
-	11, // 28: openrmm.v1.AgentService.RenewCertificate:output_type -> openrmm.v1.RenewCertificateResponse
-	9,  // 29: openrmm.v1.AgentService.GetModule:output_type -> openrmm.v1.ModuleChunk
-	7,  // 30: openrmm.v1.AgentService.GetPackage:output_type -> openrmm.v1.PackageChunk
-	4,  // 31: openrmm.v1.AgentService.GetAgentRelease:output_type -> openrmm.v1.ReleaseChunk
-	2,  // 32: openrmm.v1.AgentService.Shell:output_type -> openrmm.v1.ShellFrame
-	26, // [26:33] is the sub-list for method output_type
-	19, // [19:26] is the sub-list for method input_type
+	5,  // 25: openrmm.v1.AgentService.GetBitlockerPublicKey:input_type -> openrmm.v1.GetBitlockerPublicKeyRequest
+	2,  // 26: openrmm.v1.AgentService.Shell:input_type -> openrmm.v1.ShellFrame
+	16, // 27: openrmm.v1.EnrollmentService.Enroll:output_type -> openrmm.v1.EnrollResponse
+	20, // 28: openrmm.v1.AgentService.Connect:output_type -> openrmm.v1.ConsoleMessage
+	13, // 29: openrmm.v1.AgentService.RenewCertificate:output_type -> openrmm.v1.RenewCertificateResponse
+	11, // 30: openrmm.v1.AgentService.GetModule:output_type -> openrmm.v1.ModuleChunk
+	9,  // 31: openrmm.v1.AgentService.GetPackage:output_type -> openrmm.v1.PackageChunk
+	4,  // 32: openrmm.v1.AgentService.GetAgentRelease:output_type -> openrmm.v1.ReleaseChunk
+	6,  // 33: openrmm.v1.AgentService.GetBitlockerPublicKey:output_type -> openrmm.v1.GetBitlockerPublicKeyResponse
+	2,  // 34: openrmm.v1.AgentService.Shell:output_type -> openrmm.v1.ShellFrame
+	27, // [27:35] is the sub-list for method output_type
+	19, // [19:27] is the sub-list for method input_type
 	19, // [19:19] is the sub-list for extension type_name
 	19, // [19:19] is the sub-list for extension extendee
 	0,  // [0:19] is the sub-list for field type_name
@@ -2188,14 +2288,14 @@ func file_openrmm_v1_agent_proto_init() {
 	if File_openrmm_v1_agent_proto != nil {
 		return
 	}
-	file_openrmm_v1_agent_proto_msgTypes[13].OneofWrappers = []any{
+	file_openrmm_v1_agent_proto_msgTypes[15].OneofWrappers = []any{
 		(*AgentMessage_Hello)(nil),
 		(*AgentMessage_Heartbeat)(nil),
 		(*AgentMessage_JobUpdate)(nil),
 		(*AgentMessage_UpdateStatus)(nil),
 		(*AgentMessage_PolicyResult)(nil),
 	}
-	file_openrmm_v1_agent_proto_msgTypes[16].OneofWrappers = []any{
+	file_openrmm_v1_agent_proto_msgTypes[18].OneofWrappers = []any{
 		(*ConsoleMessage_HelloAck)(nil),
 		(*ConsoleMessage_Job)(nil),
 		(*ConsoleMessage_JobUpdateAck)(nil),
@@ -2208,7 +2308,7 @@ func file_openrmm_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_openrmm_v1_agent_proto_rawDesc), len(file_openrmm_v1_agent_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   26,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

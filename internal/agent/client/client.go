@@ -479,6 +479,19 @@ func (s *session) FetchRelease(ctx context.Context, version, platform string) (m
 	}
 }
 
+// GetBitlockerPublicKey fetches the current public key (modulus, exponent),
+// live, so an already-enrolled agent picks up a key created (or rotated)
+// after it enrolled without any MSI/GPO push.
+func (s *session) GetBitlockerPublicKey(ctx context.Context) (modulus, exponent []byte, err error) {
+	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
+	defer cancel()
+	resp, err := openrmmv1.NewAgentServiceClient(s.conn).GetBitlockerPublicKey(ctx, &openrmmv1.GetBitlockerPublicKeyRequest{})
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp.GetModulus(), resp.GetExponent(), nil
+}
+
 // FetchPackage downloads a package to dest, checking size and SHA-256. A
 // partial file left by an interrupted download is resumed; a wrong file is
 // removed.

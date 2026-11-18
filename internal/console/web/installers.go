@@ -129,6 +129,9 @@ type installersData struct {
 	Bundled string
 	// NeedKeys: the module and release keys are still to be created.
 	NeedKeys bool
+	// BitlockerKey: the builder holds a BitLocker recovery-key encryption
+	// pair (own RSA pair, never the ed25519 signing keys above).
+	BitlockerKey bool
 }
 
 func grpcMessage(err error) string { return status.Convert(err).Message() }
@@ -150,6 +153,7 @@ func (s *Server) handleInstallers(w http.ResponseWriter, r *http.Request) {
 		}
 		d.ModuleKey, d.ModuleKeyID = st.GetModuleKey(), keyIDOf(st.GetModuleKey())
 		d.ReleaseKey, d.ReleaseKeyID = st.GetReleaseKey(), keyIDOf(st.GetReleaseKey())
+		d.BitlockerKey = st.GetBitlockerKey()
 	}
 	rels, err := s.store.ListReleases(ctx)
 	if err != nil {

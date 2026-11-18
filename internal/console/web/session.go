@@ -39,7 +39,7 @@ type Operator struct {
 
 // Pending is an authentication round trip in progress.
 type Pending struct {
-	Purpose      string    `json:"purpose"` // "login", "job", "policy", "installer", "publish", "assignment" or "profile"
+	Purpose      string    `json:"purpose"` // "login", "job", "policy", "installer", "publish", "assignment", "profile" or "bitlocker"
 	State        string    `json:"state"`
 	Nonce        string    `json:"nonce"`
 	CodeVerifier string    `json:"code_verifier"`
@@ -60,6 +60,10 @@ type Pending struct {
 	AssignmentReq []byte `json:"assignment_req,omitempty"`
 	// For "profile": the serialized ProfileRequest being approved.
 	ProfileReq []byte `json:"profile_req,omitempty"`
+	// For "bitlocker": the agent and drive whose recovery key is being
+	// viewed (the signing passphrase comes next, not stored here).
+	BitlockerAgentID string `json:"bitlocker_agent_id,omitempty"`
+	BitlockerDrive   string `json:"bitlocker_drive,omitempty"`
 }
 
 // SessionData is stored server-side; the browser only holds a random id.
@@ -81,6 +85,9 @@ type SessionData struct {
 	InstallerApproval *installerApproval `json:"installer_approval,omitempty"`
 	// PublishApproval: an MFA approval waiting for a module or release upload.
 	PublishApproval *publishApproval `json:"publish_approval,omitempty"`
+	// BitlockerApproval: an MFA approval waiting for the signing passphrase
+	// to decrypt one recovery key.
+	BitlockerApproval *bitlockerApproval `json:"bitlocker_approval,omitempty"`
 }
 
 type session struct {

@@ -207,6 +207,38 @@ func (s *Server) handleCreateReleaseKeys(w http.ResponseWriter, r *http.Request)
 	s.flash(w, r, s.T(r, "Chiavi di moduli e release create. I prossimi installer le includono già."), "/agent-installer#release-keys")
 }
 
+// handleCreateBitlockerKey creates the RSA pair BitLocker recovery keys are
+// encrypted with on the endpoint, its own pair, never the ed25519 signing
+// keys above. The public half (not a secret) is cached in the store right
+// away, so core can hand it to agents without ever reaching the builder.
+func (s *Server) handleCreateBitlockerKey(w http.ResponseWriter, r *http.Request) {
+	pass, ok := s.passphrase(w, r)
+	if !ok {
+		return
+	}
+	if s.builder == nil {
+		http.NotFound(w, r)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+	defer cancel()
+	if _, err := s.builder.CreateBitlockerKey(ctx, &openrmmv1.CreateBitlockerKeyRequest{Passphrase: pass}); err != nil {
+		s.flash(w, r, s.Tf(r, "Operazione non riuscita: %s", grpcMessage(err)), "/agent-installer#release-keys")
+		return
+	}
+	pub, err := s.builder.GetBitlockerPublicKey(ctx, &openrmmv1.BuilderStatusRequest{})
+	if err != nil || pub.GetPublicKeyPem() == "" {
+		s.flash(w, r, s.T(r, "Chiave creata, ma la chiave pubblica non è stata letta: riprova a ricaricare la pagina."), "/agent-installer#release-keys")
+		return
+	}
+	if err := s.store.SetBitlockerPublicKey(ctx, pub.GetPublicKeyPem()); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	s.auditAll(r.Context(), sessionFrom(r.Context()).data.Operator, "bitlocker_key.created", nil)
+	s.flash(w, r, s.T(r, "Chiave di cifratura BitLocker creata. Il backup delle recovery key parte alla prossima raccolta automatica."), "/agent-installer#release-keys")
+}
+
 // ---- approval ----
 
 func (s *Server) startPublish(kind string) ctxHandler {

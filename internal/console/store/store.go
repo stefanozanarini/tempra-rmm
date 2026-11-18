@@ -32,6 +32,10 @@ type ConsoleSettings struct {
 	// instead of the offline openrmm-admin CLI. An operator still needs a
 	// tenant in OPENRMM_TENANT_MAP to manage or switch to it.
 	MSPMode bool
+	// BitlockerPublicKeyPEM is the public half of the builder's BitLocker
+	// recovery-key encryption pair (never the private half), cached here so
+	// core can hand it to agents without ever talking to the builder.
+	BitlockerPublicKeyPEM string
 }
 
 type EnrollmentToken struct {
@@ -101,6 +105,7 @@ type Store interface {
 	// future switches), the zero value if never set.
 	GetConsoleSettings(ctx context.Context) (ConsoleSettings, error)
 	SetMSPMode(ctx context.Context, on bool) error
+	SetBitlockerPublicKey(ctx context.Context, pem string) error
 
 	CreateEnrollmentToken(ctx context.Context, t EnrollmentToken, tokenHash []byte) error
 	RevokeEnrollmentToken(ctx context.Context, id string) error
@@ -154,6 +159,7 @@ type Store interface {
 	DashStatsStore
 	PresenceStore
 	ScopeStore
+	BitlockerKeyStore
 }
 
 // HashToken returns the value stored in place of an enrollment token.

@@ -1,0 +1,13 @@
+{
+  "id": "bitlocker",
+  "version": "1.0.0",
+  "description": "Backs up BitLocker recovery keys, encrypted on the endpoint itself with the console's public key: the console never sees a recovery key in clear.",
+  "protocol_version": 1,
+  "entrypoints": {
+    "windows/amd64": { "type": "powershell", "path": "Main.ps1" },
+    "windows/arm64": { "type": "powershell", "path": "Main.ps1" }
+  },
+  "actions": {
+    "backup": { "description": "Encrypt and report the recovery key of every volume with BitLocker on", "timeout_seconds": 300 }
+  }
+}

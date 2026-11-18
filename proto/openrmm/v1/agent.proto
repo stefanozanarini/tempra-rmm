@@ -35,6 +35,11 @@ service AgentService {
   // the agent (see AgentUpdateOffer).
   rpc GetAgentRelease(GetAgentReleaseRequest) returns (stream ReleaseChunk);
 
+  // GetBitlockerPublicKey returns the public key BitLocker recovery keys
+  // are encrypted with before leaving the endpoint. Not a secret: no
+  // authorization beyond the agent's own client certificate.
+  rpc GetBitlockerPublicKey(GetBitlockerPublicKeyRequest) returns (GetBitlockerPublicKeyResponse);
+
   // Shell carries an interactive shell session opened by a signed job of a
   // module with the interactive_shell capability. The agent opens the
   // stream; its first frame names the job.
@@ -62,6 +67,16 @@ message ReleaseChunk {
   // File the data belongs to; files are sent one after the other.
   string file = 1;
   bytes data = 2;
+}
+
+message GetBitlockerPublicKeyRequest {}
+
+// Raw RSA public key (modulus, big-endian; exponent, big-endian), not PEM:
+// the module runs on Windows PowerShell 5.1 too, whose .NET Framework has
+// no PEM/DER import, but has had RSAParameters since .NET 1.1.
+message GetBitlockerPublicKeyResponse {
+  bytes modulus = 1;  // empty: the key pair has not been created yet
+  bytes exponent = 2;
 }
 
 message GetModuleRequest {

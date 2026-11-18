@@ -124,7 +124,8 @@ func (s *Service) archive() error {
 
 func (s *Service) status() (*openrmmv1.BuilderStatus, error) {
 	st := &openrmmv1.BuilderStatus{State: "none", DedicatedCa: s.exists(fileCAKey),
-		ModuleKey: s.publicKey(fileModuleKey), ReleaseKey: s.publicKey(fileReleaseKey)}
+		ModuleKey: s.publicKey(fileModuleKey), ReleaseKey: s.publicKey(fileReleaseKey),
+		BitlockerKey: s.exists(fileBitlockerKey)}
 	if chain, err := os.ReadFile(s.path(fileChain)); err == nil && s.exists(fileKey) {
 		st.State, st.ChainPem = "ready", string(chain)
 	}

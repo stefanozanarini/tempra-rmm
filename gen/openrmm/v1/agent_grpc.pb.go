@@ -129,12 +129,13 @@ var EnrollmentService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	AgentService_Connect_FullMethodName          = "/openrmm.v1.AgentService/Connect"
-	AgentService_RenewCertificate_FullMethodName = "/openrmm.v1.AgentService/RenewCertificate"
-	AgentService_GetModule_FullMethodName        = "/openrmm.v1.AgentService/GetModule"
-	AgentService_GetPackage_FullMethodName       = "/openrmm.v1.AgentService/GetPackage"
-	AgentService_GetAgentRelease_FullMethodName  = "/openrmm.v1.AgentService/GetAgentRelease"
-	AgentService_Shell_FullMethodName            = "/openrmm.v1.AgentService/Shell"
+	AgentService_Connect_FullMethodName               = "/openrmm.v1.AgentService/Connect"
+	AgentService_RenewCertificate_FullMethodName      = "/openrmm.v1.AgentService/RenewCertificate"
+	AgentService_GetModule_FullMethodName             = "/openrmm.v1.AgentService/GetModule"
+	AgentService_GetPackage_FullMethodName            = "/openrmm.v1.AgentService/GetPackage"
+	AgentService_GetAgentRelease_FullMethodName       = "/openrmm.v1.AgentService/GetAgentRelease"
+	AgentService_GetBitlockerPublicKey_FullMethodName = "/openrmm.v1.AgentService/GetBitlockerPublicKey"
+	AgentService_Shell_FullMethodName                 = "/openrmm.v1.AgentService/Shell"
 )
 
 // AgentServiceClient is the client API for AgentService service.
@@ -160,6 +161,10 @@ type AgentServiceClient interface {
 	// GetAgentRelease streams the executables of a signed release offered to
 	// the agent (see AgentUpdateOffer).
 	GetAgentRelease(ctx context.Context, in *GetAgentReleaseRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ReleaseChunk], error)
+	// GetBitlockerPublicKey returns the public key BitLocker recovery keys
+	// are encrypted with before leaving the endpoint. Not a secret: no
+	// authorization beyond the agent's own client certificate.
+	GetBitlockerPublicKey(ctx context.Context, in *GetBitlockerPublicKeyRequest, opts ...grpc.CallOption) (*GetBitlockerPublicKeyResponse, error)
 	// Shell carries an interactive shell session opened by a signed job of a
 	// module with the interactive_shell capability. The agent opens the
 	// stream; its first frame names the job.
@@ -254,6 +259,16 @@ func (c *agentServiceClient) GetAgentRelease(ctx context.Context, in *GetAgentRe
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AgentService_GetAgentReleaseClient = grpc.ServerStreamingClient[ReleaseChunk]
 
+func (c *agentServiceClient) GetBitlockerPublicKey(ctx context.Context, in *GetBitlockerPublicKeyRequest, opts ...grpc.CallOption) (*GetBitlockerPublicKeyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetBitlockerPublicKeyResponse)
+	err := c.cc.Invoke(ctx, AgentService_GetBitlockerPublicKey_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *agentServiceClient) Shell(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ShellFrame, ShellFrame], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &AgentService_ServiceDesc.Streams[4], AgentService_Shell_FullMethodName, cOpts...)
@@ -290,6 +305,10 @@ type AgentServiceServer interface {
 	// GetAgentRelease streams the executables of a signed release offered to
 	// the agent (see AgentUpdateOffer).
 	GetAgentRelease(*GetAgentReleaseRequest, grpc.ServerStreamingServer[ReleaseChunk]) error
+	// GetBitlockerPublicKey returns the public key BitLocker recovery keys
+	// are encrypted with before leaving the endpoint. Not a secret: no
+	// authorization beyond the agent's own client certificate.
+	GetBitlockerPublicKey(context.Context, *GetBitlockerPublicKeyRequest) (*GetBitlockerPublicKeyResponse, error)
 	// Shell carries an interactive shell session opened by a signed job of a
 	// module with the interactive_shell capability. The agent opens the
 	// stream; its first frame names the job.
@@ -318,6 +337,9 @@ func (UnimplementedAgentServiceServer) GetPackage(*GetPackageRequest, grpc.Serve
 }
 func (UnimplementedAgentServiceServer) GetAgentRelease(*GetAgentReleaseRequest, grpc.ServerStreamingServer[ReleaseChunk]) error {
 	return status.Error(codes.Unimplemented, "method GetAgentRelease not implemented")
+}
+func (UnimplementedAgentServiceServer) GetBitlockerPublicKey(context.Context, *GetBitlockerPublicKeyRequest) (*GetBitlockerPublicKeyResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetBitlockerPublicKey not implemented")
 }
 func (UnimplementedAgentServiceServer) Shell(grpc.BidiStreamingServer[ShellFrame, ShellFrame]) error {
 	return status.Error(codes.Unimplemented, "method Shell not implemented")
@@ -401,6 +423,24 @@ func _AgentService_GetAgentRelease_Handler(srv interface{}, stream grpc.ServerSt
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AgentService_GetAgentReleaseServer = grpc.ServerStreamingServer[ReleaseChunk]
 
+func _AgentService_GetBitlockerPublicKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetBitlockerPublicKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentServiceServer).GetBitlockerPublicKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentService_GetBitlockerPublicKey_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentServiceServer).GetBitlockerPublicKey(ctx, req.(*GetBitlockerPublicKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AgentService_Shell_Handler(srv interface{}, stream grpc.ServerStream) error {
 	return srv.(AgentServiceServer).Shell(&grpc.GenericServerStream[ShellFrame, ShellFrame]{ServerStream: stream})
 }
@@ -418,6 +458,10 @@ var AgentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RenewCertificate",
 			Handler:    _AgentService_RenewCertificate_Handler,
+		},
+		{
+			MethodName: "GetBitlockerPublicKey",
+			Handler:    _AgentService_GetBitlockerPublicKey_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

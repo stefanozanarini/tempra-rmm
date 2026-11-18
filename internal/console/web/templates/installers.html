@@ -103,6 +103,22 @@
   <button class="primary">{{t "Crea le chiavi"}}</button>
 </form>
 {{else}}<p class="muted">{{t "Le chiavi non sono ancora state create: le crea un amministratore della console."}}</p>{{end}}
+
+<h3 id="bitlocker-key">{{t "Chiave di cifratura BitLocker"}}{{help "section:bitlocker"}}</h3>
+{{if .BitlockerKey}}
+<p class="muted">{{t "Creata. Il backup delle recovery key BitLocker è attivo sugli endpoint che la raccolta automatica raggiunge."}}</p>
+{{else if .ConsoleAdmin}}
+<p>{{t "Una coppia di chiavi dedicata (mai le chiavi di firma sopra), con cui l'agente cifra la recovery key BitLocker prima di inviarla: il testo in chiaro non arriva mai qui. Si crea una volta sola."}}</p>
+<form method="post" action="/agent-installer/bitlocker/key" class="stack">
+  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+  {{if or .Chain .Signing.RequestPem}}
+  <label>{{t "Passphrase della chiave di firma"}} <input type="password" name="passphrase" required autocomplete="current-password"></label>
+  {{else}}
+  {{template "passphrase-fields" .MinPass}}
+  {{end}}
+  <button class="primary">{{t "Crea la chiave"}}</button>
+</form>
+{{else}}<p class="muted">{{t "La chiave non è ancora stata creata: la crea un amministratore della console."}}</p>{{end}}
 {{end}}
 
 <h2 id="build">{{t "Installer dell'agente"}}</h2>

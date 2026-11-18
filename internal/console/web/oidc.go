@@ -187,6 +187,8 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 		s.completeAssignment(w, r, sess, p, claims, raw)
 	case "profile":
 		s.completeProfile(w, r, sess, p, claims, raw)
+	case "bitlocker":
+		s.completeBitlockerView(w, r, sess, p, claims, s.verifier)
 	default:
 		http.Error(w, tr(lang, "accesso non valido"), http.StatusBadRequest)
 	}

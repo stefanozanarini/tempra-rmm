@@ -97,6 +97,13 @@ type agentData struct {
 	// agent is shown in the bottom panel of the agent list.
 	Return string
 	Panel  bool
+	// BitlockerKeys: the encrypted recovery key backed up for each drive
+	// (by drive letter, e.g. "C:"), if any.
+	BitlockerKeys map[string]store.BitlockerKey
+	// ApprovedBitlockerDrive: the drive a fresh MFA approval in this
+	// session covers right now, waiting for the signing passphrase ("" if
+	// none or expired).
+	ApprovedBitlockerDrive string
 }
 
 func (s *Server) handleAgent(w http.ResponseWriter, r *http.Request) {
@@ -165,6 +172,19 @@ func (s *Server) agentDetails(r *http.Request, t, id string) (*agentData, error)
 	}
 	if d.Notes, err = s.store.ListNotes(r.Context(), t, id, 100); err != nil {
 		return nil, err
+	}
+	keys, err := s.store.ListBitlockerKeys(r.Context(), t, id)
+	if err != nil {
+		return nil, err
+	}
+	d.BitlockerKeys = map[string]store.BitlockerKey{}
+	for _, k := range keys {
+		d.BitlockerKeys[k.Drive] = k
+	}
+	if sess := sessionFrom(r.Context()); sess != nil {
+		if a := sess.data.BitlockerApproval; a != nil && a.AgentID == id && s.now().Sub(a.At) < bitlockerApprovalTTL {
+			d.ApprovedBitlockerDrive = a.Drive
+		}
 	}
 	var ipv4 []string
 	if d.Inv != nil {

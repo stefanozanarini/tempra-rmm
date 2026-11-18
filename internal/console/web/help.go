@@ -52,6 +52,7 @@ var helpTexts = map[string]string{ // #nosec G101 -- help text, not credentials
 	"section:ad":             "Albero dei domini e delle OU di Active Directory: un clic filtra i computer di quella OU. I numeri contano i computer con l'agente.",
 	"section:assignment":     "Un'assegnazione permanente corre da sola sui computer del gruppo, compresi quelli che ci entrano dopo, senza chiedere una nuova approvazione MFA a ogni computer. L'amministratore approva una volta la revisione esatta del workflow, per quanto tempo vale e il tempo massimo di ogni singola esecuzione; scaduta l'assegnazione va riapprovata. Sospenderla non richiede MFA, riprenderla sì solo se non è scaduta.",
 	"section:network_shares": "Unità di rete montate nella sessione degli utenti collegati, non dell'agente (che gira come SYSTEM e non ne ha). Una share montata da un utente scollegato da tempo non appare più: non è un elenco di share configurate, ma di quelle connesse al momento della raccolta.",
+	"section:bitlocker":      "L'agente cifra la recovery key sul PC stesso con questa chiave pubblica, prima di inviarla: la console non vede mai il testo in chiaro. Per leggerla serve una nuova approvazione MFA più la passphrase della chiave di firma; ogni lettura viene registrata nel registro attività.",
 }
 
 // helpHTML renders the "?" of a key in lang, or nothing.

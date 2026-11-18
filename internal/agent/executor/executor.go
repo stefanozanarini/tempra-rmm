@@ -8,6 +8,7 @@ package executor
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -41,6 +42,10 @@ type Session interface {
 	// FetchPackage downloads a package of job jobID to dest, verifying its
 	// size and SHA-256.
 	FetchPackage(ctx context.Context, jobID string, ref *openrmmv1.PackageRef, dest string) error
+	// GetBitlockerPublicKey returns the public key (modulus, exponent)
+	// BitLocker recovery keys are encrypted with (both empty: not created
+	// on the console yet).
+	GetBitlockerPublicKey(ctx context.Context) (modulus, exponent []byte, err error)
 	// OpenShell opens the stream of an interactive shell session.
 	OpenShell(ctx context.Context) (ShellStream, error)
 }
@@ -483,6 +488,27 @@ func (e *Executor) run(job *openrmmv1.Job, quiet bool) *openrmmv1.JobUpdate {
 	if len(params) == 0 {
 		params = json.RawMessage("{}")
 	}
+	// The bitlocker module encrypts a recovery key with this public key
+	// before putting it in its result; the key is fetched here, live, so
+	// an already-enrolled endpoint picks up the current one on every run
+	// (no MSI/GPO push needed, and key rotation works for free).
+	if m.ID == "bitlocker" {
+		if sess := e.waitSession(30 * time.Second); sess != nil {
+			modulus, exponent, kerr := sess.GetBitlockerPublicKey(e.ctx)
+			if kerr != nil {
+				log.Warn("fetch bitlocker public key", "err", kerr)
+			} else if len(modulus) > 0 && len(exponent) > 0 {
+				var merr error
+				params, merr = addParams(params, map[string]string{
+					"rsa_modulus_b64":  base64.StdEncoding.EncodeToString(modulus),
+					"rsa_exponent_b64": base64.StdEncoding.EncodeToString(exponent),
+				})
+				if merr != nil {
+					log.Warn("merge bitlocker public key into params", "err", merr)
+				}
+			}
+		}
+	}
 	out, err := runner.Run(e.ctx, runner.Spec{
 		Type:      ep.Type,
 		Path:      filepath.Join(inst.FilesDir, filepath.FromSlash(ep.Path)),
@@ -556,6 +582,18 @@ func (e *Executor) readOutbox(id string) (*openrmmv1.AgentMessage, error) {
 	}
 	m := &openrmmv1.AgentMessage{}
 	return m, proto.Unmarshal(raw, m)
+}
+
+// addParams sets fields of a JSON params object, keeping the rest as is.
+func addParams(params json.RawMessage, fields map[string]string) (json.RawMessage, error) {
+	var m map[string]any
+	if err := json.Unmarshal(params, &m); err != nil {
+		m = map[string]any{}
+	}
+	for k, v := range fields {
+		m[k] = v
+	}
+	return json.Marshal(m)
 }
 
 func (e *Executor) pending() []*openrmmv1.AgentMessage {

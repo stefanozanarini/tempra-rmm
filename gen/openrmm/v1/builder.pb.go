@@ -143,12 +143,13 @@ func (x *CertSubject) GetCountry() string {
 
 type BuilderStatus struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	State         string                 `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`                                 // none | pending | ready
-	ChainPem      string                 `protobuf:"bytes,2,opt,name=chain_pem,json=chainPem,proto3" json:"chain_pem,omitempty"`           // signing certificate, then its CAs
-	DedicatedCa   bool                   `protobuf:"varint,3,opt,name=dedicated_ca,json=dedicatedCa,proto3" json:"dedicated_ca,omitempty"` // the CA key is held here too (renewal)
-	RequestPem    string                 `protobuf:"bytes,4,opt,name=request_pem,json=requestPem,proto3" json:"request_pem,omitempty"`     // pending certificate request
-	ModuleKey     string                 `protobuf:"bytes,5,opt,name=module_key,json=moduleKey,proto3" json:"module_key,omitempty"`        // public module release key, "ed25519:..."
-	ReleaseKey    string                 `protobuf:"bytes,6,opt,name=release_key,json=releaseKey,proto3" json:"release_key,omitempty"`     // public agent release key, "ed25519:..."
+	State         string                 `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`                                    // none | pending | ready
+	ChainPem      string                 `protobuf:"bytes,2,opt,name=chain_pem,json=chainPem,proto3" json:"chain_pem,omitempty"`              // signing certificate, then its CAs
+	DedicatedCa   bool                   `protobuf:"varint,3,opt,name=dedicated_ca,json=dedicatedCa,proto3" json:"dedicated_ca,omitempty"`    // the CA key is held here too (renewal)
+	RequestPem    string                 `protobuf:"bytes,4,opt,name=request_pem,json=requestPem,proto3" json:"request_pem,omitempty"`        // pending certificate request
+	ModuleKey     string                 `protobuf:"bytes,5,opt,name=module_key,json=moduleKey,proto3" json:"module_key,omitempty"`           // public module release key, "ed25519:..."
+	ReleaseKey    string                 `protobuf:"bytes,6,opt,name=release_key,json=releaseKey,proto3" json:"release_key,omitempty"`        // public agent release key, "ed25519:..."
+	BitlockerKey  bool                   `protobuf:"varint,7,opt,name=bitlocker_key,json=bitlockerKey,proto3" json:"bitlocker_key,omitempty"` // the BitLocker recovery-key encryption pair exists
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -223,6 +224,13 @@ func (x *BuilderStatus) GetReleaseKey() string {
 		return x.ReleaseKey
 	}
 	return ""
+}
+
+func (x *BuilderStatus) GetBitlockerKey() bool {
+	if x != nil {
+		return x.BitlockerKey
+	}
+	return false
 }
 
 type CreateCARequest struct {
@@ -771,6 +779,190 @@ func (x *SignManifestResponse) GetSignature() []byte {
 	return nil
 }
 
+type CreateBitlockerKeyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Passphrase    string                 `protobuf:"bytes,1,opt,name=passphrase,proto3" json:"passphrase,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateBitlockerKeyRequest) Reset() {
+	*x = CreateBitlockerKeyRequest{}
+	mi := &file_openrmm_v1_builder_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateBitlockerKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateBitlockerKeyRequest) ProtoMessage() {}
+
+func (x *CreateBitlockerKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_openrmm_v1_builder_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateBitlockerKeyRequest.ProtoReflect.Descriptor instead.
+func (*CreateBitlockerKeyRequest) Descriptor() ([]byte, []int) {
+	return file_openrmm_v1_builder_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *CreateBitlockerKeyRequest) GetPassphrase() string {
+	if x != nil {
+		return x.Passphrase
+	}
+	return ""
+}
+
+type BitlockerPublicKeyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PublicKeyPem  string                 `protobuf:"bytes,1,opt,name=public_key_pem,json=publicKeyPem,proto3" json:"public_key_pem,omitempty"` // empty: the key pair has not been created yet
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BitlockerPublicKeyResponse) Reset() {
+	*x = BitlockerPublicKeyResponse{}
+	mi := &file_openrmm_v1_builder_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BitlockerPublicKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BitlockerPublicKeyResponse) ProtoMessage() {}
+
+func (x *BitlockerPublicKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_openrmm_v1_builder_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BitlockerPublicKeyResponse.ProtoReflect.Descriptor instead.
+func (*BitlockerPublicKeyResponse) Descriptor() ([]byte, []int) {
+	return file_openrmm_v1_builder_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *BitlockerPublicKeyResponse) GetPublicKeyPem() string {
+	if x != nil {
+		return x.PublicKeyPem
+	}
+	return ""
+}
+
+type DecryptBitlockerKeyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ciphertext    []byte                 `protobuf:"bytes,1,opt,name=ciphertext,proto3" json:"ciphertext,omitempty"` // RSA-OAEP/SHA-256, encrypted by the endpoint
+	Passphrase    string                 `protobuf:"bytes,2,opt,name=passphrase,proto3" json:"passphrase,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecryptBitlockerKeyRequest) Reset() {
+	*x = DecryptBitlockerKeyRequest{}
+	mi := &file_openrmm_v1_builder_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecryptBitlockerKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecryptBitlockerKeyRequest) ProtoMessage() {}
+
+func (x *DecryptBitlockerKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_openrmm_v1_builder_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecryptBitlockerKeyRequest.ProtoReflect.Descriptor instead.
+func (*DecryptBitlockerKeyRequest) Descriptor() ([]byte, []int) {
+	return file_openrmm_v1_builder_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *DecryptBitlockerKeyRequest) GetCiphertext() []byte {
+	if x != nil {
+		return x.Ciphertext
+	}
+	return nil
+}
+
+func (x *DecryptBitlockerKeyRequest) GetPassphrase() string {
+	if x != nil {
+		return x.Passphrase
+	}
+	return ""
+}
+
+type DecryptBitlockerKeyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RecoveryKey   string                 `protobuf:"bytes,1,opt,name=recovery_key,json=recoveryKey,proto3" json:"recovery_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecryptBitlockerKeyResponse) Reset() {
+	*x = DecryptBitlockerKeyResponse{}
+	mi := &file_openrmm_v1_builder_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecryptBitlockerKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecryptBitlockerKeyResponse) ProtoMessage() {}
+
+func (x *DecryptBitlockerKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_openrmm_v1_builder_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecryptBitlockerKeyResponse.ProtoReflect.Descriptor instead.
+func (*DecryptBitlockerKeyResponse) Descriptor() ([]byte, []int) {
+	return file_openrmm_v1_builder_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *DecryptBitlockerKeyResponse) GetRecoveryKey() string {
+	if x != nil {
+		return x.RecoveryKey
+	}
+	return ""
+}
+
 var File_openrmm_v1_builder_proto protoreflect.FileDescriptor
 
 const file_openrmm_v1_builder_proto_rawDesc = "" +
@@ -785,7 +977,7 @@ const file_openrmm_v1_builder_proto_rawDesc = "" +
 	"\x13organizational_unit\x18\x03 \x01(\tR\x12organizationalUnit\x12\x1a\n" +
 	"\blocality\x18\x04 \x01(\tR\blocality\x12\x1a\n" +
 	"\bprovince\x18\x05 \x01(\tR\bprovince\x12\x18\n" +
-	"\acountry\x18\x06 \x01(\tR\acountry\"\xc6\x01\n" +
+	"\acountry\x18\x06 \x01(\tR\acountry\"\xeb\x01\n" +
 	"\rBuilderStatus\x12\x14\n" +
 	"\x05state\x18\x01 \x01(\tR\x05state\x12\x1b\n" +
 	"\tchain_pem\x18\x02 \x01(\tR\bchainPem\x12!\n" +
@@ -795,7 +987,8 @@ const file_openrmm_v1_builder_proto_rawDesc = "" +
 	"\n" +
 	"module_key\x18\x05 \x01(\tR\tmoduleKey\x12\x1f\n" +
 	"\vrelease_key\x18\x06 \x01(\tR\n" +
-	"releaseKey\"d\n" +
+	"releaseKey\x12#\n" +
+	"\rbitlocker_key\x18\a \x01(\bR\fbitlockerKey\"d\n" +
 	"\x0fCreateCARequest\x121\n" +
 	"\asubject\x18\x01 \x01(\v2\x17.openrmm.v1.CertSubjectR\asubject\x12\x1e\n" +
 	"\n" +
@@ -848,7 +1041,22 @@ const file_openrmm_v1_builder_proto_rawDesc = "" +
 	"passphrase\"K\n" +
 	"\x14SignManifestResponse\x12\x15\n" +
 	"\x06key_id\x18\x01 \x01(\tR\x05keyId\x12\x1c\n" +
-	"\tsignature\x18\x02 \x01(\fR\tsignature2\xa9\x05\n" +
+	"\tsignature\x18\x02 \x01(\fR\tsignature\";\n" +
+	"\x19CreateBitlockerKeyRequest\x12\x1e\n" +
+	"\n" +
+	"passphrase\x18\x01 \x01(\tR\n" +
+	"passphrase\"B\n" +
+	"\x1aBitlockerPublicKeyResponse\x12$\n" +
+	"\x0epublic_key_pem\x18\x01 \x01(\tR\fpublicKeyPem\"\\\n" +
+	"\x1aDecryptBitlockerKeyRequest\x12\x1e\n" +
+	"\n" +
+	"ciphertext\x18\x01 \x01(\fR\n" +
+	"ciphertext\x12\x1e\n" +
+	"\n" +
+	"passphrase\x18\x02 \x01(\tR\n" +
+	"passphrase\"@\n" +
+	"\x1bDecryptBitlockerKeyResponse\x12!\n" +
+	"\frecovery_key\x18\x01 \x01(\tR\vrecoveryKey2\xcc\a\n" +
 	"\x0eBuilderService\x12E\n" +
 	"\x06Status\x12 .openrmm.v1.BuilderStatusRequest\x1a\x19.openrmm.v1.BuilderStatus\x12B\n" +
 	"\bCreateCA\x12\x1b.openrmm.v1.CreateCARequest\x1a\x19.openrmm.v1.BuilderStatus\x12L\n" +
@@ -858,7 +1066,10 @@ const file_openrmm_v1_builder_proto_rawDesc = "" +
 	"\x05Renew\x12\x18.openrmm.v1.RenewRequest\x1a\x19.openrmm.v1.BuilderStatus\x12;\n" +
 	"\x05Build\x12\x18.openrmm.v1.BuildRequest\x1a\x16.openrmm.v1.BuildChunk0\x01\x12T\n" +
 	"\x11CreateReleaseKeys\x12$.openrmm.v1.CreateReleaseKeysRequest\x1a\x19.openrmm.v1.BuilderStatus\x12Q\n" +
-	"\fSignManifest\x12\x1f.openrmm.v1.SignManifestRequest\x1a .openrmm.v1.SignManifestResponseB@Z>github.com/stefanozanarini/tempra-rmm/gen/openrmm/v1;openrmmv1b\x06proto3"
+	"\fSignManifest\x12\x1f.openrmm.v1.SignManifestRequest\x1a .openrmm.v1.SignManifestResponse\x12V\n" +
+	"\x12CreateBitlockerKey\x12%.openrmm.v1.CreateBitlockerKeyRequest\x1a\x19.openrmm.v1.BuilderStatus\x12a\n" +
+	"\x15GetBitlockerPublicKey\x12 .openrmm.v1.BuilderStatusRequest\x1a&.openrmm.v1.BitlockerPublicKeyResponse\x12f\n" +
+	"\x13DecryptBitlockerKey\x12&.openrmm.v1.DecryptBitlockerKeyRequest\x1a'.openrmm.v1.DecryptBitlockerKeyResponseB@Z>github.com/stefanozanarini/tempra-rmm/gen/openrmm/v1;openrmmv1b\x06proto3"
 
 var (
 	file_openrmm_v1_builder_proto_rawDescOnce sync.Once
@@ -872,27 +1083,31 @@ func file_openrmm_v1_builder_proto_rawDescGZIP() []byte {
 	return file_openrmm_v1_builder_proto_rawDescData
 }
 
-var file_openrmm_v1_builder_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_openrmm_v1_builder_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_openrmm_v1_builder_proto_goTypes = []any{
-	(*BuilderStatusRequest)(nil),     // 0: openrmm.v1.BuilderStatusRequest
-	(*CertSubject)(nil),              // 1: openrmm.v1.CertSubject
-	(*BuilderStatus)(nil),            // 2: openrmm.v1.BuilderStatus
-	(*CreateCARequest)(nil),          // 3: openrmm.v1.CreateCARequest
-	(*CreateRequestRequest)(nil),     // 4: openrmm.v1.CreateRequestRequest
-	(*ImportCertificateRequest)(nil), // 5: openrmm.v1.ImportCertificateRequest
-	(*ImportPFXRequest)(nil),         // 6: openrmm.v1.ImportPFXRequest
-	(*RenewRequest)(nil),             // 7: openrmm.v1.RenewRequest
-	(*BuildRequest)(nil),             // 8: openrmm.v1.BuildRequest
-	(*BuildChunk)(nil),               // 9: openrmm.v1.BuildChunk
-	(*CreateReleaseKeysRequest)(nil), // 10: openrmm.v1.CreateReleaseKeysRequest
-	(*SignManifestRequest)(nil),      // 11: openrmm.v1.SignManifestRequest
-	(*SignManifestResponse)(nil),     // 12: openrmm.v1.SignManifestResponse
-	nil,                              // 13: openrmm.v1.BuildRequest.PropertiesEntry
+	(*BuilderStatusRequest)(nil),        // 0: openrmm.v1.BuilderStatusRequest
+	(*CertSubject)(nil),                 // 1: openrmm.v1.CertSubject
+	(*BuilderStatus)(nil),               // 2: openrmm.v1.BuilderStatus
+	(*CreateCARequest)(nil),             // 3: openrmm.v1.CreateCARequest
+	(*CreateRequestRequest)(nil),        // 4: openrmm.v1.CreateRequestRequest
+	(*ImportCertificateRequest)(nil),    // 5: openrmm.v1.ImportCertificateRequest
+	(*ImportPFXRequest)(nil),            // 6: openrmm.v1.ImportPFXRequest
+	(*RenewRequest)(nil),                // 7: openrmm.v1.RenewRequest
+	(*BuildRequest)(nil),                // 8: openrmm.v1.BuildRequest
+	(*BuildChunk)(nil),                  // 9: openrmm.v1.BuildChunk
+	(*CreateReleaseKeysRequest)(nil),    // 10: openrmm.v1.CreateReleaseKeysRequest
+	(*SignManifestRequest)(nil),         // 11: openrmm.v1.SignManifestRequest
+	(*SignManifestResponse)(nil),        // 12: openrmm.v1.SignManifestResponse
+	(*CreateBitlockerKeyRequest)(nil),   // 13: openrmm.v1.CreateBitlockerKeyRequest
+	(*BitlockerPublicKeyResponse)(nil),  // 14: openrmm.v1.BitlockerPublicKeyResponse
+	(*DecryptBitlockerKeyRequest)(nil),  // 15: openrmm.v1.DecryptBitlockerKeyRequest
+	(*DecryptBitlockerKeyResponse)(nil), // 16: openrmm.v1.DecryptBitlockerKeyResponse
+	nil,                                 // 17: openrmm.v1.BuildRequest.PropertiesEntry
 }
 var file_openrmm_v1_builder_proto_depIdxs = []int32{
 	1,  // 0: openrmm.v1.CreateCARequest.subject:type_name -> openrmm.v1.CertSubject
 	1,  // 1: openrmm.v1.CreateRequestRequest.subject:type_name -> openrmm.v1.CertSubject
-	13, // 2: openrmm.v1.BuildRequest.properties:type_name -> openrmm.v1.BuildRequest.PropertiesEntry
+	17, // 2: openrmm.v1.BuildRequest.properties:type_name -> openrmm.v1.BuildRequest.PropertiesEntry
 	0,  // 3: openrmm.v1.BuilderService.Status:input_type -> openrmm.v1.BuilderStatusRequest
 	3,  // 4: openrmm.v1.BuilderService.CreateCA:input_type -> openrmm.v1.CreateCARequest
 	4,  // 5: openrmm.v1.BuilderService.CreateRequest:input_type -> openrmm.v1.CreateRequestRequest
@@ -902,17 +1117,23 @@ var file_openrmm_v1_builder_proto_depIdxs = []int32{
 	8,  // 9: openrmm.v1.BuilderService.Build:input_type -> openrmm.v1.BuildRequest
 	10, // 10: openrmm.v1.BuilderService.CreateReleaseKeys:input_type -> openrmm.v1.CreateReleaseKeysRequest
 	11, // 11: openrmm.v1.BuilderService.SignManifest:input_type -> openrmm.v1.SignManifestRequest
-	2,  // 12: openrmm.v1.BuilderService.Status:output_type -> openrmm.v1.BuilderStatus
-	2,  // 13: openrmm.v1.BuilderService.CreateCA:output_type -> openrmm.v1.BuilderStatus
-	2,  // 14: openrmm.v1.BuilderService.CreateRequest:output_type -> openrmm.v1.BuilderStatus
-	2,  // 15: openrmm.v1.BuilderService.ImportCertificate:output_type -> openrmm.v1.BuilderStatus
-	2,  // 16: openrmm.v1.BuilderService.ImportPFX:output_type -> openrmm.v1.BuilderStatus
-	2,  // 17: openrmm.v1.BuilderService.Renew:output_type -> openrmm.v1.BuilderStatus
-	9,  // 18: openrmm.v1.BuilderService.Build:output_type -> openrmm.v1.BuildChunk
-	2,  // 19: openrmm.v1.BuilderService.CreateReleaseKeys:output_type -> openrmm.v1.BuilderStatus
-	12, // 20: openrmm.v1.BuilderService.SignManifest:output_type -> openrmm.v1.SignManifestResponse
-	12, // [12:21] is the sub-list for method output_type
-	3,  // [3:12] is the sub-list for method input_type
+	13, // 12: openrmm.v1.BuilderService.CreateBitlockerKey:input_type -> openrmm.v1.CreateBitlockerKeyRequest
+	0,  // 13: openrmm.v1.BuilderService.GetBitlockerPublicKey:input_type -> openrmm.v1.BuilderStatusRequest
+	15, // 14: openrmm.v1.BuilderService.DecryptBitlockerKey:input_type -> openrmm.v1.DecryptBitlockerKeyRequest
+	2,  // 15: openrmm.v1.BuilderService.Status:output_type -> openrmm.v1.BuilderStatus
+	2,  // 16: openrmm.v1.BuilderService.CreateCA:output_type -> openrmm.v1.BuilderStatus
+	2,  // 17: openrmm.v1.BuilderService.CreateRequest:output_type -> openrmm.v1.BuilderStatus
+	2,  // 18: openrmm.v1.BuilderService.ImportCertificate:output_type -> openrmm.v1.BuilderStatus
+	2,  // 19: openrmm.v1.BuilderService.ImportPFX:output_type -> openrmm.v1.BuilderStatus
+	2,  // 20: openrmm.v1.BuilderService.Renew:output_type -> openrmm.v1.BuilderStatus
+	9,  // 21: openrmm.v1.BuilderService.Build:output_type -> openrmm.v1.BuildChunk
+	2,  // 22: openrmm.v1.BuilderService.CreateReleaseKeys:output_type -> openrmm.v1.BuilderStatus
+	12, // 23: openrmm.v1.BuilderService.SignManifest:output_type -> openrmm.v1.SignManifestResponse
+	2,  // 24: openrmm.v1.BuilderService.CreateBitlockerKey:output_type -> openrmm.v1.BuilderStatus
+	14, // 25: openrmm.v1.BuilderService.GetBitlockerPublicKey:output_type -> openrmm.v1.BitlockerPublicKeyResponse
+	16, // 26: openrmm.v1.BuilderService.DecryptBitlockerKey:output_type -> openrmm.v1.DecryptBitlockerKeyResponse
+	15, // [15:27] is the sub-list for method output_type
+	3,  // [3:15] is the sub-list for method input_type
 	3,  // [3:3] is the sub-list for extension type_name
 	3,  // [3:3] is the sub-list for extension extendee
 	0,  // [0:3] is the sub-list for field type_name
@@ -929,7 +1150,7 @@ func file_openrmm_v1_builder_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_openrmm_v1_builder_proto_rawDesc), len(file_openrmm_v1_builder_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

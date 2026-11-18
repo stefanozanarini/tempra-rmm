@@ -26,6 +26,17 @@ service BuilderService {
   rpc CreateReleaseKeys(CreateReleaseKeysRequest) returns (BuilderStatus);
   // SignManifest signs a module or agent release manifest.
   rpc SignManifest(SignManifestRequest) returns (SignManifestResponse);
+  // CreateBitlockerKey creates the RSA key pair that BitLocker recovery
+  // keys are encrypted with on the endpoint itself, never with a signing
+  // key (a different purpose, deserving its own key pair).
+  rpc CreateBitlockerKey(CreateBitlockerKeyRequest) returns (BuilderStatus);
+  // GetBitlockerPublicKey returns the public key (not a secret, no
+  // passphrase needed), relayed to agents so they can encrypt recovery
+  // keys before sending them.
+  rpc GetBitlockerPublicKey(BuilderStatusRequest) returns (BitlockerPublicKeyResponse);
+  // DecryptBitlockerKey decrypts one BitLocker recovery key, the only way
+  // its plaintext is ever produced outside the endpoint it came from.
+  rpc DecryptBitlockerKey(DecryptBitlockerKeyRequest) returns (DecryptBitlockerKeyResponse);
 }
 
 message BuilderStatusRequest {}
@@ -46,6 +57,7 @@ message BuilderStatus {
   string request_pem = 4;    // pending certificate request
   string module_key = 5;     // public module release key, "ed25519:..."
   string release_key = 6;    // public agent release key, "ed25519:..."
+  bool bitlocker_key = 7;    // the BitLocker recovery-key encryption pair exists
 }
 
 message CreateCARequest {
@@ -101,4 +113,21 @@ message SignManifestRequest {
 message SignManifestResponse {
   string key_id = 1;
   bytes signature = 2;
+}
+
+message CreateBitlockerKeyRequest {
+  string passphrase = 1;
+}
+
+message BitlockerPublicKeyResponse {
+  string public_key_pem = 1; // empty: the key pair has not been created yet
+}
+
+message DecryptBitlockerKeyRequest {
+  bytes ciphertext = 1;  // RSA-OAEP/SHA-256, encrypted by the endpoint
+  string passphrase = 2;
+}
+
+message DecryptBitlockerKeyResponse {
+  string recovery_key = 1;
 }

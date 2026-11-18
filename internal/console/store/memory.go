@@ -52,6 +52,8 @@ type Memory struct {
 
 	scopes map[string]Scope // tenant/subject
 
+	bitlockerKeys map[string]BitlockerKey // tenant/agent/drive
+
 	consoleSettings ConsoleSettings
 }
 

@@ -19,15 +19,18 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	BuilderService_Status_FullMethodName            = "/openrmm.v1.BuilderService/Status"
-	BuilderService_CreateCA_FullMethodName          = "/openrmm.v1.BuilderService/CreateCA"
-	BuilderService_CreateRequest_FullMethodName     = "/openrmm.v1.BuilderService/CreateRequest"
-	BuilderService_ImportCertificate_FullMethodName = "/openrmm.v1.BuilderService/ImportCertificate"
-	BuilderService_ImportPFX_FullMethodName         = "/openrmm.v1.BuilderService/ImportPFX"
-	BuilderService_Renew_FullMethodName             = "/openrmm.v1.BuilderService/Renew"
-	BuilderService_Build_FullMethodName             = "/openrmm.v1.BuilderService/Build"
-	BuilderService_CreateReleaseKeys_FullMethodName = "/openrmm.v1.BuilderService/CreateReleaseKeys"
-	BuilderService_SignManifest_FullMethodName      = "/openrmm.v1.BuilderService/SignManifest"
+	BuilderService_Status_FullMethodName                = "/openrmm.v1.BuilderService/Status"
+	BuilderService_CreateCA_FullMethodName              = "/openrmm.v1.BuilderService/CreateCA"
+	BuilderService_CreateRequest_FullMethodName         = "/openrmm.v1.BuilderService/CreateRequest"
+	BuilderService_ImportCertificate_FullMethodName     = "/openrmm.v1.BuilderService/ImportCertificate"
+	BuilderService_ImportPFX_FullMethodName             = "/openrmm.v1.BuilderService/ImportPFX"
+	BuilderService_Renew_FullMethodName                 = "/openrmm.v1.BuilderService/Renew"
+	BuilderService_Build_FullMethodName                 = "/openrmm.v1.BuilderService/Build"
+	BuilderService_CreateReleaseKeys_FullMethodName     = "/openrmm.v1.BuilderService/CreateReleaseKeys"
+	BuilderService_SignManifest_FullMethodName          = "/openrmm.v1.BuilderService/SignManifest"
+	BuilderService_CreateBitlockerKey_FullMethodName    = "/openrmm.v1.BuilderService/CreateBitlockerKey"
+	BuilderService_GetBitlockerPublicKey_FullMethodName = "/openrmm.v1.BuilderService/GetBitlockerPublicKey"
+	BuilderService_DecryptBitlockerKey_FullMethodName   = "/openrmm.v1.BuilderService/DecryptBitlockerKey"
 )
 
 // BuilderServiceClient is the client API for BuilderService service.
@@ -56,6 +59,17 @@ type BuilderServiceClient interface {
 	CreateReleaseKeys(ctx context.Context, in *CreateReleaseKeysRequest, opts ...grpc.CallOption) (*BuilderStatus, error)
 	// SignManifest signs a module or agent release manifest.
 	SignManifest(ctx context.Context, in *SignManifestRequest, opts ...grpc.CallOption) (*SignManifestResponse, error)
+	// CreateBitlockerKey creates the RSA key pair that BitLocker recovery
+	// keys are encrypted with on the endpoint itself, never with a signing
+	// key (a different purpose, deserving its own key pair).
+	CreateBitlockerKey(ctx context.Context, in *CreateBitlockerKeyRequest, opts ...grpc.CallOption) (*BuilderStatus, error)
+	// GetBitlockerPublicKey returns the public key (not a secret, no
+	// passphrase needed), relayed to agents so they can encrypt recovery
+	// keys before sending them.
+	GetBitlockerPublicKey(ctx context.Context, in *BuilderStatusRequest, opts ...grpc.CallOption) (*BitlockerPublicKeyResponse, error)
+	// DecryptBitlockerKey decrypts one BitLocker recovery key, the only way
+	// its plaintext is ever produced outside the endpoint it came from.
+	DecryptBitlockerKey(ctx context.Context, in *DecryptBitlockerKeyRequest, opts ...grpc.CallOption) (*DecryptBitlockerKeyResponse, error)
 }
 
 type builderServiceClient struct {
@@ -165,6 +179,36 @@ func (c *builderServiceClient) SignManifest(ctx context.Context, in *SignManifes
 	return out, nil
 }
 
+func (c *builderServiceClient) CreateBitlockerKey(ctx context.Context, in *CreateBitlockerKeyRequest, opts ...grpc.CallOption) (*BuilderStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BuilderStatus)
+	err := c.cc.Invoke(ctx, BuilderService_CreateBitlockerKey_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *builderServiceClient) GetBitlockerPublicKey(ctx context.Context, in *BuilderStatusRequest, opts ...grpc.CallOption) (*BitlockerPublicKeyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BitlockerPublicKeyResponse)
+	err := c.cc.Invoke(ctx, BuilderService_GetBitlockerPublicKey_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *builderServiceClient) DecryptBitlockerKey(ctx context.Context, in *DecryptBitlockerKeyRequest, opts ...grpc.CallOption) (*DecryptBitlockerKeyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DecryptBitlockerKeyResponse)
+	err := c.cc.Invoke(ctx, BuilderService_DecryptBitlockerKey_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BuilderServiceServer is the server API for BuilderService service.
 // All implementations must embed UnimplementedBuilderServiceServer
 // for forward compatibility.
@@ -191,6 +235,17 @@ type BuilderServiceServer interface {
 	CreateReleaseKeys(context.Context, *CreateReleaseKeysRequest) (*BuilderStatus, error)
 	// SignManifest signs a module or agent release manifest.
 	SignManifest(context.Context, *SignManifestRequest) (*SignManifestResponse, error)
+	// CreateBitlockerKey creates the RSA key pair that BitLocker recovery
+	// keys are encrypted with on the endpoint itself, never with a signing
+	// key (a different purpose, deserving its own key pair).
+	CreateBitlockerKey(context.Context, *CreateBitlockerKeyRequest) (*BuilderStatus, error)
+	// GetBitlockerPublicKey returns the public key (not a secret, no
+	// passphrase needed), relayed to agents so they can encrypt recovery
+	// keys before sending them.
+	GetBitlockerPublicKey(context.Context, *BuilderStatusRequest) (*BitlockerPublicKeyResponse, error)
+	// DecryptBitlockerKey decrypts one BitLocker recovery key, the only way
+	// its plaintext is ever produced outside the endpoint it came from.
+	DecryptBitlockerKey(context.Context, *DecryptBitlockerKeyRequest) (*DecryptBitlockerKeyResponse, error)
 	mustEmbedUnimplementedBuilderServiceServer()
 }
 
@@ -227,6 +282,15 @@ func (UnimplementedBuilderServiceServer) CreateReleaseKeys(context.Context, *Cre
 }
 func (UnimplementedBuilderServiceServer) SignManifest(context.Context, *SignManifestRequest) (*SignManifestResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SignManifest not implemented")
+}
+func (UnimplementedBuilderServiceServer) CreateBitlockerKey(context.Context, *CreateBitlockerKeyRequest) (*BuilderStatus, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateBitlockerKey not implemented")
+}
+func (UnimplementedBuilderServiceServer) GetBitlockerPublicKey(context.Context, *BuilderStatusRequest) (*BitlockerPublicKeyResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetBitlockerPublicKey not implemented")
+}
+func (UnimplementedBuilderServiceServer) DecryptBitlockerKey(context.Context, *DecryptBitlockerKeyRequest) (*DecryptBitlockerKeyResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DecryptBitlockerKey not implemented")
 }
 func (UnimplementedBuilderServiceServer) mustEmbedUnimplementedBuilderServiceServer() {}
 func (UnimplementedBuilderServiceServer) testEmbeddedByValue()                        {}
@@ -404,6 +468,60 @@ func _BuilderService_SignManifest_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BuilderService_CreateBitlockerKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateBitlockerKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BuilderServiceServer).CreateBitlockerKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BuilderService_CreateBitlockerKey_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BuilderServiceServer).CreateBitlockerKey(ctx, req.(*CreateBitlockerKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BuilderService_GetBitlockerPublicKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BuilderStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BuilderServiceServer).GetBitlockerPublicKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BuilderService_GetBitlockerPublicKey_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BuilderServiceServer).GetBitlockerPublicKey(ctx, req.(*BuilderStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BuilderService_DecryptBitlockerKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DecryptBitlockerKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BuilderServiceServer).DecryptBitlockerKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BuilderService_DecryptBitlockerKey_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BuilderServiceServer).DecryptBitlockerKey(ctx, req.(*DecryptBitlockerKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BuilderService_ServiceDesc is the grpc.ServiceDesc for BuilderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -442,6 +560,18 @@ var BuilderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SignManifest",
 			Handler:    _BuilderService_SignManifest_Handler,
+		},
+		{
+			MethodName: "CreateBitlockerKey",
+			Handler:    _BuilderService_CreateBitlockerKey_Handler,
+		},
+		{
+			MethodName: "GetBitlockerPublicKey",
+			Handler:    _BuilderService_GetBitlockerPublicKey_Handler,
+		},
+		{
+			MethodName: "DecryptBitlockerKey",
+			Handler:    _BuilderService_DecryptBitlockerKey_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

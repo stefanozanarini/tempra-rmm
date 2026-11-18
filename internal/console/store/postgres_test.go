@@ -50,6 +50,7 @@ func TestPostgresReleases(t *testing.T)              { testReleases(t, openTestD
 func TestPostgresPolicyVersions(t *testing.T)        { testPolicyVersions(t, openTestDB(t)) }
 func TestPostgresInventories(t *testing.T)           { testInventories(t, openTestDB(t)) }
 func TestPostgresSecurity(t *testing.T)              { testSecurity(t, openTestDB(t)) }
+func TestPostgresBitlockerKeys(t *testing.T)         { testBitlockerKeys(t, openTestDB(t)) }
 func TestPostgresUpdateStatus(t *testing.T)          { testUpdateStatus(t, openTestDB(t)) }
 func TestPostgresPackagesAndCatalog(t *testing.T)    { testPackagesAndCatalog(t, openTestDB(t)) }
 func TestPostgresSitesAndNotes(t *testing.T)         { testSitesAndNotes(t, openTestDB(t)) }

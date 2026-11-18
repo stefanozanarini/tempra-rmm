@@ -38,6 +38,10 @@ var BaselineRules = []BaselineRule{
 	{"trendmicro", "status", 15 * time.Minute, &Condition{Any: []Condition{
 		{ServiceExists: "ntrtscan"}, {ServiceExists: "ds_agent"}, {ServiceExists: "EndpointBasecamp"}}}},
 	{"adinventory", "collect", 24 * time.Hour, &Condition{ServiceExists: "NTDS"}},
+	// No condition: the script itself no-ops where BitLocker is off or the
+	// console has not created the encryption key yet, the same idiom
+	// "inventory" uses for battery/privileged-groups.
+	{"bitlocker", "backup", 24 * time.Hour, nil},
 }
 
 // OnDemand lists read-only actions run only on request, never scheduled:

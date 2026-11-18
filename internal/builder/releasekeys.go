@@ -39,7 +39,7 @@ func (s *Service) checkPassphrase(pass string) error {
 	if len(pass) < codesign.MinPassphrase {
 		return invalid(errors.New("the passphrase must have at least 16 characters"))
 	}
-	for _, f := range []string{fileModuleKey, fileKey, fileCAKey, fileRequestKey} {
+	for _, f := range []string{fileModuleKey, fileBitlockerKey, fileKey, fileCAKey, fileRequestKey} {
 		raw, err := os.ReadFile(s.path(f))
 		if err != nil {
 			continue

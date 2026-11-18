@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -577,6 +578,54 @@ func testSecurity(t *testing.T, s Store) {
 	}
 	if byAgent, byUser, _ := s.TopFailedLogons(ctx, ids.NewUUID(), now.Add(-7*24*time.Hour), 10); len(byAgent)+len(byUser) != 0 {
 		t.Fatal("failed logons visible from another tenant")
+	}
+}
+
+func TestBitlockerKeys(t *testing.T) { testBitlockerKeys(t, NewMemory()) }
+
+func testBitlockerKeys(t *testing.T, s Store) {
+	ctx := context.Background()
+	tenant := Tenant{ID: ids.NewUUID(), Name: "t"}
+	s.CreateTenant(ctx, tenant)
+	agent := Agent{TenantID: tenant.ID, ID: ids.NewUUID(), Status: AgentActive, Host: HostInfo{Hostname: "pc"},
+		CertFingerprint: "fp", CertNotAfter: time.Now().Add(time.Hour)}
+	s.CreateAgent(ctx, agent)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// The console never holds a plaintext key: only ciphertext ever passes
+	// through this store, exactly as the agent sent it.
+	k := BitlockerKey{TenantID: tenant.ID, AgentID: agent.ID, Drive: "C:", KeyProtectorID: "{kp-1}",
+		Ciphertext: []byte{0xDE, 0xAD, 0xBE, 0xEF}, UpdatedAt: now}
+	if err := s.PutBitlockerKey(ctx, k); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.PutBitlockerKey(ctx, BitlockerKey{TenantID: tenant.ID, AgentID: ids.NewUUID(), Drive: "C:", UpdatedAt: now}); err != ErrNotFound {
+		t.Fatalf("unknown agent: %v", err)
+	}
+	if got, err := s.GetBitlockerKey(ctx, tenant.ID, agent.ID, "C:"); err != nil || !bytes.Equal(got.Ciphertext, k.Ciphertext) || got.KeyProtectorID != k.KeyProtectorID {
+		t.Fatalf("get = %+v, %v", got, err)
+	}
+	if _, err := s.GetBitlockerKey(ctx, tenant.ID, agent.ID, "D:"); err != ErrNotFound {
+		t.Fatalf("unknown drive: %v", err)
+	}
+	// A later backup of the same drive replaces it, never accumulates.
+	k2 := k
+	k2.Ciphertext, k2.UpdatedAt = []byte{0x01, 0x02}, now.Add(time.Hour)
+	if err := s.PutBitlockerKey(ctx, k2); err != nil {
+		t.Fatal(err)
+	}
+	if list, err := s.ListBitlockerKeys(ctx, tenant.ID, agent.ID); err != nil || len(list) != 1 || !bytes.Equal(list[0].Ciphertext, k2.Ciphertext) {
+		t.Fatalf("list = %+v, %v", list, err)
+	}
+	// A second drive just adds to the list.
+	if err := s.PutBitlockerKey(ctx, BitlockerKey{TenantID: tenant.ID, AgentID: agent.ID, Drive: "D:", Ciphertext: []byte{0x09}, UpdatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	if list, _ := s.ListBitlockerKeys(ctx, tenant.ID, agent.ID); len(list) != 2 {
+		t.Fatalf("list after second drive = %+v", list)
+	}
+	if list, _ := s.ListBitlockerKeys(ctx, ids.NewUUID(), agent.ID); len(list) != 0 {
+		t.Fatal("keys visible from another tenant")
 	}
 }
 

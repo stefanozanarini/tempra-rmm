@@ -1,0 +1,11 @@
+{{define "content"}}
+{{with .Data}}
+<p class="flash">{{t "Questa pagina non verrà mostrata di nuovo: la chiave non resta salvata da nessuna parte nella console, solo che è stata letta, da chi e quando (registro attività)."}}</p>
+<dl class="facts">
+  <dt>{{t "Computer"}}</dt><dd><a href="/agents/{{.Agent.ID}}">{{.Agent.Host.Hostname}}</a></dd>
+  <dt>{{t "Unità"}}</dt><dd>{{.Drive}}</dd>
+  <dt>{{t "Recovery key"}}</dt><dd><code class="small">{{.RecoveryKey}}</code></dd>
+</dl>
+<p><a href="/agents/{{.Agent.ID}}?tab=inventory">{{t "Torna al computer"}}</a></p>
+{{end}}
+{{end}}
