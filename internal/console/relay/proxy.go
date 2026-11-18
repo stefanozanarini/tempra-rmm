@@ -53,13 +53,14 @@ var _ encoding.CodecV2 = rawCodec{}
 // allowed lists what agents may reach through the gateway. Anything else
 // (including future internal services on the core) is refused at the edge.
 var allowed = map[string]bool{
-	openrmmv1.EnrollmentService_Enroll_FullMethodName:      false, // false: no client certificate needed
-	openrmmv1.AgentService_Connect_FullMethodName:          true,
-	openrmmv1.AgentService_RenewCertificate_FullMethodName: true,
-	openrmmv1.AgentService_GetModule_FullMethodName:        true,
-	openrmmv1.AgentService_GetPackage_FullMethodName:       true,
-	openrmmv1.AgentService_GetAgentRelease_FullMethodName:  true,
-	openrmmv1.AgentService_Shell_FullMethodName:            true,
+	openrmmv1.EnrollmentService_Enroll_FullMethodName:           false, // false: no client certificate needed
+	openrmmv1.AgentService_Connect_FullMethodName:               true,
+	openrmmv1.AgentService_RenewCertificate_FullMethodName:      true,
+	openrmmv1.AgentService_GetModule_FullMethodName:             true,
+	openrmmv1.AgentService_GetPackage_FullMethodName:            true,
+	openrmmv1.AgentService_GetAgentRelease_FullMethodName:       true,
+	openrmmv1.AgentService_Shell_FullMethodName:                 true,
+	openrmmv1.AgentService_GetBitlockerPublicKey_FullMethodName: true,
 }
 
 // Gateway is the DMZ side: it accepts agents and forwards their calls over
