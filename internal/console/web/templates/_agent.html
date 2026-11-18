@@ -1,3 +1,15 @@
+{{define "script-presets"}}{{if .}}
+<label>{{t "Script pronto (facoltativo)"}}
+  <select class="script-preset">
+    <option value="">{{t "— scegli dalla libreria —"}}</option>
+    <optgroup label="{{t "Manutenzione"}}">{{range .}}{{if eq .Category "Manutenzione"}}<option value="{{.Script}}" title="{{.Description}}">{{.Name}}</option>{{end}}{{end}}</optgroup>
+    <optgroup label="{{t "Diagnostica"}}">{{range .}}{{if eq .Category "Diagnostica"}}<option value="{{.Script}}" title="{{.Description}}">{{.Name}}</option>{{end}}{{end}}</optgroup>
+    <optgroup label="{{t "Riparazione"}}">{{range .}}{{if eq .Category "Riparazione"}}<option value="{{.Script}}" title="{{.Description}}">{{.Name}}</option>{{end}}{{end}}</optgroup>
+  </select>
+</label>
+<p class="muted small">{{t "Sceglierne uno sostituisce il testo sotto, che resta comunque modificabile prima di eseguire."}}</p>
+{{end}}{{end}}
+
 {{define "agent-facts"}}
 {{with .Data}}
 <dl class="facts">
@@ -453,6 +465,7 @@
 <form method="post" action="/agents/{{$id}}/jobs" class="stack">
   <input type="hidden" name="csrf" value="{{$csrf}}">
   <input type="hidden" name="target" value="{{.Module}}|{{.Version}}|{{.Action}}">
+  {{template "script-presets" $.Data.Presets}}
   <label>Script ({{.Module}} {{.Version}})
     <textarea name="script" rows="10" spellcheck="false" placeholder="Get-Service | Where-Object Status -eq 'Stopped'"></textarea>
   </label>

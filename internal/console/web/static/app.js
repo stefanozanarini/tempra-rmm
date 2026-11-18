@@ -39,6 +39,17 @@
     });
   }
 
+  // Picking a script from the built-in library fills the textarea next to
+  // it, which stays editable (the operator may still change it before the
+  // approval); it is not resubmitted on its own (no "name").
+  document.querySelectorAll("select.script-preset").forEach(function (sel) {
+    sel.addEventListener("change", function () {
+      if (!sel.value) return;
+      var ta = sel.closest("form").querySelector('textarea[name="script"]');
+      if (ta) ta.value = sel.value;
+    });
+  });
+
   // "Select all" boxes tick every agent box of their form.
   document.querySelectorAll("input[data-check-all]").forEach(function (all) {
     all.addEventListener("change", function () {

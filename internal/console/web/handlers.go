@@ -68,8 +68,9 @@ type agentData struct {
 	Results  []resultView
 	Jobs     []store.Job
 	Actions  []runnable
-	Commands []runnable // regular module actions
-	Scripts  []runnable // ad-hoc script actions
+	Commands []runnable     // regular module actions
+	Scripts  []runnable     // ad-hoc script actions
+	Presets  []scriptPreset // built-in script library, offered alongside Scripts
 	Online   bool
 	Inv      *inventory.Inventory
 	InvAt    time.Time
@@ -219,6 +220,9 @@ func (s *Server) agentDetails(r *http.Request, t, id string) (*agentData, error)
 			} else {
 				d.Commands = append(d.Commands, x)
 			}
+		}
+		if len(d.Scripts) > 0 {
+			d.Presets = scriptPresets
 		}
 	}
 	return d, nil

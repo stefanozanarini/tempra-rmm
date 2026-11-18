@@ -21,6 +21,10 @@ type bulkData struct {
 	Sites    []store.Site
 	Commands []runnable
 	Scripts  []runnable
+	// Presets: the built-in script library, offered whenever Scripts is not
+	// empty (the ad-hoc script module is available for every selected
+	// agent's platform). They are PowerShell, so offered on Windows only.
+	Presets  []scriptPreset
 	Packages []store.Package
 	// Preset: the action opened with its parameters filled in (?action=
 	// module.action&p.<name>=…), and why (?for=, e.g. a CVE).
@@ -154,6 +158,9 @@ func (s *Server) handleBulkForm(w http.ResponseWriter, r *http.Request) {
 	}
 	sortRunnables(d.Commands)
 	sortRunnables(d.Scripts)
+	if len(d.Scripts) > 0 {
+		d.Presets = scriptPresets
+	}
 	q := r.URL.Query()
 	if preset := q.Get("action"); preset != "" {
 		for i := range d.Commands {

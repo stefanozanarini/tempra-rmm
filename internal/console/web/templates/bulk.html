@@ -76,6 +76,7 @@
   <input type="hidden" name="csrf" value="{{$.CSRF}}">
   {{range $.Data.Agents}}<input type="hidden" name="agent" value="{{.ID}}">{{end}}
   <input type="hidden" name="target" value="{{.Module}}|{{.Version}}|{{.Action}}">
+  {{template "script-presets" $.Data.Presets}}
   <label>Script ({{.Module}} {{.Version}}) <textarea name="script" rows="10" spellcheck="false"></textarea></label>
   {{template "ttl"}}
   <p class="muted">{{t "Il testo completo dello script viene registrato nel registro attività."}}</p>
