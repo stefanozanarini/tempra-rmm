@@ -117,7 +117,8 @@ func (s *Server) ingestInventory(ctx context.Context, a store.Agent, raw []byte)
 		CollectedAt: inv.CollectedAt, Manufacturer: inv.System.Manufacturer, Model: inv.System.Model,
 		Serial: inv.System.Serial, LoggedOnUser: inv.OS.LoggedOnUser, ScreenLocked: inv.OS.ScreenLocked,
 		SupremoID: inv.RemoteAccess.SupremoID,
-		AnyDeskID: inv.RemoteAccess.AnyDeskID, TeamViewerID: inv.RemoteAccess.TeamViewerID, IPv4: inv.IPv4()}}
+		AnyDeskID: inv.RemoteAccess.AnyDeskID, TeamViewerID: inv.RemoteAccess.TeamViewerID, IPv4: inv.IPv4(),
+		HasBattery: len(inv.Batteries) > 0}}
 	switch err := s.store.PutInventory(ctx, rec, changes); {
 	case err == nil:
 		s.log.Info("inventory stored", "agent", a.ID, "software", len(inv.Software), "changes", len(changes))

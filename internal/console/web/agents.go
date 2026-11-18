@@ -58,6 +58,19 @@ var agentFilters = []struct{ Key, Label string }{
 	{"apps", "App da aggiornare"},
 }
 
+// DeviceIcon names the navicon for the row's device: a server (told apart
+// by OS family), a laptop (it reported a battery) or a desktop otherwise.
+func (row agentRow) DeviceIcon() string {
+	switch {
+	case row.Host.OSFamily == "server":
+		return "server"
+	case row.Inv.HasBattery:
+		return "laptop"
+	default:
+		return "monitor"
+	}
+}
+
 // shows tells whether the row is in the state filter f ("" is all).
 func (row agentRow) shows(f string) bool {
 	switch f {

@@ -15,41 +15,41 @@
   {{if .Operator}}
   <nav class="main">
     <details class="menu"><summary>{{navicon "monitor"}}{{t "Agenti"}}</summary><div>
-      <a href="/agents?family=client">{{t "Client"}}</a>
-      <a href="/agents?family=server">{{t "Server"}}</a>
-      <a href="/agents">{{t "Tutti gli agenti"}}</a>
-      <a href="/groups">{{t "Gruppi"}}</a>
+      <a href="/agents?family=client">{{navicon "monitor"}}{{t "Client"}}</a>
+      <a href="/agents?family=server">{{navicon "server"}}{{t "Server"}}</a>
+      <a href="/agents">{{navicon "monitor"}}{{t "Tutti gli agenti"}}</a>
+      <a href="/groups">{{navicon "users"}}{{t "Gruppi"}}</a>
     </div></details>
     <a href="/jobs">{{navicon "terminal"}}{{t "Job"}}</a>
     <a href="/patches">{{navicon "shield-check"}}{{t "Patch"}}</a>
     <details class="menu"><summary>{{navicon "grid"}}Software</summary><div>
-      <a href="/packages">{{t "Libreria"}}</a>
-      <a href="/workflows">{{t "Workflow"}}</a>
+      <a href="/packages">{{navicon "book"}}{{t "Libreria"}}</a>
+      <a href="/workflows">{{navicon "git-branch"}}{{t "Workflow"}}</a>
     </div></details>
     <details class="menu"><summary>{{navicon "laptop"}}Provisioning</summary><div>
-      <a href="/provisioning">{{t "Profili"}}</a>
-      <a href="/provisioning/runs">{{t "Esecuzioni"}}</a>
+      <a href="/provisioning">{{navicon "sliders"}}{{t "Profili"}}</a>
+      <a href="/provisioning/runs">{{navicon "play"}}{{t "Esecuzioni"}}</a>
     </div></details>
     <details class="menu"><summary>{{navicon "package"}}{{t "Distribuzione"}}</summary><div>
-      {{if .CanRun}}<a href="/agent-installer">{{t "Installer"}}</a>{{end}}
-      <a href="/updates">{{t "Versioni agente"}}</a>
-      <a href="/modules">{{t "Moduli"}}</a>
-      <a href="/policies">Policy</a>
+      {{if .CanRun}}<a href="/agent-installer">{{navicon "download"}}{{t "Installer"}}</a>{{end}}
+      <a href="/updates">{{navicon "tag"}}{{t "Versioni agente"}}</a>
+      <a href="/modules">{{navicon "package"}}{{t "Moduli"}}</a>
+      <a href="/policies">{{navicon "file-text"}}Policy</a>
     </div></details>
     <details class="menu"><summary>{{navicon "bar-chart"}}Reporting{{if .OpenAlerts}} <span class="badge sev-critical">{{.OpenAlerts}}</span>{{end}}</summary><div>
-      <a href="/reports">Reporting</a>
-      <a href="/alerts">{{t "Avvisi"}}{{if .OpenAlerts}} <span class="badge sev-critical">{{.OpenAlerts}}</span>{{end}}</a>
-      <a href="/audit">{{t "Attività"}}</a>
+      <a href="/reports">{{navicon "bar-chart"}}Reporting</a>
+      <a href="/alerts">{{navicon "bell"}}{{t "Avvisi"}}{{if .OpenAlerts}} <span class="badge sev-critical">{{.OpenAlerts}}</span>{{end}}</a>
+      <a href="/audit">{{navicon "activity"}}{{t "Attività"}}</a>
     </div></details>
     <details class="menu"><summary>{{navicon "shield"}}Security</summary><div>
-      <a href="/security">Dashboard</a>
-      <a href="/security/vulnerabilities">{{t "Vulnerabilità"}}</a>
+      <a href="/security">{{navicon "bar-chart"}}Dashboard</a>
+      <a href="/security/vulnerabilities">{{navicon "alert-triangle"}}{{t "Vulnerabilità"}}</a>
     </div></details>
     {{if .IsSuper}}<details class="menu"><summary>{{navicon "settings"}}{{t "Amministrazione"}}</summary><div>
-      <a href="/settings">{{t "Impostazioni"}}</a>
-      <a href="/setup">{{t "Configurazione"}}</a>
-      <a href="/scopes">{{t "Ambiti"}}</a>
-      {{if .ShowCustomers}}<a href="/customers">{{t "Clienti"}}</a>{{end}}
+      <a href="/settings">{{navicon "settings"}}{{t "Impostazioni"}}</a>
+      <a href="/setup">{{navicon "wrench"}}{{t "Configurazione"}}</a>
+      <a href="/scopes">{{navicon "key"}}{{t "Ambiti"}}</a>
+      {{if .ShowCustomers}}<a href="/customers">{{navicon "building"}}{{t "Clienti"}}</a>{{end}}
     </div></details>{{end}}
     {{if or .ShowLinks .Federated}}<a href="/federation">{{navicon "link"}}{{t "Console collegate"}}</a>{{end}}
   </nav>

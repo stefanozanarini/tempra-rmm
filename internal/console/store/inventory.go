@@ -28,6 +28,7 @@ type InventorySummary struct {
 	AnyDeskID    string
 	TeamViewerID string
 	IPv4         []string // adapter addresses, for site matching
+	HasBattery   bool     // laptop, as opposed to a desktop (servers are told apart by OSFamily)
 }
 
 // Inventory is the latest inventory of an agent.
@@ -148,14 +149,14 @@ func (p *Postgres) PutInventory(ctx context.Context, inv Inventory, changes []In
 	s := inv.Summary
 	err := p.inTenant(ctx, inv.TenantID, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx, `INSERT INTO inventories (tenant_id, agent_id, collected_at, data, manufacturer, model,
-			serial, logged_on_user, screen_locked, supremo_id, anydesk_id, teamviewer_id, ipv4) VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+			serial, logged_on_user, screen_locked, supremo_id, anydesk_id, teamviewer_id, ipv4, has_battery) VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
 			ON CONFLICT (tenant_id, agent_id) DO UPDATE SET collected_at = EXCLUDED.collected_at, received_at = now(),
 			data = EXCLUDED.data, manufacturer = EXCLUDED.manufacturer, model = EXCLUDED.model, serial = EXCLUDED.serial,
 			logged_on_user = EXCLUDED.logged_on_user, screen_locked = EXCLUDED.screen_locked, supremo_id = EXCLUDED.supremo_id, anydesk_id = EXCLUDED.anydesk_id,
-			teamviewer_id = EXCLUDED.teamviewer_id, ipv4 = EXCLUDED.ipv4
+			teamviewer_id = EXCLUDED.teamviewer_id, ipv4 = EXCLUDED.ipv4, has_battery = EXCLUDED.has_battery
 			WHERE inventories.collected_at <= EXCLUDED.collected_at`,
 			inv.TenantID, inv.AgentID, s.CollectedAt, string(inv.Data), s.Manufacturer, s.Model, s.Serial,
-			s.LoggedOnUser, s.ScreenLocked, s.SupremoID, s.AnyDeskID, s.TeamViewerID, nonNil(s.IPv4))
+			s.LoggedOnUser, s.ScreenLocked, s.SupremoID, s.AnyDeskID, s.TeamViewerID, nonNil(s.IPv4), s.HasBattery)
 		if err != nil {
 			return err
 		}
@@ -189,12 +190,12 @@ func (p *Postgres) PutInventory(ctx context.Context, inv Inventory, changes []In
 	return err
 }
 
-const summaryColumns = `agent_id::text, collected_at, manufacturer, model, serial, logged_on_user, screen_locked, supremo_id, anydesk_id, teamviewer_id, ipv4`
+const summaryColumns = `agent_id::text, collected_at, manufacturer, model, serial, logged_on_user, screen_locked, supremo_id, anydesk_id, teamviewer_id, ipv4, has_battery`
 
 func scanSummary(row pgx.Row, extra ...any) (InventorySummary, error) {
 	var s InventorySummary
 	dest := append([]any{&s.AgentID, &s.CollectedAt, &s.Manufacturer, &s.Model, &s.Serial, &s.LoggedOnUser, &s.ScreenLocked,
-		&s.SupremoID, &s.AnyDeskID, &s.TeamViewerID, &s.IPv4}, extra...)
+		&s.SupremoID, &s.AnyDeskID, &s.TeamViewerID, &s.IPv4, &s.HasBattery}, extra...)
 	return s, row.Scan(dest...)
 }
 

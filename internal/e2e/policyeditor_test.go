@@ -27,7 +27,7 @@ func TestConsolePolicyEditor(t *testing.T) {
 	c, csrf := e.login(t, admin)
 
 	_, body := get(t, c, e.console.URL+"/policies/new")
-	for _, want := range []string{`href="/policies">Policy</a>`, `name="on.firmware.install-tool"`, `name="p.reboot.reboot.notice_minutes"`,
+	for _, want := range []string{`href="/policies">`, `name="on.firmware.install-tool"`, `name="p.reboot.reboot.notice_minutes"`,
 		`name="day.reboot.reboot.sat"`, "?mode=json"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("editor lacks %q: %s", want, body)
