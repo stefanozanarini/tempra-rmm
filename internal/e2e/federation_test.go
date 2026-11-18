@@ -206,3 +206,39 @@ func TestFederationRoleCapAndUntrustedSigner(t *testing.T) {
 		t.Fatal("admin menu shown to a capped operator")
 	}
 }
+
+func TestFederationTenantSelector(t *testing.T) {
+	var hub *federation.Hub
+	central := startConsole(t, withHub(t, &hub))
+	customer := startConsole(t, withCentral(t, central, ""))
+	customer.addWindowsAgent(t, "PC-CLIENTE")
+	central.idp.signIn(mspAdmin)
+	c, _, l := link(t, central, customer, hub)
+	post(t, c, central.console.URL+"/federation/close", url.Values{"csrf": {csrfOf(t, c, central)}})
+
+	// The central console's own pages list the linked console in the selector.
+	_, body := get(t, c, central.console.URL+"/agents")
+	if !strings.Contains(body, `action="/federation/tenant"`) || !strings.Contains(body, `value="link:`+l.ID+`"`) || !strings.Contains(body, "🔗 Cliente Alfa") {
+		t.Fatalf("linked console not in the selector: %s", body)
+	}
+	if strings.Contains(body, "PC-CLIENTE") {
+		t.Fatal("customer page shown before opening the link")
+	}
+
+	// Choosing it opens the linked console.
+	_, body, final := post(t, c, central.console.URL+"/federation/tenant", url.Values{"csrf": {csrfFrom(t, body)}, "tenant": {"link:" + l.ID}})
+	if final.Path != "/agents" || !strings.Contains(body, "PC-CLIENTE") {
+		t.Fatalf("link not opened from the selector: at %s: %s", final, body)
+	}
+
+	// Choosing the central tenant again, from a central page, closes it.
+	post(t, c, central.console.URL+"/federation/tenant", url.Values{"csrf": {csrfOf(t, c, central)}, "tenant": {central.tenant}})
+	if _, body = get(t, c, central.console.URL+"/agents"); strings.Contains(body, "PC-CLIENTE") {
+		t.Fatal("linked console still open after choosing a tenant")
+	}
+
+	// Unknown or foreign link ids are refused.
+	if code, _, _ := post(t, c, central.console.URL+"/federation/tenant", url.Values{"csrf": {csrfOf(t, c, central)}, "tenant": {"link:" + ids.NewUUID()}}); code != http.StatusNotFound {
+		t.Fatalf("unknown link: %d", code)
+	}
+}

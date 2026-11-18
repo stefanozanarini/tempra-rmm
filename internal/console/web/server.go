@@ -479,6 +479,9 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /federation/links", s.role(authn.RoleSuperadmin, s.handleCreateLink))
 	mux.Handle("POST /federation/links/{id}/revoke", s.role(authn.RoleSuperadmin, s.handleRevokeLink))
 	mux.Handle("POST /federation/open", s.auth(s.handleOpenLink))
+	// The tenant selector with linked consoles: under /federation so that it
+	// reaches this console even while a linked console is open.
+	mux.Handle("POST /federation/tenant", s.auth(s.handleSelectTenant))
 	mux.Handle("POST /federation/close", s.auth(s.handleCloseLink))
 	mux.Handle("GET /federation/stepup", s.role(authn.RoleOperator, s.handleFedStepUp))
 	mux.Handle("POST /federation/join", s.role(authn.RoleSuperadmin, s.handleJoin))
@@ -615,6 +618,10 @@ type page struct {
 	Federated     bool
 	ShowLinks     bool
 	ShowCustomers bool
+	// Links: the active linked consoles of the operator's tenants, offered
+	// in the tenant selector; Link is the one open, if any.
+	Links []store.FederationLink
+	Link  string
 	// HasLogo: the tenant has a company logo (served at /logo).
 	HasLogo bool
 }
@@ -644,7 +651,17 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, name, title stri
 					p.Tenant = t
 				}
 			}
+			if s.hub != nil && !op.Federated {
+				if ls, err := s.store.ListLinks(r.Context(), id); err == nil {
+					for _, l := range ls {
+						if l.Status == store.LinkActive {
+							p.Links = append(p.Links, l)
+						}
+					}
+				}
+			}
 		}
+		p.Link = sess.data.Link
 		if sess.data.Tenant != "" {
 			if open, err := s.store.ListAlerts(r.Context(), sess.data.Tenant, "", true, 1000); err == nil {
 				p.OpenAlerts = len(open)

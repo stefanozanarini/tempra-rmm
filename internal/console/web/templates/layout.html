@@ -54,10 +54,10 @@
     {{if or .ShowLinks .Federated}}<a href="/federation">{{t "Console collegate"}}</a>{{end}}
   </nav>
   <div class="who">
-    {{if gt (len .Tenants) 1}}
-    <form method="post" action="/tenant" class="inline">
+    {{if or (gt (len .Tenants) 1) .Links}}
+    <form method="post" action="{{if .Links}}/federation/tenant{{else}}/tenant{{end}}" class="inline">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <select name="tenant" aria-label="{{t "Tenant"}}">{{range .Tenants}}<option value="{{.ID}}" {{if eq .ID $.Tenant.ID}}selected{{end}}>{{.Name}}</option>{{end}}</select>
+      <select name="tenant" aria-label="{{t "Tenant"}}">{{range .Tenants}}<option value="{{.ID}}" {{if and (not $.Link) (eq .ID $.Tenant.ID)}}selected{{end}}>{{.Name}}</option>{{end}}{{if .Links}}<optgroup label="{{t "Console collegate"}}">{{range .Links}}<option value="link:{{.ID}}" {{if eq .ID $.Link}}selected{{end}}>🔗 {{.Name}}</option>{{end}}</optgroup>{{end}}</select>
       <button>{{t "Cambia"}}</button>
     </form>
     {{else}}<span class="tenant">{{.Tenant.Name}}</span>{{end}}

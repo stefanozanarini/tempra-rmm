@@ -312,11 +312,32 @@ func (s *Server) handleOpenLink(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	sess.data.Link = l.ID
+	s.enterLink(w, r, sess, l)
+}
+
+// openableLink returns an active link of any of the operator's tenants, for
+// the tenant selector.
+func (s *Server) openableLink(r *http.Request, sess *session, id string) (store.FederationLink, bool) {
+	if s.hub == nil || sess.data.Operator.Federated || !ids.IsUUID(id) {
+		return store.FederationLink{}, false
+	}
+	for _, t := range sess.data.Operator.Tenants {
+		if l, err := s.store.GetLink(r.Context(), t, id); err == nil {
+			return l, l.Status == store.LinkActive
+		}
+	}
+	return store.FederationLink{}, false
+}
+
+// enterLink opens the linked console for the session: from then on its
+// pages are served by that console. The session switches to the link's
+// tenant, whose operators the link belongs to.
+func (s *Server) enterLink(w http.ResponseWriter, r *http.Request, sess *session, l store.FederationLink) {
+	sess.data.Tenant, sess.data.Link = l.TenantID, l.ID
 	if sess.data.FedKey == "" {
 		sess.data.FedKey = ids.NewSecret(32)
 	}
-	s.audit(r.Context(), t, sess.data.Operator, "federation.link_opened", l.ID, map[string]any{"name": l.Name})
+	s.audit(r.Context(), l.TenantID, sess.data.Operator, "federation.link_opened", l.ID, map[string]any{"name": l.Name})
 	if err := s.save(r.Context(), w, sess); err != nil {
 		s.fail(w, r, err)
 		return

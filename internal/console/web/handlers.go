@@ -35,6 +35,16 @@ func tenantOf(r *http.Request) (string, bool) {
 func (s *Server) handleSelectTenant(w http.ResponseWriter, r *http.Request) {
 	sess := sessionFrom(r.Context())
 	t := r.PostFormValue("tenant")
+	// A linked console, listed in the same selector: open it.
+	if id, ok := strings.CutPrefix(t, "link:"); ok {
+		l, ok := s.openableLink(r, sess, id)
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		s.enterLink(w, r, sess, l)
+		return
+	}
 	if !slices.Contains(sess.data.Operator.Tenants, t) {
 		http.Error(w, s.T(r, "tenant non autorizzato"), http.StatusForbidden)
 		return
