@@ -1936,6 +1936,7 @@ var catalogEN = map[string]string{ // #nosec G101 -- UI text, not credentials
 	"Nuovo workflow": "New workflow",
 	"Operatore":      "Operator",
 	"Oppure seleziona i computer nella lista agenti e scegli \"Esegui un workflow\" in \"Azioni sui selezionati\". Ogni distribuzione va approvata con MFA.": "Or select computers in the agent list and choose \"Run a workflow\" in \"Actions on selected\". Every deployment is approved with MFA.",
+	"Per un solo computer: tasto destro su di esso nella lista agenti e scegli \"Esegui un workflow…\".":                                                     "For a single computer: right-click it in the agent list and choose \"Run a workflow…\".",
 	"Pacchetto della libreria": "Library package",
 	"Passi":                    "Steps",
 	"Per eseguire i workflow pubblica il modulo workflow dalla pagina Moduli.": "To run workflows, publish the workflow module from the Modules page.",

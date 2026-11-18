@@ -5,7 +5,7 @@
   <span class="muted">{{tf "creato da %s il %s" .CreatedBy (fmtTime .CreatedAt)}}</span></p>
 {{if eq .Kind "user"}}<p class="muted">{{t "Il gruppo vale per i computer dove i suoi utenti sono collegati ora o, per qualche giorno, sono stati visti per ultimi. Scrivi DOMINIO\\utente o utente@dominio; un nome senza dominio vale in ogni dominio."}}</p>{{end}}
 <div class="actions">
-  {{if and $.CanRun .Active}}<a class="button primary" href="/agents/bulk?group={{.ID}}">{{tf "Azioni sui %d computer del gruppo…" .Active}}</a>{{end}}
+  {{if and $.IsAdmin .Active}}<a class="button primary" href="/agents/bulk?group={{.ID}}">{{tf "Azioni sui %d computer del gruppo…" .Active}}</a>{{end}}
   <a href="/agents?group={{.ID}}">{{t "Mostra nella lista agenti"}}</a> · <a href="/groups">{{t "Tutti i gruppi"}}</a>
 </div>
 {{with .Unknown}}<p class="flash">{{tf "Non trovati: %s" .}}</p>{{end}}

@@ -11,13 +11,15 @@
 <section>
 <h2>{{t "Distribuzione"}}</h2>
 <p>{{template "wf-counts" .Counts}}</p>
-{{if and $.CanRun .Module}}
+{{if and $.IsAdmin .Module}}
 <form method="get" action="/agents/bulk" class="inline">
   <input type="hidden" name="workflow" value="{{.W.ID}}">
   {{if .Groups}}<select name="group" aria-label="{{t "Gruppo"}}">{{range .Groups}}<option value="{{.ID}}">{{if eq .Kind "user"}}👤 {{end}}{{.Name}}</option>{{end}}</select>
   <button class="primary">{{t "Distribuisci al gruppo…"}}</button>{{end}}
 </form>
 <p class="muted small">{{t "Oppure seleziona i computer nella lista agenti e scegli \"Esegui un workflow\" in \"Azioni sui selezionati\". Ogni distribuzione va approvata con MFA."}} <a href="/agents">{{t "Lista agenti"}}</a></p>
+{{else if $.CanRun}}
+<p class="muted small">{{t "Per un solo computer: tasto destro su di esso nella lista agenti e scegli \"Esegui un workflow…\"."}}</p>
 {{end}}
 </section>
 <section>

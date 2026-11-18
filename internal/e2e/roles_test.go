@@ -73,6 +73,39 @@ func TestServerOperator(t *testing.T) {
 	}
 }
 
+// An Operator may run a job on one agent at a time, chosen by themselves,
+// but not on a self-picked batch of several at once: that needs
+// OpenRMM.Admin (bulk actions, group-wide distribution, multi-select
+// deploys all funnel through the same approval step).
+func TestOperatorCannotRunBulkJobs(t *testing.T) {
+	e := startConsole(t)
+	ctx := context.Background()
+	e.store.ApproveAgent(ctx, e.tenant, e.agentID, "t", time.Now())
+	pc2 := e.addWindowsAgent(t, "pc02")
+	op := opIdentity{OID: ids.NewUUID(), Name: "Anna Verdi", Username: "anna@cliente.it",
+		Roles: []string{authn.AppOperator}, AMR: []string{"pwd", "mfa"}}
+	c, csrf := e.login(t, op)
+
+	// Two agents at once: refused before any MFA step-up is even started.
+	if code, body, _ := post(t, c, e.console.URL+"/agents/bulk", url.Values{"csrf": {csrf}, "agent": {e.agentID, pc2},
+		"target": {"sysinfo|1.0.0|info"}, "ttl_minutes": {"60"}}); code != http.StatusForbidden {
+		t.Fatalf("bulk job by an operator: %d %s", code, body)
+	}
+	// The same request, one agent only, goes through the MFA step-up.
+	if code, body, _ := post(t, c, e.console.URL+"/agents/bulk", url.Values{"csrf": {csrf}, "agent": {e.agentID},
+		"target": {"sysinfo|1.0.0|info"}, "ttl_minutes": {"60"}}); code != 200 {
+		t.Fatalf("single-agent job by an operator: %d %s", code, body)
+	}
+
+	// An admin can do either.
+	adm := opIdentity{OID: ids.NewUUID(), Name: "Luigi", Username: "luigi@cliente.it", Roles: []string{authn.AppAdmin}, AMR: []string{"pwd", "mfa"}}
+	ac, acsrf := e.login(t, adm)
+	if code, body, _ := post(t, ac, e.console.URL+"/agents/bulk", url.Values{"csrf": {acsrf}, "agent": {e.agentID, pc2},
+		"target": {"sysinfo|1.0.0|info"}, "ttl_minutes": {"60"}}); code != 200 {
+		t.Fatalf("bulk job by an admin: %d %s", code, body)
+	}
+}
+
 // A scope set on the console for an Entra group limits its members to the
 // computers of a group, and only OpenRMM.Admin changes that group.
 func TestScopeByEntraGroup(t *testing.T) {

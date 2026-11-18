@@ -57,19 +57,31 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 // startStepUp sends the operator to the identity provider to approve req,
 // once its targets are checked against the operator's role.
+//
+// A request naming more than one agent needs RoleAdmin, not just
+// RoleOperator: an Operator may act on any one of their agents, but not on
+// a self-chosen batch of them at once (bulk actions, group-wide
+// distribution, multi-select deploys) — every entry point that can name
+// several targets (bulk.go, packages.go's deploy form, a group's permanent
+// workflow run) funnels through here, so the rule is enforced in one
+// place regardless of where the request came from.
 func (s *Server) startStepUp(w http.ResponseWriter, r *http.Request, sess *session, req *openrmmv1.JobRequest, ret string) {
 	a := s.access(r.Context(), sess)
-	if req.GetTenantId() != sess.data.Tenant || !a.atLeast(authn.RoleOperator) {
+	minRole := authn.RoleOperator
+	if len(jobreq.Targets(req)) > 1 {
+		minRole = authn.RoleAdmin
+	}
+	if req.GetTenantId() != sess.data.Tenant || !a.atLeast(minRole) {
 		http.Error(w, s.T(r, "permesso negato"), http.StatusForbidden)
 		return
 	}
-	if err := s.checkScope(r, req.GetTenantId(), a, authn.RoleOperator, jobreq.Targets(req)); err != nil {
+	if err := s.checkScope(r, req.GetTenantId(), a, minRole, jobreq.Targets(req)); err != nil {
 		s.flashTo(w, r, sess, s.scopeMessage(r, err), ret)
 		return
 	}
 	// The signer requires the OS family the operator's app roles cover in
 	// the request, and the agents enforce it.
-	req.OsFamily, _ = a.Family(authn.RoleOperator)
+	req.OsFamily, _ = a.Family(minRole)
 	s.capLegacyTTL(r.Context(), req)
 	raw, err := proto.Marshal(req)
 	if err != nil {
