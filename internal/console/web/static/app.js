@@ -198,6 +198,22 @@
   });
 })();
 
+// The agents sidebar (sites/AD/groups tree) can be collapsed to free up
+// width for the table; remembered per browser, like the groups above.
+(function () {
+  var tree = document.querySelector(".tree");
+  var toggle = document.querySelector("[data-sidebar-toggle]");
+  if (!tree || !toggle) return;
+  var key = "open-rmm.agents.sidebar";
+  try {
+    if (localStorage.getItem(key) === "collapsed") tree.classList.add("collapsed");
+  } catch (e) { /* storage unavailable: the default applies */ }
+  toggle.addEventListener("click", function () {
+    tree.classList.toggle("collapsed");
+    try { localStorage.setItem(key, tree.classList.contains("collapsed") ? "collapsed" : "open"); } catch (e) { /* ignored */ }
+  });
+})();
+
 // Agents list: drag the right edge of a column header to resize it; the
 // widths are remembered per browser, a double click on the edge resets them.
 (function () {

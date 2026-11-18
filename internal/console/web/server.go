@@ -177,6 +177,14 @@ func funcs(lang string) template.FuncMap {
 			return assignmentValidities
 		},
 		"isDell": func(m string) bool { return strings.HasPrefix(strings.ToLower(strings.TrimSpace(m)), "dell") },
+		"filterCount": func(filters []filterView, key string) int {
+			for _, f := range filters {
+				if f.Key == key {
+					return f.Count
+				}
+			}
+			return 0
+		},
 		"lastJobs": func(jobs []store.Job, n int) []store.Job {
 			if len(jobs) > n {
 				return jobs[:n]

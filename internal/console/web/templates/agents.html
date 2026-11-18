@@ -51,8 +51,15 @@
 </div>
 </template>
 {{with .Data}}
+<div class="cards stat-cards">
+  <a class="card" href="/agents{{qs "family" .Family "q" .Query "ou" .OU "group" .Group}}"><span class="num">{{index .Counts ""}}</span>{{t "Agenti totali"}}</a>
+  <a class="card ok" href="/agents{{qs "family" .Family "site" .Site "q" .Query "ou" .OU "group" .Group "show" "online"}}"><span class="num">{{filterCount .Filters "online"}}</span>{{t "Online ora"}}</a>
+  <a class="card bad" href="/agents{{qs "family" .Family "site" .Site "q" .Query "ou" .OU "group" .Group "show" "critical"}}"><span class="num">{{filterCount .Filters "critical"}}</span>{{t "Problemi gravi"}}</a>
+  <a class="card warn" href="/agents{{qs "family" .Family "site" .Site "q" .Query "ou" .OU "group" .Group "show" "patches"}}"><span class="num">{{filterCount .Filters "patches"}}</span>{{t "Patch mancanti"}}</a>
+</div>
 <div class="workspace">
 <aside class="tree" aria-label="{{t "Sedi"}}">
+  <button type="button" class="tree-toggle" data-sidebar-toggle aria-label="{{t "Mostra o nascondi il menu laterale"}}" title="{{t "Mostra o nascondi il menu laterale"}}">☰</button>
   <p class="tree-title">{{$.Tenant.Name}}</p>
   <a href="/agents{{qs "family" .Family "q" .Query "ou" .OU "group" .Group "show" .Show}}" {{if not .Site}}class="current"{{end}}>{{t "Tutte le sedi"}}</a>
   {{range .Sites}}<a href="/agents{{qs "site" .ID "family" $.Data.Family "q" $.Data.Query "ou" $.Data.OU "group" $.Data.Group "show" $.Data.Show}}" {{if eq $.Data.Site .ID}}class="current"{{end}}>{{.Name}} <span class="muted">{{.Count}}</span></a>{{end}}
