@@ -238,9 +238,14 @@ function Get-BatteryInfo {
     # otherwise healthy laptops): Win32_Battery (root\cimv2) is far more
     # reliably available, so it is always queried and used as the base
     # list of batteries, enriched with wear data when root\wmi works.
+    #
+    # When root\wmi gives no capacities (on many laptops BatteryStaticData
+    # fails while the rest works), Windows' own battery report (powercfg
+    # /batteryreport, the same data as its HTML report) fills them in.
     $charge = @(Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue)
     if ($charge.Count -eq 0) { return }
     $static = @(Get-CimInstance -Namespace 'root\wmi' -ClassName BatteryStaticData -ErrorAction SilentlyContinue)
+    $report = $null
     $full = @{}
     foreach ($f in @(Get-CimInstance -Namespace 'root\wmi' -ClassName BatteryFullChargedCapacity -ErrorAction SilentlyContinue)) { $full[$f.InstanceName] = [int64]$f.FullChargedCapacity }
     $cycles = @{}
@@ -255,6 +260,16 @@ function Get-BatteryInfo {
             $cycleCount = [int]$cycles[$s.InstanceName]
             if (Get-Str $s.DeviceName) { $name = Get-Str $s.DeviceName }
         }
+        if ($health -eq 0) {
+            if ($null -eq $report) { $report = @(Get-BatteryReport) }
+            $r = if ($i -lt $report.Count) { $report[$i] } else { $null }
+            if ($r -and $r.design -gt 0 -and $r.full -gt 0) {
+                $design = $r.design; $fc = $r.full
+                $health = [int][math]::Round(100 * $fc / $design)
+                if ($r.cycles -gt 0) { $cycleCount = $r.cycles }
+                if ($r.name) { $name = $r.name }
+            }
+        }
         @{
             name                 = $name
             design_capacity      = $design
@@ -263,6 +278,30 @@ function Get-BatteryInfo {
             charge_percent       = [int]$charge[$i].EstimatedChargeRemaining
             cycle_count          = $cycleCount
         }
+    }
+}
+
+# Get-BatteryReport reads design and full charge capacity and the cycle
+# count of each battery from powercfg's XML battery report, in the order
+# Windows lists them. Nothing when powercfg fails or there is no battery.
+function Get-BatteryReport {
+    $out = Join-Path ([IO.Path]::GetTempPath()) ("tempra-battery-" + [guid]::NewGuid().ToString('N') + '.xml')
+    try {
+        $null = & powercfg.exe /batteryreport /xml /output $out 2>&1
+        if (-not (Test-Path -LiteralPath $out)) { return }
+        [xml]$x = Get-Content -LiteralPath $out -Raw -Encoding UTF8
+        foreach ($b in @($x.BatteryReport.Batteries.Battery)) {
+            if ($null -eq $b) { continue }
+            $design = [int64]0; $full = [int64]0; $cycles = 0
+            $null = [int64]::TryParse((Get-Str $b.DesignCapacity), [ref]$design)
+            $null = [int64]::TryParse((Get-Str $b.FullChargeCapacity), [ref]$full)
+            $null = [int]::TryParse((Get-Str $b.CycleCount), [ref]$cycles)
+            @{ name = ((Get-Str $b.Manufacturer) + ' ' + (Get-Str $b.Id)).Trim(); design = $design; full = $full; cycles = $cycles }
+        }
+    } catch {
+        return
+    } finally {
+        Remove-Item -LiteralPath $out -Force -ErrorAction SilentlyContinue
     }
 }
 
