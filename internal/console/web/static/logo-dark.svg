@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1800" height="560" viewBox="0 0 1800 560" role="img" aria-label="Tempra RMM">
   <title>TEMPRA RMM</title>
-  <desc>Logo TEMPRA RMM con scudo e monitor blu navy, orbita e battito rossi, scritta TEMPRA bianca e RMM rossa. Sfondo trasparente.</desc>
+  <desc>Logo TEMPRA RMM con scudo e monitor azzurro, orbita e battito rossi, scritta TEMPRA bianca e RMM rossa. Sfondo trasparente.</desc>
   <defs>
     <linearGradient id="navy" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#123D78"/>
-      <stop offset="1" stop-color="#08264F"/>
+      <stop offset="0" stop-color="#5B9BF0"/>
+      <stop offset="1" stop-color="#3D6FC4"/>
     </linearGradient>
     <linearGradient id="red" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#FF4A4F"/>
