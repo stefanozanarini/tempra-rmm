@@ -857,10 +857,11 @@ func (s *Server) completeProfile(w http.ResponseWriter, r *http.Request, sess *s
 	s.flashTo(w, r, sess, trf(lang, "Versione %d approvata: utilizzabile fino al %s.", a.Version, expires.Format(dateFormat(lang))), p.Return)
 }
 
-// provisioningServers names the servers among agents. Provisioning is for
+// serverNames names the servers among agents. Provisioning is for
 // freshly installed clients: its steps (installations, reboots, later a
-// domain join) may lose data, so servers are refused outright.
-func provisioningServers(agents []store.Agent) []string {
+// domain join) may lose data, so servers are refused outright. Feature
+// updates of Windows are for clients too.
+func serverNames(agents []store.Agent) []string {
 	var out []string
 	for _, a := range agents {
 		if a.Host.OSFamily == "server" {
@@ -892,7 +893,7 @@ func (s *Server) handleStartProvisioning(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	back := "/agents/bulk?" + url.Values{"agent": r.PostForm["agent"]}.Encode() + "#provisioning"
-	if servers := provisioningServers(agents); len(servers) > 0 {
+	if servers := serverNames(agents); len(servers) > 0 {
 		s.flash(w, r, s.Tf(r, "Il provisioning è solo per i client appena installati: togli i server dalla selezione (%s).",
 			strings.Join(servers, ", ")), back)
 		return

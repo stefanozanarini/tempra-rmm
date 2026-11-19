@@ -1,7 +1,7 @@
 {
   "id": "winupdate",
-  "version": "1.4.1",
-  "description": "Windows Update through the Windows Update Agent API: scan, install (never reboots), WSUS/Intune detection, settings that block updates (including an unresponsive WSUS server), logs of failed updates, component store repair, freeing disk space (download cache, Disk Cleanup, component cleanup).",
+  "version": "1.5.0",
+  "description": "Windows Update through the Windows Update Agent API: scan, install (never reboots), feature updates to a target Windows 11 release (e.g. 26H2), WSUS/Intune detection, settings that block updates (including an unresponsive WSUS server), logs of failed updates, component store repair, freeing disk space (download cache, Disk Cleanup, component cleanup).",
   "protocol_version": 1,
   "entrypoints": {
     "windows/amd64": {
@@ -33,6 +33,10 @@
     "logs": {
       "description": "Logs that explain failed updates: events, CBS.log errors, services, blockers",
       "timeout_seconds": 1800
+    },
+    "feature_update": {
+      "description": "Move Windows 11 to a newer release (e.g. 25H2 to 26H2): feature update or enablement package, no reboot",
+      "timeout_seconds": 14400
     }
   }
 }

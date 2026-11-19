@@ -41,6 +41,31 @@ func TestParseWindows(t *testing.T) {
 	}
 }
 
+func TestParseWindowsRelease(t *testing.T) {
+	r, err := ParseWindows([]byte(`{"managed_by":"none","updates":[],
+	 "release":{"product":"Windows 11","display_version":"25H2","build":"26200.7171","installation_type":"Client"},
+	 "feature_updates":[
+	  {"title":"Feature update to Windows 11, version 26H2","version":"26h2","kbs":["KB5099999","bad"],"optional":true},
+	  {"title":"Windows 11, version 25H2 enablement package","version":"25H2; evil"},
+	  {"title":"","version":"27H1"}]}`), time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Release == nil || r.Release.DisplayVersion != "25H2" || r.Release.Build != "26200.7171" {
+		t.Fatalf("release = %+v", r.Release)
+	}
+	if len(r.FeatureUpdates) != 2 || r.FeatureUpdates[0].Version != "26H2" || !r.FeatureUpdates[0].Optional ||
+		len(r.FeatureUpdates[0].KBs) != 1 || r.FeatureUpdates[1].Version != "" {
+		t.Fatalf("feature updates = %+v", r.FeatureUpdates)
+	}
+	if got := r.NewerRelease(); got != "26H2" {
+		t.Fatalf("newer = %q", got)
+	}
+	if SourceOf(WindowsModule, FeatureUpdateAction) != SourceWindows || SourceOf(OSUpdateModule, FeatureUpdateAction) != "" {
+		t.Fatal("feature_update source")
+	}
+}
+
 func TestParseWinget(t *testing.T) {
 	r, err := ParseWinget([]byte(`{"upgrades":[{"name":"Zoom","id":"Zoom.Zoom","version":"5","available":"6"},{"name":"bad","id":"--force"}]}`), time.Now())
 	if err != nil || len(r.Upgrades) != 1 || r.Upgrades[0].ID != "Zoom.Zoom" {

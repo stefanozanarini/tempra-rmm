@@ -13,18 +13,21 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
 	openrmmv1 "github.com/stefanozanarini/tempra-rmm/gen/openrmm/v1"
 	"github.com/stefanozanarini/tempra-rmm/internal/console/authn"
 	"github.com/stefanozanarini/tempra-rmm/internal/console/signer"
+	"github.com/stefanozanarini/tempra-rmm/internal/console/store"
 	"github.com/stefanozanarini/tempra-rmm/internal/console/web"
 	"github.com/stefanozanarini/tempra-rmm/internal/ids"
 	"github.com/stefanozanarini/tempra-rmm/internal/modules"
 	"github.com/stefanozanarini/tempra-rmm/internal/policy"
 	"github.com/stefanozanarini/tempra-rmm/internal/release"
 	"github.com/stefanozanarini/tempra-rmm/internal/signing"
+	"github.com/stefanozanarini/tempra-rmm/internal/updates"
 )
 
 // postMultipart sends a multipart form: fields in order (csrf first, as the
@@ -300,11 +303,11 @@ func TestConsolePublishBundledModules(t *testing.T) {
 	}
 	approvePublish(t, e, c, csrf, "/modules/publish", "module")
 	_, body, _ := post(t, c, e.console.URL+"/modules/publish/bundled", url.Values{"csrf": {csrf}, "passphrase": {installerPass},
-		"module": {"inventory@1.4.0", "winupdate@1.4.1"}})
-	if !strings.Contains(body, "Moduli firmati e pubblicati: inventory 1.4.0, winupdate 1.4.1") {
+		"module": {"inventory@1.4.0", "winupdate@1.5.0"}})
+	if !strings.Contains(body, "Moduli firmati e pubblicati: inventory 1.4.0, winupdate 1.5.0") {
 		t.Fatalf("publish: %s", body)
 	}
-	for id, v := range map[string]string{"inventory": "1.4.0", "winupdate": "1.4.1"} {
+	for id, v := range map[string]string{"inventory": "1.4.0", "winupdate": "1.5.0"} {
 		if _, err := e.store.GetModule(ctx, id, v); err != nil {
 			t.Fatalf("%s: %v", id, err)
 		}
@@ -331,7 +334,7 @@ func TestConsolePublishBundledModules(t *testing.T) {
 	for _, r := range p.Rules {
 		modules = append(modules, r.Module+"@"+r.ModuleVersion)
 	}
-	if strings.Join(modules, ",") != "inventory@1.4.0,winupdate@1.4.1" {
+	if strings.Join(modules, ",") != "inventory@1.4.0,winupdate@1.5.0" {
 		t.Fatalf("rules = %v", modules)
 	}
 	// Unchanged modules: no new version. Operators cannot edit it.
@@ -350,7 +353,7 @@ func TestConsolePublishBundledModules(t *testing.T) {
 		!strings.Contains(body, `name="p.allow_managed"`) {
 		t.Fatalf("parameter fields missing: %s", body)
 	}
-	form := url.Values{"csrf": {csrf}, "target": {"winupdate|1.4.1|install"}, "p.classifications": {"security", "critical"},
+	form := url.Values{"csrf": {csrf}, "target": {"winupdate|1.5.0|install"}, "p.classifications": {"security", "critical"},
 		"p.include_kbs": {"KB5034441"}, "ttl_minutes": {"60"}}
 	if code, _, _ := post(t, c, e.console.URL+"/agents/"+pc+"/jobs", form); code != 200 {
 		t.Fatalf("run: %d", code)
@@ -362,6 +365,54 @@ func TestConsolePublishBundledModules(t *testing.T) {
 	form.Set("p.classifications", "evil")
 	if _, body, _ := post(t, c, e.console.URL+"/agents/"+pc+"/jobs", form); !strings.Contains(body, "Parametri non validi") {
 		t.Fatal("invalid choice accepted")
+	}
+
+	// Feature update: offered on Windows clients, with the release found by
+	// the scan; refused on servers, one by one and in bulk.
+	now := time.Now().UTC()
+	e.store.PutUpdateStatus(ctx, store.UpdateStatus{TenantID: e.tenant, AgentID: pc, Source: updates.SourceWindows, ScannedAt: now,
+		Data: []byte(`{"managed_by":"none","scanned_at":"` + now.Format(time.RFC3339) + `","updates":[],"pending_reboot":{"required":false},
+		  "release":{"product":"Windows 11","display_version":"25H2","build":"26200.7171","installation_type":"Client"},
+		  "feature_updates":[{"title":"Feature update to Windows 11, version 26H2","version":"26H2","optional":true}]}`)})
+	_, body = get(t, c, e.console.URL+"/agents/"+pc)
+	for _, want := range []string{"Versione di Windows: Windows 11 25H2 (build 26200.7171)", "disponibile la versione 26H2",
+		`href="/agents/` + pc + `#act-winupdate-feature_update"`, `id="act-winupdate-feature_update"`, `name="p.target"`} {
+		if !strings.Contains(html.UnescapeString(body), want) {
+			t.Fatalf("agent page lacks %q", want)
+		}
+	}
+	fu := url.Values{"csrf": {csrf}, "target": {"winupdate|1.5.0|feature_update"}, "p.target": {"26H2"}, "p.product": {"Windows 11"}, "ttl_minutes": {"1440"}}
+	if code, _, _ := post(t, c, e.console.URL+"/agents/"+pc+"/jobs", fu); code != 200 {
+		t.Fatalf("feature update: %d", code)
+	}
+	jobs, _ = e.store.ListJobs(ctx, e.tenant, pc, 5)
+	if len(jobs) != 2 || jobs[0].Action != "feature_update" || string(jobs[0].Params) != `{"allow_managed":false,"product":"Windows 11","target":"26H2"}` {
+		t.Fatalf("feature update job: %+v", jobs[0])
+	}
+	if _, body, _ := post(t, c, e.console.URL+"/agents/"+pc+"/jobs", url.Values{"csrf": {csrf}, "target": {"winupdate|1.5.0|feature_update"},
+		"p.product": {"Windows 11"}}); !strings.Contains(body, "Parametri non validi") {
+		t.Fatal("feature update without a target accepted")
+	}
+	srv := ids.NewUUID()
+	e.store.CreateAgent(ctx, store.Agent{TenantID: e.tenant, ID: srv, Status: store.AgentActive, CertFingerprint: srv,
+		Host: store.HostInfo{Hostname: "SRV-FU", OS: "windows", Arch: "amd64", OSFamily: "server"}, CertNotAfter: now.Add(time.Hour)})
+	if _, body, _ := post(t, c, e.console.URL+"/agents/"+srv+"/jobs", fu); !strings.Contains(html.UnescapeString(body), "solo per i client, non per i server") {
+		t.Fatal("feature update accepted on a server")
+	}
+	if _, body := get(t, c, e.console.URL+"/agents/bulk?agent="+pc); !strings.Contains(body, `id="feature-update"`) ||
+		!strings.Contains(body, `value="winupdate|1.5.0|feature_update"`) {
+		t.Fatal("bulk feature update not offered")
+	}
+	_, body = get(t, c, e.console.URL+"/agents/bulk?agent="+pc+"&agent="+srv)
+	if !strings.Contains(html.UnescapeString(body), "togli i server dalla selezione (SRV-FU)") || strings.Contains(body, `value="winupdate|1.5.0|feature_update"`) {
+		t.Fatal("bulk feature update offered with a server")
+	}
+	fu["agent"] = []string{pc, srv}
+	if _, body, _ := post(t, c, e.console.URL+"/agents/bulk", fu); !strings.Contains(html.UnescapeString(body), "togli i server dalla selezione (SRV-FU)") {
+		t.Fatal("bulk feature update accepted with a server")
+	}
+	if n, _ := e.store.ListJobs(ctx, e.tenant, srv, 5); len(n) != 0 {
+		t.Fatalf("server jobs = %+v", n)
 	}
 
 	// The signer refuses anything else without an operator.

@@ -126,6 +126,13 @@ func jobOutcome(lang, module, action string, res map[string]any) string {
 			s += " · " + tr(lang, "lo spazio resta poco: sotto, cosa lo occupa")
 		}
 		return s
+	case "winupdate/feature_update":
+		fu, _ := res["feature_update"].(map[string]any)
+		s := trf(lang, "Aggiornamento a %s %s installato (da %s).", fmt.Sprint(fu["product"]), fmt.Sprint(fu["target"]), fmt.Sprint(fu["from"]))
+		if fu["reboot_required"] == true {
+			s += " · " + tr(lang, "riavvio richiesto per completarla")
+		}
+		return s
 	case "winupdate/logs":
 		ev, _ := res["events"].([]any)
 		cbs, _ := res["cbs_log"].([]any)

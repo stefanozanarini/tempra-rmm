@@ -221,6 +221,9 @@ The agent's **Patches** tab shows missing updates, the last installation, the pe
 - **Blockers**: settings that stop updates (pinned release, unreachable WSUS server, disabled services, pauses, low disk space). Fix them on the computer or in the GPO; **Free space…** clears the Windows Update cache and runs Disk Cleanup.
 - **Logs**: one click collects the last 7 days of update logs; the full collection is a command with MFA. Failed installations show the explained error code.
 - **Install**: choose classifications (security and critical by default), include or exclude KBs, approve with MFA. The computer is not rebooted.
+- **Windows version**: the tab shows the installed release (e.g. Windows 11 25H2) and flags a newer one when Windows Update offers it. **Upgrade Windows version…** moves the computer to the release you type (e.g. `26H2`) with the feature update or enablement package. The release is pinned only while it installs, then the previous setting is restored. The computer is not rebooted: restart it with the reboot command. Servers, WSUS/Intune-managed computers, computers already at that release and computers not offered the update refuse it, and the job says why (for example TPM, Secure Boot or a compatibility hold).
+
+To upgrade many computers at once, select them in the agents list (or open a group) and use **Upgrade Windows version** in the actions page. Only an Admin sees it, and servers must be removed from the selection. Computers that are off receive the job when they reconnect, within its validity (24 h by default).
 
 ### Firmware, BIOS and drivers
 
@@ -454,6 +457,7 @@ On a customer console linked to a central console, a banner reminds you when you
 | "Not allowed by local policy" | The computer's GPO forbids it (AllowAdHocScripts, AllowInteractiveShell, AllowRemoteControl). Ask the domain administrator. |
 | Remote control shows nothing | No user is logged on or the screen is locked; the `screen` module must be published. |
 | Windows updates never install | Look at the **Blockers** on the Patches tab; on a WSUS/Intune computer Tempra RMM only observes. Collect the logs from the Patches tab. |
+| A Windows version upgrade says "no feature update offered" | The release may not be published yet or not to that hardware: the job lists the reasons Windows gives (TPM, Secure Boot, compatibility hold, free space). Check the **Blockers** too. |
 | An outdated app is not updated by winget | It is installed in the user's profile (badge *user profile*): see section 8, Special cases. |
 | The MFA window keeps asking | Sign in with the same account you use in the console, and complete MFA. |
 | Vulnerability pages say data not yet downloaded | The console downloads the sources a few minutes after start, then every 6 hours. |

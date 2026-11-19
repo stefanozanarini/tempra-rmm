@@ -248,9 +248,12 @@ type agentUpdates struct {
 	Query            string
 	WinupdateVersion string
 	// CanCleanup: the published winupdate frees disk space (1.4.0).
-	CanCleanup      bool
-	OSModule        string
-	OSModuleVersion string
+	CanCleanup bool
+	// CanFeatureUpdate: the published winupdate moves Windows to a newer
+	// release (1.5.0) and the agent is a Windows client.
+	CanFeatureUpdate bool
+	OSModule         string
+	OSModuleVersion  string
 	// Installs are the latest osupdate installations (Linux), newest first:
 	// Linux has no update history of its own to show.
 	Installs []osInstall
@@ -398,8 +401,12 @@ func (s *Server) agentUpdates(r *http.Request, tenant, agent string) (agentUpdat
 	out.WinupdateVersion = latest["winupdate"]
 	out.CanCleanup = out.WinupdateVersion != "" && vuln.CompareVersions(out.WinupdateVersion, "1.4.0") >= 0
 	out.OSModule = updates.WindowsModule
-	if a, err := s.store.GetAgent(r.Context(), tenant, agent); err == nil && a.Host.OS == "linux" {
-		out.OSModule = updates.OSUpdateModule
+	if a, err := s.store.GetAgent(r.Context(), tenant, agent); err == nil {
+		if a.Host.OS == "linux" {
+			out.OSModule = updates.OSUpdateModule
+		}
+		out.CanFeatureUpdate = a.Host.OS == "windows" && a.Host.OSFamily != "server" && out.WinupdateVersion != "" &&
+			vuln.CompareVersions(out.WinupdateVersion, featureUpdateSince) >= 0
 	}
 	out.OSModuleVersion = latest[out.OSModule]
 	if jobs, err := s.store.ListJobs(r.Context(), tenant, agent, 100); err == nil {

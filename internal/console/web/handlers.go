@@ -460,6 +460,10 @@ func (s *Server) handleRunJob(w http.ResponseWriter, r *http.Request) {
 		s.flash(w, r, s.T(r, "Azione non disponibile."), back)
 		return
 	}
+	if clientOnly(man.ID, action) && a.Host.OSFamily == "server" {
+		s.flash(w, r, s.T(r, "L'aggiornamento della versione di Windows è solo per i client, non per i server."), back)
+		return
+	}
 	params, msg := s.jobParams(r, mod, man, action)
 	if msg != "" {
 		s.flash(w, r, msg, back)

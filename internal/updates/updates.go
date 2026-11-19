@@ -21,6 +21,9 @@ const (
 	// OSUpdateModule reports Linux updates in the winupdate report format,
 	// under SourceWindows: the operating system updates of any platform.
 	OSUpdateModule = "osupdate"
+	// FeatureUpdateAction moves Windows to a newer release (winupdate
+	// 1.5.0); its result is a full report.
+	FeatureUpdateAction = "feature_update"
 	// FirmwareToolAction installs the vendor tool the firmware module uses.
 	FirmwareToolAction = "install-tool"
 	SourceWindows      = "windows"
@@ -37,6 +40,8 @@ const (
 func SourceOf(module, action string) string {
 	switch {
 	case (module == WindowsModule || module == OSUpdateModule) && (action == "scan" || action == "install"):
+		return SourceWindows
+	case module == WindowsModule && action == FeatureUpdateAction:
 		return SourceWindows
 	case module == WingetModule && (action == "scan" || action == "upgrade" || action == "install"):
 		return SourceWinget
@@ -104,7 +109,31 @@ type WindowsReport struct {
 	// Blockers: settings that keep updates from being offered or installed
 	// (winupdate 1.2.0).
 	Blockers []Blocker `json:"blockers,omitempty"`
+	// Release: the installed Windows release; FeatureUpdates: the newer
+	// releases offered, required or optional (winupdate 1.5.0).
+	Release        *WindowsRelease `json:"release,omitempty"`
+	FeatureUpdates []FeatureUpdate `json:"feature_updates,omitempty"`
 }
+
+// WindowsRelease is the installed Windows release.
+type WindowsRelease struct {
+	Product          string `json:"product,omitempty"`         // Windows 11 | Windows 10 | Windows Server
+	DisplayVersion   string `json:"display_version,omitempty"` // e.g. 25H2
+	Build            string `json:"build,omitempty"`           // e.g. 26200.7171
+	Edition          string `json:"edition,omitempty"`
+	InstallationType string `json:"installation_type,omitempty"` // Client | Server
+}
+
+// FeatureUpdate is a feature update or enablement package offered.
+type FeatureUpdate struct {
+	Title    string   `json:"title"`
+	Version  string   `json:"version,omitempty"` // release it leads to, e.g. 26H2
+	KBs      []string `json:"kbs,omitempty"`
+	Optional bool     `json:"optional,omitempty"` // offered as "download and install now"
+}
+
+// releaseRe matches a release name such as 26H2.
+var releaseRe = regexp.MustCompile(`^\d{2}H[12]$`)
 
 // Blocker is a setting that keeps updates from being offered or installed,
 // e.g. a pinned TargetReleaseVersion or a disabled service.
@@ -293,7 +322,44 @@ func ParseWindows(raw []byte, now time.Time) (*WindowsReport, error) {
 		hist = append(hist, h)
 	}
 	r.History = hist
+	if rel := r.Release; rel != nil {
+		rel.Product, rel.DisplayVersion, rel.Build = clip(rel.Product), clip(rel.DisplayVersion), clip(rel.Build)
+		rel.Edition, rel.InstallationType = clip(rel.Edition), clip(rel.InstallationType)
+	}
+	if len(r.FeatureUpdates) > 20 {
+		r.FeatureUpdates = r.FeatureUpdates[:20]
+	}
+	feats := r.FeatureUpdates[:0]
+	for _, f := range r.FeatureUpdates {
+		if f.Title = clip(f.Title); f.Title == "" {
+			continue
+		}
+		if f.Version = strings.ToUpper(clip(f.Version)); !releaseRe.MatchString(f.Version) {
+			f.Version = ""
+		}
+		var kbs []string
+		for _, k := range f.KBs {
+			if k = strings.ToUpper(clip(k)); kbRe.MatchString(k) {
+				kbs = append(kbs, k)
+			}
+		}
+		f.KBs = kbs
+		feats = append(feats, f)
+	}
+	r.FeatureUpdates = feats
 	return r, nil
+}
+
+// NewerRelease returns the newest release offered by a feature update,
+// or "".
+func (r *WindowsReport) NewerRelease() string {
+	best := ""
+	for _, f := range r.FeatureUpdates {
+		if f.Version > best {
+			best = f.Version
+		}
+	}
+	return best
 }
 
 func released(u WindowsUpdate) time.Time {

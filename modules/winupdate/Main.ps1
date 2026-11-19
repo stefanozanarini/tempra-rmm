@@ -18,6 +18,18 @@
 #          from a source of the same build) and the system files (SFC),
 #          optionally resetting the Windows Update cache first. Fixes
 #          errors such as 0x800f0983 (component store missing a binary).
+# feature_update
+#          moves Windows 11 to a newer release (e.g. 25H2 -> 26H2): pins
+#          the target release by policy (TargetReleaseVersion), searches the
+#          Upgrades and Feature Packs categories, downloads and installs the
+#          offered feature update or enablement package, then restores the
+#          previous pin (removed when there was none). It never reboots.
+#          It refuses on WSUS/Intune-managed endpoints (unless
+#          allow_managed), on servers, when already at or above the target
+#          and when nothing is offered, saying why (hardware eligibility).
+#
+# The scan also reports the Windows release (DisplayVersion, build) and the
+# feature updates offered, required or optional.
 #
 # Every report lists the settings that keep updates from being offered or
 # installed ("blockers"): a pinned release (TargetReleaseVersion, also when
@@ -36,6 +48,8 @@
 #     "reset_base": false, "previous_installations": false }
 # Parameters (repair):
 #   { "source": "WIM:D:\sources\install.wim:1", "sfc": true, "reset_components": false }
+# Parameters (feature_update):
+#   { "target": "26H2", "product": "Windows 11", "allow_managed": false }
 Import-Module (Join-Path $PSScriptRoot '_sdk/OpenRmm.psm1')
 
 $ErrorActionPreference = 'Stop'
@@ -495,16 +509,25 @@ function New-Report($Session, $Request, $Params) {
     $maxAge = Get-Prop $Params 'max_age_days'
     if (-not $maxAge) { $maxAge = 30 }
     $blockers = @(Get-Blockers)
+    # Feature updates: the required ones are in the scan; the optional ones
+    # ("download and install now") need a search of their own.
+    $features = [ordered]@{}
+    foreach ($u in $scan.updates) { if (Test-FeatureUpdate $u) { $features[[string]$u.Identity.UpdateID] = $u } }
+    foreach ($u in @(Find-FeatureUpdates $Session @($upgradesCategory) @('OptionalInstallation'))) {
+        if (-not $features.Contains([string]$u.Identity.UpdateID)) { $features[[string]$u.Identity.UpdateID] = $u }
+    }
     @{
-        managed_by     = $mgmt.managed_by
-        wsus_server    = $mgmt.wsus_server
-        scanned_at     = (Get-Date).ToUniversalTime().ToString('o')
-        updates        = $updates
-        pending_reboot = $pending
-        last_success   = Get-LastSuccess $scan.searcher
-        history        = @(Get-History $scan.searcher)
-        blockers       = $blockers
-        checks         = @(Get-Checks $updates $pending ([int]$maxAge)) + @(Get-BlockerCheck $blockers)
+        release         = Get-WindowsRelease
+        feature_updates = @(foreach ($u in $features.Values) { ConvertTo-FeatureInfo $u })
+        managed_by      = $mgmt.managed_by
+        wsus_server     = $mgmt.wsus_server
+        scanned_at      = (Get-Date).ToUniversalTime().ToString('o')
+        updates         = $updates
+        pending_reboot  = $pending
+        last_success    = Get-LastSuccess $scan.searcher
+        history         = @(Get-History $scan.searcher)
+        blockers        = $blockers
+        checks          = @(Get-Checks $updates $pending ([int]$maxAge)) + @(Get-BlockerCheck $blockers)
     }
 }
 
@@ -645,6 +668,160 @@ function Get-SpaceUsage {
     @($items | Where-Object { $_.size_gb -ge 0.1 } | Sort-Object { $_.size_gb } -Descending | Select-Object -First 15)
 }
 
+# ---- feature update ----
+
+$upgradesCategory = '3689bdc8-b205-4af4-8d4a-a63924c5e9d5'
+$featurePacksCategory = 'b54e7d24-7add-428f-8b75-90a396fa584f'
+$wuPolicy = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
+$pinNames = 'ProductVersion', 'TargetReleaseVersion', 'TargetReleaseVersionInfo'
+
+# ConvertTo-ReleaseKey orders Windows releases: 25H2 -> 252, and the older
+# 2004-style names (year, month) -> 201. $null when not a release name.
+function ConvertTo-ReleaseKey([string]$Version) {
+    if ($Version -match '^(\d{2})H([12])$') { return [int]$Matches[1] * 10 + [int]$Matches[2] }
+    if ($Version -match '^(\d{2})(\d{2})$') {
+        $half = if ([int]$Matches[2] -le 6) { 1 } else { 2 }
+        return [int]$Matches[1] * 10 + $half
+    }
+    $null
+}
+
+function Get-WindowsRelease {
+    $cv = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+    $build = [int](Read-Reg $cv 'CurrentBuildNumber')
+    $type = [string](Read-Reg $cv 'InstallationType')
+    $display = [string](Read-Reg $cv 'DisplayVersion')
+    if (-not $display) { $display = [string](Read-Reg $cv 'ReleaseId') }
+    # ProductName still says Windows 10 on Windows 11: the build tells them apart.
+    $product = if ($type -eq 'Server') { 'Windows Server' } elseif ($build -ge 22000) { 'Windows 11' } else { 'Windows 10' }
+    @{ product = $product; display_version = $display; build = "$build.$(Read-Reg $cv 'UBR')"
+        edition = [string](Read-Reg $cv 'EditionID'); installation_type = $type }
+}
+
+function Test-FeatureUpdate($u) {
+    foreach ($c in $u.Categories) {
+        if (([string]$c.CategoryID).ToLower() -in $upgradesCategory, $featurePacksCategory) { return $true }
+    }
+    $false
+}
+
+# The release a feature update or enablement package leads to, from its
+# title ("Feature update to Windows 11, version 26H2"; titles are
+# localized, the release name is not).
+function Get-UpdateRelease([string]$Title) {
+    if ($Title -match '(?<![0-9A-Za-z])(\d{2}H[12])(?![0-9A-Za-z])') { return $Matches[1].ToUpper() }
+    ''
+}
+
+function ConvertTo-FeatureInfo($u) {
+    @{
+        id         = [string]$u.Identity.UpdateID
+        title      = [string]$u.Title
+        version    = Get-UpdateRelease ([string]$u.Title)
+        kbs        = @(foreach ($k in $u.KBArticleIDs) { "KB$k" })
+        optional   = [bool]$u.BrowseOnly
+        size_bytes = [int64]$u.MaxDownloadSize
+    }
+}
+
+# Find-FeatureUpdates searches the Upgrades and Feature Packs categories,
+# required and optional ("download and install now") offers alike.
+function Find-FeatureUpdates($Session, [string[]]$Categories, [string[]]$Deployments) {
+    $searcher = $Session.CreateUpdateSearcher()
+    $searcher.Online = $true
+    $found = [ordered]@{}
+    foreach ($cat in $Categories) {
+        foreach ($dep in $Deployments) {
+            $criteria = "IsInstalled=0 and IsHidden=0 and DeploymentAction='$dep' and CategoryIDs contains '$cat'"
+            try { $res = $searcher.Search($criteria) }
+            catch { Send-RmmLog "search ($criteria): $($_.Exception.Message)" 'warn'; continue }
+            foreach ($u in $res.Updates) {
+                $id = [string]$u.Identity.UpdateID
+                if ((Test-FeatureUpdate $u) -and -not $found.Contains($id)) { $found[$id] = $u }
+            }
+        }
+    }
+    @($found.Values)
+}
+
+# Get-UpgradeEligibility: what Windows itself says about upgrading (the
+# appraiser's indicators, one key per release: Red = not eligible,
+# RedReason such as "TPM UEFISecureBoot", GatedBlockId = held back by a
+# compatibility hold) and the Windows 11 hardware requirements.
+function Get-UpgradeEligibility {
+    $root = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\TargetVersionUpgradeExperienceIndicators'
+    $indicators = @()
+    foreach ($k in @(Get-ChildItem -Path $root -ErrorAction SilentlyContinue)) {
+        $p = Get-ItemProperty -Path $k.PSPath -ErrorAction SilentlyContinue
+        $e = @{ release = [string]$k.PSChildName }
+        foreach ($n in 'UpgEx', 'RedReason', 'GatedBlockId', 'GatedBlockReason', 'DestBuildNum', 'SystemDriveTooFull') {
+            $v = Get-Prop $p $n
+            if ($null -ne $v -and "$v" -notin '', 'None', '0') { $e[$n] = [string]$v }
+        }
+        if ($e.Count -gt 1) { $indicators += $e }
+    }
+    $tpm = 'absent'
+    try {
+        $t = Get-CimInstance -Namespace 'root/cimv2/security/microsofttpm' -ClassName Win32_Tpm -ErrorAction Stop
+        if ($t) { $tpm = ([string]$t.SpecVersion -split ',')[0].Trim() }
+    }
+    catch { }
+    $secureBoot = $null
+    try { $secureBoot = [bool](Confirm-SecureBootUEFI -ErrorAction Stop) } catch { }
+    @{ indicators = $indicators; tpm = $tpm; secure_boot = $secureBoot; free_gb = (GB (Get-FreeBytes)) }
+}
+
+# Format-Eligibility: the hints that explain a feature update not offered.
+function Format-Eligibility($E) {
+    $out = @()
+    foreach ($i in $E.indicators) {
+        $why = @()
+        if ($i.UpgEx -eq 'Red' -or $i.RedReason) { $why += "not eligible ($($i.RedReason))" }
+        if ($i.GatedBlockId) { $why += "compatibility hold $($i.GatedBlockId) ($($i.GatedBlockReason))" }
+        if ($i.SystemDriveTooFull) { $why += 'system drive too full' }
+        if ($why) { $out += "$($i.release): $($why -join ', ')" }
+    }
+    if ($E.tpm -ne '2.0') { $out += "TPM $($E.tpm) (Windows 11 needs 2.0)" }
+    if ($E.secure_boot -eq $false) { $out += 'Secure Boot off' }
+    if ($E.free_gb -lt 20) { $out += "$($E.free_gb) GB free on $($env:SystemDrive)" }
+    $out -join '; '
+}
+
+function Get-Pin {
+    $key = Get-Item -Path $wuPolicy -ErrorAction SilentlyContinue
+    $values = @{}
+    if ($key) {
+        $names = @($key.GetValueNames())
+        foreach ($n in $pinNames) {
+            if ($names -contains $n) { $values[$n] = @{ value = $key.GetValue($n); kind = [string]$key.GetValueKind($n) } }
+        }
+    }
+    @{ key_existed = [bool]$key; values = $values }
+}
+
+function Set-Pin([string]$Product, [string]$Target) {
+    if (-not (Test-Path -Path $wuPolicy)) { New-Item -Path $wuPolicy -Force | Out-Null }
+    New-ItemProperty -Path $wuPolicy -Name ProductVersion -Value $Product -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $wuPolicy -Name TargetReleaseVersion -Value 1 -PropertyType DWord -Force | Out-Null
+    New-ItemProperty -Path $wuPolicy -Name TargetReleaseVersionInfo -Value $Target -PropertyType String -Force | Out-Null
+}
+
+# Restore-Pin puts back the values Get-Pin saw: a pin left behind would
+# hold back every later release.
+function Restore-Pin($Saved) {
+    foreach ($n in $pinNames) {
+        $v = $Saved.values[$n]
+        if ($v) { New-ItemProperty -Path $wuPolicy -Name $n -Value $v.value -PropertyType $v.kind -Force | Out-Null }
+        else { Remove-ItemProperty -Path $wuPolicy -Name $n -ErrorAction SilentlyContinue }
+    }
+    if (-not $Saved.key_existed) {
+        $k = Get-Item -Path $wuPolicy -ErrorAction SilentlyContinue
+        if ($k -and $k.ValueCount -eq 0 -and $k.SubKeyCount -eq 0) { Remove-Item -Path $wuPolicy -Force }
+    }
+    if ($Saved.values.Count) { return 'restored' }
+    'removed'
+}
+
 function New-Session {
     $s = New-Object -ComObject Microsoft.Update.Session
     $s.ClientApplicationID = 'open-rmm'
@@ -652,6 +829,52 @@ function New-Session {
 }
 
 $resultCodes = @{ 0 = 'not_started'; 1 = 'in_progress'; 2 = 'succeeded'; 3 = 'succeeded_with_errors'; 4 = 'failed'; 5 = 'aborted' }
+
+# Install-UpdateColl downloads and installs a collection of updates; the
+# result of each, download failures included.
+function Install-UpdateColl($Session, $Coll) {
+    $results = @()
+    $rebootRequired = $false
+    if ($Coll.Count -eq 0) { return @{ results = $results; reboot_required = $rebootRequired } }
+    Send-RmmProgress 15 "download di $($Coll.Count) aggiornamenti"
+    $dl = $Session.CreateUpdateDownloader()
+    $dl.Updates = $Coll
+    $dlres = $dl.Download()
+    $ready = New-Object -ComObject Microsoft.Update.UpdateColl
+    foreach ($u in $Coll) { if ($u.IsDownloaded) { [void]$ready.Add($u) } }
+    if ($ready.Count -gt 0) {
+        Send-RmmProgress 50 "installazione di $($ready.Count) aggiornamenti"
+        $inst = $Session.CreateUpdateInstaller()
+        $inst.ForceQuiet = $true
+        $inst.Updates = $ready
+        $res = $inst.Install()
+        $rebootRequired = [bool]$res.RebootRequired
+        for ($i = 0; $i -lt $ready.Count; $i++) {
+            $r = $res.GetUpdateResult($i)
+            $results += @{
+                title   = [string]$ready.Item($i).Title
+                kbs     = @(foreach ($k in $ready.Item($i).KBArticleIDs) { "KB$k" })
+                result  = $resultCodes[[int]$r.ResultCode]
+                hresult = ('0x{0:X8}' -f $r.HResult)
+            }
+        }
+    }
+    for ($i = 0; $i -lt $Coll.Count; $i++) {
+        $u = $Coll.Item($i)
+        if ($u.IsDownloaded) { continue }
+        $code = ''
+        try { $code = ('0x{0:X8}' -f $dlres.GetUpdateResult($i).HResult) } catch { }
+        $results += @{ title = [string]$u.Title; kbs = @(foreach ($k in $u.KBArticleIDs) { "KB$k" }); result = 'download_failed'; hresult = $code }
+    }
+    @{ results = $results; reboot_required = $rebootRequired }
+}
+
+function Assert-Unmanaged($Params) {
+    $mgmt = Get-Management
+    if ($mgmt.managed_by -ne 'none' -and -not (Get-Prop $Params 'allow_managed')) {
+        throw "Windows Update is managed by $($mgmt.managed_by) on this endpoint: open-rmm only observes it (set allow_managed to install anyway)"
+    }
+}
 
 Invoke-RmmModule @{
     scan    = {
@@ -661,10 +884,7 @@ Invoke-RmmModule @{
     }
     install = {
         param($Params, $Request)
-        $mgmt = Get-Management
-        if ($mgmt.managed_by -ne 'none' -and -not (Get-Prop $Params 'allow_managed')) {
-            throw "Windows Update is managed by $($mgmt.managed_by) on this endpoint: open-rmm only observes it (set allow_managed to install anyway)"
-        }
+        Assert-Unmanaged $Params
         $want = Get-List $Params 'classifications'
         if ($want.Count -eq 0) { $want = @('security', 'critical', 'rollup', 'update', 'definition') }
         $exclude = @((Get-List $Params 'exclude_kbs') | ForEach-Object { ([string]$_).ToUpper() })
@@ -686,40 +906,8 @@ Invoke-RmmModule @{
             [void]$coll.Add($u)
             $selected += $info
         }
-        $results = @()
-        $rebootRequired = $false
-        if ($coll.Count -gt 0) {
-            Send-RmmProgress 15 "download di $($coll.Count) aggiornamenti"
-            $dl = $session.CreateUpdateDownloader()
-            $dl.Updates = $coll
-            $dlres = $dl.Download()
-            $ready = New-Object -ComObject Microsoft.Update.UpdateColl
-            foreach ($u in $coll) { if ($u.IsDownloaded) { [void]$ready.Add($u) } }
-            if ($ready.Count -gt 0) {
-                Send-RmmProgress 50 "installazione di $($ready.Count) aggiornamenti"
-                $inst = $session.CreateUpdateInstaller()
-                $inst.ForceQuiet = $true
-                $inst.Updates = $ready
-                $res = $inst.Install()
-                $rebootRequired = [bool]$res.RebootRequired
-                for ($i = 0; $i -lt $ready.Count; $i++) {
-                    $r = $res.GetUpdateResult($i)
-                    $results += @{
-                        title  = [string]$ready.Item($i).Title
-                        kbs    = @(foreach ($k in $ready.Item($i).KBArticleIDs) { "KB$k" })
-                        result = $resultCodes[[int]$r.ResultCode]
-                        hresult = ('0x{0:X8}' -f $r.HResult)
-                    }
-                }
-            }
-            for ($i = 0; $i -lt $coll.Count; $i++) {
-                $u = $coll.Item($i)
-                if ($u.IsDownloaded) { continue }
-                $code = ''
-                try { $code = ('0x{0:X8}' -f $dlres.GetUpdateResult($i).HResult) } catch { }
-                $results += @{ title = [string]$u.Title; kbs = @(foreach ($k in $u.KBArticleIDs) { "KB$k" }); result = 'download_failed'; hresult = $code }
-            }
-        }
+        $done = Install-UpdateColl $session $coll
+        $results, $rebootRequired = $done.results, $done.reboot_required
         Send-RmmProgress 90 'verifica'
         $report = New-Report $session $Request $Params
         $report.installed = $results
@@ -728,6 +916,77 @@ Invoke-RmmModule @{
         if ($failed.Count -gt 0) {
             Send-RmmLog "$($failed.Count) updates not installed" 'warn'
             try { $report.diagnostics = Get-Diagnostics $Params $true } catch { Send-RmmLog "diagnostics: $($_.Exception.Message)" 'warn' }
+        }
+        $report
+    }
+    feature_update = {
+        param($Params, $Request)
+        $target = ([string](Get-Prop $Params 'target')).Trim().ToUpper()
+        $product = [string](Get-Prop $Params 'product')
+        if (-not $product) { $product = 'Windows 11' }
+        if ($target -notmatch '^\d{2}H[12]$') { throw "invalid target release '$target': give it as 26H2" }
+        if ($product -ne 'Windows 11') { throw "unsupported product '$product': only Windows 11" }
+        $release = Get-WindowsRelease
+        $current = "$($release.product) $($release.display_version) (build $($release.build))"
+        if ($release.installation_type -ne 'Client') { throw "Feature updates are for Windows clients only: this endpoint runs $current, $($release.installation_type)" }
+        if ($release.product -ne $product) { throw "This endpoint runs ${current}: moving to $product is an upgrade to another product, not a feature update" }
+        $have = ConvertTo-ReleaseKey $release.display_version
+        if ($null -ne $have -and $have -ge (ConvertTo-ReleaseKey $target)) { throw "Already at ${current}: nothing to do for $product $target" }
+        Assert-Unmanaged $Params
+
+        $eligibility = Get-UpgradeEligibility
+        $session = New-Session
+        $saved = Get-Pin
+        $pin = ''
+        $done = $null
+        $offered = @()
+        try {
+            # The pin makes Windows Update offer the target release as a
+            # required update, whatever the deferrals and the rollout.
+            Set-Pin $product $target
+            $was = ($saved.values.Keys | ForEach-Object { "$_=$($saved.values[$_].value)" }) -join ', '
+            if (-not $was) { $was = 'not set' }
+            Send-RmmLog "TargetReleaseVersion set to $product $target (was: $was)"
+            Send-RmmProgress 5 "ricerca dell'aggiornamento a $product $target"
+            $found = @(Find-FeatureUpdates $session @($upgradesCategory, $featurePacksCategory) @('Installation', 'OptionalInstallation'))
+            $offered = @(foreach ($u in $found) { ConvertTo-FeatureInfo $u })
+            $coll = New-Object -ComObject Microsoft.Update.UpdateColl
+            foreach ($u in $found) {
+                if ((Get-UpdateRelease ([string]$u.Title)) -ne $target -or ([string]$u.Title) -notmatch [regex]::Escape($product)) { continue }
+                if (-not $u.EulaAccepted) { $u.AcceptEula() }
+                [void]$coll.Add($u)
+            }
+            if ($coll.Count -eq 0) {
+                $list = if ($offered.Count) { ($offered | ForEach-Object { $_.title }) -join '; ' } else { 'none' }
+                $hints = Format-Eligibility $eligibility
+                if (-not $hints) { $hints = 'No eligibility problem reported by Windows: the release may not be published yet, or not to this hardware' }
+                throw "No feature update to $product $target is offered to $current (offered: $list). $hints"
+            }
+            Send-RmmLog "installing: $(@(foreach ($u in $coll) { $u.Title }) -join '; ')"
+            $done = Install-UpdateColl $session $coll
+        }
+        finally {
+            $pin = Restore-Pin $saved
+            Send-RmmLog "TargetReleaseVersion $pin"
+        }
+        $ok = @($done.results | Where-Object { $_.result -in 'succeeded', 'succeeded_with_errors' })
+        if ($ok.Count -eq 0) {
+            $why = ($done.results | ForEach-Object { "$($_.title): $($_.result) $($_.hresult)" }) -join '; '
+            $hints = Format-Eligibility $eligibility
+            throw "Feature update to $product $target not installed on $current. $why$(if ($hints) { ". $hints" })"
+        }
+        Send-RmmProgress 90 'verifica'
+        $report = New-Report $session $Request $Params
+        $report.feature_update = @{
+            product         = $product
+            target          = $target
+            from            = $release.display_version
+            build           = $release.build
+            offered         = $offered
+            installed       = $done.results
+            reboot_required = $done.reboot_required
+            pin             = $pin
+            eligibility     = $eligibility
         }
         $report
     }

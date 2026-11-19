@@ -246,5 +246,48 @@
       },
       "default": false
     }
+  ],
+  "feature_update": [
+    {
+      "name": "target",
+      "type": "string",
+      "required": true,
+      "label": {
+        "it": "Versione di destinazione (es. 26H2)",
+        "en": "Target release (e.g. 26H2)"
+      },
+      "help": {
+        "it": "La versione resta bloccata solo durante l'installazione, poi l'impostazione precedente viene ripristinata. Il PC non viene riavviato: usa il modulo reboot.",
+        "en": "The release is pinned only during the installation, then the previous setting is restored. The PC is not restarted: use the reboot module."
+      }
+    },
+    {
+      "name": "product",
+      "type": "enum",
+      "required": true,
+      "default": "Windows 11",
+      "label": {
+        "it": "Prodotto",
+        "en": "Product"
+      },
+      "options": [
+        {
+          "value": "Windows 11",
+          "label": {
+            "it": "Windows 11",
+            "en": "Windows 11"
+          }
+        }
+      ]
+    },
+    {
+      "name": "allow_managed",
+      "type": "bool",
+      "default": false,
+      "label": {
+        "it": "Aggiorna anche se gestito da WSUS/Intune",
+        "en": "Update even if managed by WSUS/Intune"
+      }
+    }
   ]
 }

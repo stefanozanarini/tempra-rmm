@@ -70,6 +70,24 @@
 {{end}}
 </details>
 {{end}}
+{{if and $.IsAdmin .FeatureUpdate}}{{with .FeatureUpdate}}
+<section class="warn" id="feature-update">
+<h2>{{t "Aggiorna versione di Windows"}}{{help "section:feature-update"}}</h2>
+{{if $.Data.FeatureUpdateServers}}
+<p>{{tf "L'aggiornamento della versione di Windows è solo per i client: togli i server dalla selezione (%s)." $.Data.FeatureUpdateServers}}</p>
+{{else}}
+<p class="muted">{{t "Porta i computer Windows 11 alla versione scelta (ad esempio da 25H2 a 26H2) con l'aggiornamento di funzionalità offerto da Windows Update. I computer gestiti da WSUS o Intune, quelli già aggiornati e quelli a cui l'aggiornamento non è offerto lo rifiutano spiegando perché. Il PC non viene riavviato: il riavvio necessario viene segnalato."}}</p>
+<form method="post" action="/agents/bulk" class="stack">
+  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+  {{range $.Data.Agents}}<input type="hidden" name="agent" value="{{.ID}}">{{end}}
+  <input type="hidden" name="target" value="{{.Module}}|{{.Version}}|{{.Action}}">
+  {{if .Known}}{{template "param-fields" .Fields}}{{else}}<label>{{t "Parametri (JSON, facoltativi)"}} <input name="params" value="{}" spellcheck="false"></label>{{end}}
+  {{template "ttl" "1440"}}
+  <button class="primary">{{t "Approva ed esegui"}}</button>
+</form>
+{{end}}
+</section>
+{{end}}{{end}}
 {{range .Scripts}}
 <h2>{{t "Script PowerShell"}}</h2>
 <form method="post" action="/agents/bulk" class="stack">

@@ -13,6 +13,7 @@ import (
 	"github.com/stefanozanarini/tempra-rmm/internal/console/store"
 	"github.com/stefanozanarini/tempra-rmm/internal/ids"
 	"github.com/stefanozanarini/tempra-rmm/internal/modules"
+	"github.com/stefanozanarini/tempra-rmm/internal/updates"
 	"github.com/stefanozanarini/tempra-rmm/internal/workflow"
 )
 
@@ -49,6 +50,20 @@ type bulkData struct {
 	// UninstallVersion fill it in (?uninstall=&uninstall_version=).
 	Uninstall                       bool
 	UninstallName, UninstallVersion string
+	// FeatureUpdate: the winupdate action that moves Windows clients to a
+	// newer release, offered apart from the other commands (to
+	// administrators); FeatureUpdateServers: the selected servers (names
+	// joined by commas), which it refuses.
+	FeatureUpdate        *runnable
+	FeatureUpdateServers string
+}
+
+// featureUpdateSince is the first winupdate version with feature_update.
+const featureUpdateSince = "1.5.0"
+
+// clientOnly tells whether a module action is for Windows clients only.
+func clientOnly(module, action string) bool {
+	return module == updates.WindowsModule && action == updates.FeatureUpdateAction
 }
 
 // selectedAgents returns the active agents listed in the "agent" values.
@@ -167,6 +182,11 @@ func (s *Server) handleBulkForm(w http.ResponseWriter, r *http.Request) {
 	}
 	sortRunnables(d.Commands)
 	sortRunnables(d.Scripts)
+	if i := slices.IndexFunc(d.Commands, func(x runnable) bool { return clientOnly(x.Module, x.Action) }); i >= 0 {
+		x := d.Commands[i]
+		d.FeatureUpdate, d.FeatureUpdateServers = &x, strings.Join(serverNames(agents), ", ")
+		d.Commands = slices.Delete(d.Commands, i, i+1)
+	}
 	if len(d.Scripts) > 0 {
 		d.Presets = scriptPresets
 	}
@@ -200,7 +220,7 @@ func (s *Server) handleBulkForm(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	d.ProvisionServers = strings.Join(provisioningServers(agents), ", ")
+	d.ProvisionServers = strings.Join(serverNames(agents), ", ")
 	title := s.Tf(r, "Azioni su %d agenti", len(agents))
 	if group != nil {
 		title = s.Tf(r, "Azioni sul gruppo %s (%d computer)", group.Name, len(agents))
@@ -282,6 +302,10 @@ func (s *Server) handleBulkJobs(w http.ResponseWriter, r *http.Request) {
 	// Workflows run only from their own form, which validates them.
 	if _, ok := man.Actions[target[2]]; !ok || man.Interactive() || man.ID == workflow.ModuleID {
 		s.flash(w, r, s.T(r, "Azione non disponibile."), back)
+		return
+	}
+	if names := serverNames(agents); clientOnly(man.ID, target[2]) && len(names) > 0 {
+		s.flash(w, r, s.Tf(r, "L'aggiornamento della versione di Windows è solo per i client: togli i server dalla selezione (%s).", strings.Join(names, ", ")), back)
 		return
 	}
 	params, msg := s.jobParams(r, mod, man, target[2])
