@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"golang.org/x/net/websocket"
 
@@ -43,6 +44,16 @@ const minLogonScreenAgent = "1.2.0"
 // without a signed-in user.
 func logonScreenAgent(version string) bool {
 	return version != "" && vuln.CompareVersions(version, minLogonScreenAgent) >= 0
+}
+
+// minClipboardAgent is the first agent version whose screenhelper shares
+// the clipboard; older ones cannot decode a Clip frame and would end the
+// session on one.
+const minClipboardAgent = "1.2.4"
+
+// clipboardAgent tells whether an agent version shares the clipboard.
+func clipboardAgent(version string) bool {
+	return version != "" && vuln.CompareVersions(version, minClipboardAgent) >= 0
 }
 
 // Remote-control sessions: one MFA approval opens a view of one agent's
@@ -175,13 +186,14 @@ func (s *Server) handleScreenPage(w http.ResponseWriter, r *http.Request) {
 // screenMsg is the browser's input events; the server turns them into the
 // internal/screensession wire format the agent's screenhelper speaks.
 type screenMsg struct {
-	T      string `json:"t"` // move, button, wheel, key, close
+	T      string `json:"t"` // move, button, wheel, key, sas, clip, close
 	X      int32  `json:"x,omitempty"`
 	Y      int32  `json:"y,omitempty"`
 	Button byte   `json:"button,omitempty"`
 	Down   bool   `json:"down,omitempty"`
 	Delta  int32  `json:"delta,omitempty"`
 	Key    uint32 `json:"key,omitempty"`
+	Text   string `json:"text,omitempty"` // clip
 }
 
 // handleScreenSocket joins the browser's canvas to the session.
@@ -253,6 +265,16 @@ func (s *Server) serveScreen(ws *websocket.Conn, r *http.Request, j store.Job, a
 				f.Data = screensession.EncodeKey(m.Key, m.Down)
 			case "sas":
 				f.Data = screensession.EncodeSAS()
+			case "clip":
+				// Pasted text for the remote clipboard; the helper ignores
+				// it where the local policy does not share the clipboard.
+				if !clipboardAgent(a.Host.AgentVersion) || len(m.Text) > screensession.MaxClipboardSize {
+					continue
+				}
+				f.Data = screensession.EncodeClipboard([]byte(m.Text))
+				// The length only: pasted text is often a password.
+				s.audit(context.WithoutCancel(r.Context()), j.TenantID, op, "screen.clipboard_pasted", j.ID,
+					map[string]any{"agent": a.ID, "characters": utf8.RuneCountInString(m.Text)})
 			case "close":
 				f.Close = true
 			default:

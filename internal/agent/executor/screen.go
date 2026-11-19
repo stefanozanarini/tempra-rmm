@@ -62,7 +62,11 @@ func (e *Executor) runScreen(job *openrmmv1.Job, send func(*openrmmv1.JobUpdate)
 	if err != nil {
 		return fail(job, "locate agent executable: %v", err)
 	}
-	proc, err := usersession.StartSystem([]string{exe, "screenhelper"}, nil, workDir)
+	args := []string{exe, "screenhelper"}
+	if e.cfg.RemoteClipboardAllowed() {
+		args = append(args, "-clipboard")
+	}
+	proc, err := usersession.StartSystem(args, nil, workDir)
 	if err != nil {
 		return fail(job, "start remote control: %v", err)
 	}

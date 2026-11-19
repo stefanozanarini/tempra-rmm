@@ -45,6 +45,7 @@ func run(args []string) error {
 	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
 	cfgPath := fs.String("config", config.DefaultConfigPath(), "configuration file")
 	asService := fs.Bool("service", false, "run as a Windows service (set in the service command line)")
+	shareClipboard := fs.Bool("clipboard", false, "screenhelper: share the clipboard (set by the agent)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -73,8 +74,8 @@ func run(args []string) error {
 		// Launched by the agent itself inside the logged-on user's
 		// session (internal/agent/usersession) to serve a remote-control
 		// job; never a user-facing command. Communicates on stdin/stdout,
-		// not the flags above.
-		return screenhelper.Run(os.Stdin, os.Stdout)
+		// not the flags above, except -clipboard.
+		return screenhelper.Run(os.Stdin, os.Stdout, *shareClipboard)
 	default:
 		return fmt.Errorf("unknown command %q", cmd)
 	}

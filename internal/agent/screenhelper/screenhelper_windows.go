@@ -8,6 +8,9 @@ import (
 	"image/jpeg"
 	"io"
 	"log"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/stefanozanarini/tempra-rmm/internal/screensession"
@@ -21,15 +24,45 @@ const frameInterval = 150 * time.Millisecond
 // desktop, not inspecting a photo.
 const jpegQuality = 55
 
+// clipboardInterval is how often the remote clipboard is checked for a
+// change to send to the operator.
+const clipboardInterval = 300 * time.Millisecond
+
+// lockedWriter keeps the frames written by the capture and clipboard
+// loops whole.
+type lockedWriter struct {
+	mu sync.Mutex
+	w  io.Writer
+}
+
+func (l *lockedWriter) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.w.Write(p)
+}
+
 // Run captures the screen and injects input until stdin closes (the
-// agent closes it when the session ends) or ctx is done. It never
-// returns an error for a session that simply ended normally.
-func Run(stdin io.Reader, stdout io.Writer) error {
+// agent closes it when the session ends) or ctx is done. With
+// shareClipboard, text pasted by the operator goes to the clipboard and
+// text copied during the session comes back. It never returns an error
+// for a session that simply ended normally.
+func Run(stdin io.Reader, stdout io.Writer, shareClipboard bool) error {
 	setDPIAware()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go captureLoop(ctx, stdout)
+	out := &lockedWriter{w: stdout}
+	if _, err := out.Write(screensession.EncodePolicy(shareClipboard)); err != nil {
+		return err
+	}
+	// The clipboard as it was before the session is never sent: only
+	// what changes from now on.
+	var seen atomic.Uint32
+	seen.Store(clipboardSeq())
+	if shareClipboard {
+		go clipboardLoop(ctx, out, &seen)
+	}
+	go captureLoop(ctx, out)
 
 	dec := screensession.Decoder{}
 	buf := make([]byte, 4096)
@@ -41,6 +74,14 @@ func Run(stdin io.Reader, stdout io.Writer) error {
 				return derr
 			}
 			for _, f := range frames {
+				if f.Kind == screensession.Clip {
+					// Set before the next frame (the operator's Ctrl+V)
+					// is injected.
+					if shareClipboard {
+						pasteText(string(f.Text), &seen)
+					}
+					continue
+				}
 				applyInput(f)
 			}
 		}
@@ -49,6 +90,44 @@ func Run(stdin io.Reader, stdout io.Writer) error {
 				return nil
 			}
 			return err
+		}
+	}
+}
+
+// pasteText puts the operator's text on the clipboard, with Windows line
+// ends, and marks that change as already seen so it is not sent back.
+func pasteText(text string, seen *atomic.Uint32) {
+	text = strings.ReplaceAll(strings.ReplaceAll(text, "\r\n", "\n"), "\n", "\r\n")
+	if err := writeClipboard(text); err != nil {
+		log.Printf("screenhelper: clipboard: %v", err)
+	}
+	seen.Store(clipboardSeq())
+}
+
+// clipboardLoop sends the clipboard text whenever it changes.
+func clipboardLoop(ctx context.Context, out io.Writer, seen *atomic.Uint32) {
+	ticker := time.NewTicker(clipboardInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+		seq := clipboardSeq()
+		if old := seen.Load(); seq == old || !seen.CompareAndSwap(old, seq) {
+			continue
+		}
+		// Every UTF-16 code unit is at most 3 bytes of UTF-8.
+		text, err := readClipboard(screensession.MaxClipboardSize / 3)
+		if err != nil {
+			if err != errNoText {
+				log.Printf("screenhelper: clipboard: %v", err)
+			}
+			continue
+		}
+		if _, err := out.Write(screensession.EncodeClipboard([]byte(text))); err != nil {
+			return
 		}
 	}
 }

@@ -20,6 +20,12 @@
 //	'F' + 4-byte length + JPEG bytes: one screen frame.
 //	'D' + 1 byte: the desktop now shown (DesktopDefault, DesktopWinlogon,
 //	    DesktopOther), sent once at the start and again when it changes.
+//	'P' + 1 byte (0/1): whether the clipboard is shared in this session
+//	    (local policy AllowRemoteClipboard), sent once at the start by
+//	    helpers that know the Clip frame; older ones never send it, and the
+//	    console then sends them no Clip frame, which they cannot decode.
+//	'C' + 4-byte length + UTF-8 text: the remote clipboard changed during
+//	    the session (its content from before the session is never sent).
 //
 // From the console to the helper:
 //
@@ -31,6 +37,9 @@
 //	'K' + 4-byte virtual-key code (big-endian) + 1 down byte (0/1): a key.
 //	'A': Ctrl+Alt+Del (the secure attention sequence). The agent itself,
 //	    not the helper, acts on it: only a service may generate it.
+//	'C' + 4-byte length + UTF-8 text: put this text on the remote
+//	    clipboard (the operator is pasting); ignored when the clipboard is
+//	    not shared.
 //
 // The session's end is carried by ShellFrame.close itself, like the
 // shell: no close marker is needed in this protocol.
@@ -52,6 +61,8 @@ const (
 	Key    = 'K'
 	SAS    = 'A'
 	Desk   = 'D'
+	Clip   = 'C'
+	Policy = 'P'
 )
 
 // Desktops reported by Desk frames.
@@ -71,6 +82,10 @@ const (
 // MaxImageSize bounds a single decoded image frame.
 const MaxImageSize = 8 << 20
 
+// MaxClipboardSize bounds the text of a Clip frame, in bytes: enough for
+// any text an operator pastes, small next to a screen frame.
+const MaxClipboardSize = 128 << 10
+
 // Frame is one decoded message.
 type Frame struct {
 	Kind          byte
@@ -81,7 +96,9 @@ type Frame struct {
 	Wheel         int32  // Wheel
 	Key           uint32 // Key
 	Desktop       byte   // Desk
+	Shared        bool   // Policy
 	Image         []byte // Image (shares the decoder's buffer: copy before reuse)
+	Text          []byte // Clip (shares the decoder's buffer: copy before reuse)
 }
 
 // EncodeSize returns the wire bytes of a Size frame.
@@ -101,6 +118,19 @@ func EncodeImage(jpeg []byte) []byte {
 	copy(b[5:], jpeg)
 	return b
 }
+
+// EncodeClipboard returns the wire bytes of a Clip frame; text must be at
+// most MaxClipboardSize bytes.
+func EncodeClipboard(text []byte) []byte {
+	b := make([]byte, 5+len(text))
+	b[0] = Clip
+	binary.BigEndian.PutUint32(b[1:], uint32(len(text))) // #nosec G115 -- bounded by MaxClipboardSize
+	copy(b[5:], text)
+	return b
+}
+
+// EncodePolicy returns the wire bytes of a Policy frame.
+func EncodePolicy(shared bool) []byte { return []byte{Policy, boolByte(shared)} }
 
 // EncodeMove returns the wire bytes of a Move frame.
 func EncodeMove(x, y int32) []byte {
@@ -147,8 +177,11 @@ func boolByte(b bool) byte {
 }
 
 // fixedLen is the payload length (after the tag byte) of every frame kind
-// except Image, whose length is carried in its own 4-byte prefix.
-var fixedLen = map[byte]int{Size: 8, Move: 8, Button: 2, Wheel: 4, Key: 5, SAS: 0, Desk: 1}
+// except Image and Clip, whose length is carried in their own 4-byte prefix.
+var fixedLen = map[byte]int{Size: 8, Move: 8, Button: 2, Wheel: 4, Key: 5, SAS: 0, Desk: 1, Policy: 1}
+
+// maxLen bounds the frames that carry their own length.
+var maxLen = map[byte]uint32{Image: MaxImageSize, Clip: MaxClipboardSize}
 
 // Decoder reassembles frames out of a byte stream that may be split at
 // arbitrary points. It is not safe for concurrent use.
@@ -156,8 +189,8 @@ type Decoder struct {
 	buf []byte
 }
 
-// ErrFrameTooLarge is returned when an Image frame's declared length
-// exceeds MaxImageSize: the stream is no longer trustworthy and must be
+// ErrFrameTooLarge is returned when an Image or Clip frame's declared
+// length exceeds its maximum: the stream is no longer trustworthy and must be
 // closed, not resynchronized.
 var ErrFrameTooLarge = errors.New("screensession: frame too large")
 
@@ -172,19 +205,25 @@ func (d *Decoder) Feed(data []byte) ([]Frame, error) {
 			return out, nil
 		}
 		kind := d.buf[0]
-		if kind == Image {
+		if limit, ok := maxLen[kind]; ok {
 			if len(d.buf) < 5 {
 				return out, nil
 			}
 			n := binary.BigEndian.Uint32(d.buf[1:5])
-			if n > MaxImageSize {
+			if n > limit {
 				return out, fmt.Errorf("%w: %d bytes", ErrFrameTooLarge, n)
 			}
 			total := 5 + int(n)
 			if len(d.buf) < total {
 				return out, nil
 			}
-			out = append(out, Frame{Kind: Image, Image: d.buf[5:total]})
+			f := Frame{Kind: kind}
+			if kind == Image {
+				f.Image = d.buf[5:total]
+			} else {
+				f.Text = d.buf[5:total]
+			}
+			out = append(out, f)
 			d.buf = d.buf[total:]
 			continue
 		}
@@ -210,6 +249,8 @@ func (d *Decoder) Feed(data []byte) ([]Frame, error) {
 			f.Key, f.Down = binary.BigEndian.Uint32(p), p[4] != 0
 		case Desk:
 			f.Desktop = p[0]
+		case Policy:
+			f.Shared = p[0] != 0
 		}
 		out = append(out, f)
 		d.buf = d.buf[1+n:]

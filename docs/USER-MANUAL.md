@@ -86,13 +86,14 @@ With a dedicated code-signing CA, deploy `codesign-ca.cer` (Trusted Root) and `c
 
 ### Group Policy settings
 
-The ADMX templates (**Computer Configuration → Administrative Templates → Tempra RMM**) can also set the console address and token, and three local switches the console can never override:
+The ADMX templates (**Computer Configuration → Administrative Templates → Tempra RMM**) can also set the console address and token, and four local switches the console can never override:
 
 | Setting | Default | Effect |
 | --- | --- | --- |
 | AllowAdHocScripts | On | Off = the computer refuses scripts and workflows sent from the console |
 | AllowInteractiveShell | Off | On = remote shell sessions allowed |
 | AllowRemoteControl | Off | On = remote control of the screen allowed |
+| AllowRemoteClipboard | On | Off = the clipboard is not shared in remote-control sessions (agent 1.2.4) |
 
 ### Approving new computers
 
@@ -175,6 +176,8 @@ Opens PowerShell (bash on Linux) in a terminal in the browser. Every line you ty
 ### Remote control
 
 Shows the user's screen and lets you move mouse and keyboard. It opens in a new browser tab. The console warns you if no user appears logged on or the screen is locked. Tell the user before you connect.
+
+With agent 1.2.4 the clipboard is shared (text only): **Ctrl+V** in the session pastes your own clipboard on the remote computer, and **Paste text…** sends text typed in a box; text copied on the remote computer during the session lands in your clipboard, or in a box to copy from when the browser does not allow it. What was on the remote clipboard before the session is never sent. Each paste is in the activity log with its length, never its content. The local policy AllowRemoteClipboard turns it off.
 
 ### File management
 

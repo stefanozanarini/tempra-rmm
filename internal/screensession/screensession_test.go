@@ -89,3 +89,23 @@ func TestUnknownKind(t *testing.T) {
 		t.Fatal("expected an error for an unknown frame kind")
 	}
 }
+
+func TestClipboardFrames(t *testing.T) {
+	text := []byte("città · 東京")
+	var wire []byte
+	wire = append(wire, EncodePolicy(true)...)
+	wire = append(wire, EncodeClipboard(text)...)
+	wire = append(wire, EncodeClipboard(nil)...)
+	frames := feedByte(t, wire)
+	if len(frames) != 3 || frames[0].Kind != Policy || !frames[0].Shared {
+		t.Fatalf("frames: %+v", frames)
+	}
+	if frames[1].Kind != Clip || string(frames[1].Text) != string(text) || frames[2].Kind != Clip || len(frames[2].Text) != 0 {
+		t.Fatalf("clipboard frames: %+v", frames)
+	}
+	var dec Decoder
+	big := EncodeClipboard(make([]byte, MaxClipboardSize+1))
+	if _, err := dec.Feed(big[:5]); err == nil {
+		t.Fatal("oversized clipboard accepted")
+	}
+}

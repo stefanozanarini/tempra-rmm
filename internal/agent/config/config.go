@@ -60,6 +60,10 @@ type Config struct {
 	// still needs an operator's MFA approval). Set it to false on endpoints
 	// that must never accept one (GPO).
 	AllowRemoteControl *bool `json:"allow_remote_control,omitempty"`
+	// AllowRemoteClipboard is a local policy; default true: during a
+	// remote-control session the operator's pasted text goes to the
+	// clipboard and text copied on the endpoint comes back.
+	AllowRemoteClipboard *bool `json:"allow_remote_clipboard,omitempty"`
 
 	root        *x509.Certificate
 	keys        *signing.Keyring
@@ -235,4 +239,10 @@ func (c *Config) AdHocScriptsAllowed() bool {
 // RemoteControlAllowed reports the local policy for remote-control sessions.
 func (c *Config) RemoteControlAllowed() bool {
 	return c.AllowRemoteControl == nil || *c.AllowRemoteControl
+}
+
+// RemoteClipboardAllowed reports the local policy for the clipboard shared
+// in remote-control sessions.
+func (c *Config) RemoteClipboardAllowed() bool {
+	return c.AllowRemoteClipboard == nil || *c.AllowRemoteClipboard
 }

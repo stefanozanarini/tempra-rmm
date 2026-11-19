@@ -12,6 +12,17 @@
   var img = new Image();
   var buf = new Uint8Array(0);
   var scale = 1; // canvas device pixels per remote virtual-desktop pixel
+  var clip = document.getElementById("screen-clip");
+  var pasteBtn = document.getElementById("screen-paste");
+  var pasteBox = document.getElementById("screen-paste-box");
+  var pasteText = document.getElementById("screen-paste-text");
+  var remoteBox = document.getElementById("screen-remote-box");
+  var remoteText = document.getElementById("screen-remote-text");
+  // shared: the agent shares the clipboard (its 'P' frame said so, and the
+  // console marked the agent version as able to): only then are pasted
+  // texts sent, as older helpers cannot decode them.
+  var shared = false;
+  var maxClip = 128 * 1024; // internal/screensession.MaxClipboardSize
 
   function append(chunk) {
     var next = new Uint8Array(buf.length + chunk.length);
@@ -40,6 +51,20 @@
         buf = buf.slice(9);
         continue;
       }
+      if (kind === 0x43 /* 'C' */) {
+        if (buf.length < 5) return;
+        var cn = new DataView(buf.buffer, buf.byteOffset + 1, 4).getUint32(0, false);
+        if (buf.length < 5 + cn) return;
+        remoteCopied(new TextDecoder().decode(buf.slice(5, 5 + cn)));
+        buf = buf.slice(5 + cn);
+        continue;
+      }
+      if (kind === 0x50 /* 'P' */) {
+        if (buf.length < 2) return;
+        setShared(buf[1] === 1);
+        buf = buf.slice(2);
+        continue;
+      }
       if (kind === 0x44 /* 'D' */) {
         if (buf.length < 2) return;
         desk.textContent = desk.dataset["d" + buf[1]] || "";
@@ -50,6 +75,48 @@
       buf = new Uint8Array(0);
       return;
     }
+  }
+
+  function setShared(on) {
+    if (!canvas.dataset.clipboard) return;
+    shared = on;
+    pasteBtn.hidden = !on;
+    if (!on) clip.textContent = clip.dataset.off;
+  }
+
+  // Text copied on the remote computer: straight to the operator's
+  // clipboard where the browser allows it, otherwise shown to copy by hand.
+  function remoteCopied(text) {
+    var shown = function () {
+      remoteText.value = text;
+      remoteBox.hidden = false;
+    };
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      shown();
+      return;
+    }
+    navigator.clipboard.writeText(text).then(function () {
+      clip.textContent = clip.dataset.copied;
+    }, shown);
+  }
+
+  // Sends text to the remote clipboard, then Ctrl+V; wrapCtrl presses Ctrl
+  // too, when the operator is not already holding it.
+  function pasteRemote(text, wrapCtrl) {
+    if (new TextEncoder().encode(text).length > maxClip) {
+      clip.textContent = clip.dataset.large;
+      return;
+    }
+    send({ t: "clip", text: text });
+    sendCtrlV(wrapCtrl);
+    clip.textContent = clip.dataset.sent;
+  }
+
+  function sendCtrlV(wrapCtrl) {
+    if (wrapCtrl) send({ t: "key", key: 17, down: true });
+    send({ t: "key", key: 86, down: true });
+    send({ t: "key", key: 86, down: false });
+    if (wrapCtrl) send({ t: "key", key: 17, down: false });
   }
 
   function resize(w, h) {
@@ -110,8 +177,80 @@
   // control keys, its values are the same as Windows virtual-key codes
   // (both trace back to the same legacy scheme): good enough to drive
   // SendInput without a full per-layout mapping table.
-  canvas.addEventListener("keydown", function (e) { e.preventDefault(); send({ t: "key", key: e.keyCode, down: true }); });
-  canvas.addEventListener("keyup", function (e) { e.preventDefault(); send({ t: "key", key: e.keyCode, down: false }); });
+  //
+  // Ctrl+V (Cmd+V on a Mac) with a shared clipboard is left to the
+  // browser, whose paste event carries the operator's text: it goes to the
+  // remote clipboard first, then the remote Ctrl+V. Without a paste event
+  // (no text, or a browser that sends none), V alone goes on after a moment
+  // and pastes whatever the remote clipboard holds.
+  var pending = null; // the Ctrl+V awaiting its paste event
+  var swallowV = false; // the V's keyup, already sent with the paste
+  canvas.addEventListener("keydown", function (e) {
+    if (shared && e.keyCode === 86 && (e.ctrlKey || e.metaKey) && !e.altKey) {
+      if (pending) return;
+      swallowV = true;
+      var p = { wrapCtrl: !e.ctrlKey };
+      p.timer = setTimeout(function () {
+        if (pending !== p) return;
+        pending = null;
+        sendCtrlV(p.wrapCtrl);
+      }, 500);
+      pending = p;
+      return;
+    }
+    e.preventDefault();
+    send({ t: "key", key: e.keyCode, down: true });
+  });
+  canvas.addEventListener("keyup", function (e) {
+    e.preventDefault();
+    if (swallowV && e.keyCode === 86) {
+      swallowV = false;
+      return;
+    }
+    send({ t: "key", key: e.keyCode, down: false });
+  });
+  document.addEventListener("paste", function (e) {
+    if (!pending) return;
+    var p = pending;
+    pending = null;
+    clearTimeout(p.timer);
+    e.preventDefault();
+    var text = e.clipboardData ? e.clipboardData.getData("text/plain") : "";
+    if (text) {
+      pasteRemote(text, p.wrapCtrl);
+      return;
+    }
+    sendCtrlV(p.wrapCtrl);
+  });
+  pasteBtn.addEventListener("click", function () {
+    pasteBox.hidden = false;
+    pasteText.focus();
+  });
+  document.getElementById("screen-paste-send").addEventListener("click", function () {
+    pasteRemote(pasteText.value, true);
+    pasteText.value = "";
+    pasteBox.hidden = true;
+    canvas.focus();
+  });
+  document.getElementById("screen-paste-cancel").addEventListener("click", function () {
+    pasteText.value = "";
+    pasteBox.hidden = true;
+    canvas.focus();
+  });
+  document.getElementById("screen-remote-copy").addEventListener("click", function () {
+    remoteText.select();
+    var done = function () { clip.textContent = clip.dataset.copied; };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(remoteText.value).then(done, function () { document.execCommand("copy"); done(); });
+    } else {
+      document.execCommand("copy");
+      done();
+    }
+  });
+  document.getElementById("screen-remote-hide").addEventListener("click", function () {
+    remoteBox.hidden = true;
+    canvas.focus();
+  });
   document.getElementById("screen-sas").addEventListener("click", function () { send({ t: "sas" }); canvas.focus(); });
   document.getElementById("screen-close").addEventListener("click", function () { send({ t: "close" }); });
 })();
