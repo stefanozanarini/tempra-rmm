@@ -56,6 +56,9 @@ type reportsData struct {
 	// can upgrade on some of the computers found, with the action prepared
 	// for them.
 	Upgrades []reportUpgrade
+	// Uninstalls: the applications found installed for all users on some
+	// Windows computers, with the bulk uninstall prepared for them.
+	Uninstalls []reportUninstall
 	// Operating systems.
 	OS []osGroup
 	// Logons.
@@ -79,6 +82,12 @@ type reportRow struct {
 	Software []inventory.Software // installed applications that matched
 	Extra    []string             // values of the chosen columns
 	Seen     time.Time            // inventory date
+}
+
+type reportUninstall struct {
+	Name  string
+	Count int
+	URL   string // bulk form, application and computers filled in
 }
 
 type reportUpgrade struct {
@@ -357,6 +366,9 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if d.ShowSoftware && !csvOut {
+		d.Uninstalls = reportUninstalls(d.Rows)
+	}
 	for l, n := range osCount {
 		d.OS = append(d.OS, osGroup{Label: l, Count: n})
 	}
@@ -418,6 +430,52 @@ func (s *Server) writeCSV(w http.ResponseWriter, name string, header []string, r
 		_ = cw.Write(cells)
 	})
 	cw.Flush()
+}
+
+// maxReportUninstalls caps the applications offered for removal under a
+// software search.
+const maxReportUninstalls = 10
+
+// reportUninstalls lists, per application name, the active Windows computers
+// found where it is installed for all users, most computers first.
+func reportUninstalls(rows []reportRow) []reportUninstall {
+	byName := map[string]*reportUninstall{}
+	agents := map[string]url.Values{}
+	for _, row := range rows {
+		if row.Agent.Status != store.AgentActive || row.Agent.Host.OS != "windows" {
+			continue
+		}
+		seen := map[string]bool{}
+		for _, sw := range row.Software {
+			n := strings.ToLower(sw.Name)
+			if sw.Scope != "machine" || seen[sw.Name] || strings.HasPrefix(n, "open-rmm") || strings.HasPrefix(n, "tempra rmm") {
+				continue
+			}
+			seen[sw.Name] = true
+			u := byName[sw.Name]
+			if u == nil {
+				u = &reportUninstall{Name: sw.Name}
+				byName[sw.Name], agents[sw.Name] = u, url.Values{"uninstall": {sw.Name}}
+			}
+			u.Count++
+			agents[sw.Name].Add("agent", row.Agent.ID)
+		}
+	}
+	var out []reportUninstall
+	for name, u := range byName {
+		u.URL = "/agents/bulk?" + agents[name].Encode() + "#uninstall"
+		out = append(out, *u)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Count != out[j].Count {
+			return out[i].Count > out[j].Count
+		}
+		return out[i].Name < out[j].Name
+	})
+	if len(out) > maxReportUninstalls {
+		out = out[:maxReportUninstalls]
+	}
+	return out
 }
 
 // reportUpgrades lists, per winget id, the computers found that winget can

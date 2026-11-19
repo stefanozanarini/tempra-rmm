@@ -121,5 +121,20 @@
   <button>{{t "Continua"}}</button>
 </form>
 {{end}}
+{{if .Uninstall}}
+<h2 id="uninstall">{{t "Disinstalla un'applicazione"}}</h2>
+<form method="post" action="/agents/bulk" class="stack">
+  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+  {{range .Agents}}<input type="hidden" name="agent" value="{{.ID}}">{{end}}
+  <input type="hidden" name="uninstall" value="1">
+  <label>{{t "Nome esatto dell'applicazione"}} <input name="name" maxlength="512" value="{{.UninstallName}}" placeholder="7-Zip 24.08 (x64)"></label>
+  <label>{{t "Versione (facoltativa)"}} <input name="version" value="{{.UninstallVersion}}"></label>
+  <label>{{t "Oppure product code MSI"}} <input name="product_code" placeholder="{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}" spellcheck="false"></label>
+  <label>{{t "Argomenti di disinstallazione (solo se il programma non ha un comando silenzioso, es. /S)"}} <input name="uninstall_args" spellcheck="false"></label>
+  {{template "ttl" "1440"}}
+  <p class="muted">{{t "Ogni computer cerca l'applicazione tra quelle installate per tutti gli utenti e la rimuove in modo silenzioso, senza riavviare. Dove non è installata, o ce n'è più di una con lo stesso nome (indica la versione), il job fallisce solo su quel computer."}}</p>
+  <button class="primary">{{t "Approva e disinstalla"}}</button>
+</form>
+{{end}}
 {{end}}
 {{end}}

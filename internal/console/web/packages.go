@@ -664,6 +664,26 @@ func (s *Server) handleUninstall(w http.ResponseWriter, r *http.Request) {
 		s.flash(w, r, s.T(r, "Pubblica prima il modulo software."), back)
 		return
 	}
+	params, msg := s.uninstallParams(r)
+	if msg != "" {
+		s.flash(w, r, msg, back)
+		return
+	}
+	raw, _ := json.Marshal(params)
+	req := &openrmmv1.JobRequest{TenantId: t, AgentId: id, Module: man.ID, ModuleVersion: man.Version,
+		ModuleSha256: mod.ManifestSHA256, Action: "uninstall", ParamsJson: raw, TtlSeconds: ttlFrom(r),
+		RequestNonce: jobreq.NewRequestNonce()}
+	if err := jobreq.Validate(req); err != nil {
+		s.flash(w, r, s.Tf(r, "Richiesta non valida: %v", err), back)
+		return
+	}
+	s.startStepUp(w, r, sessionFrom(r.Context()), req, back)
+}
+
+// uninstallParams reads the application to remove from the form: a product
+// code, or an exact name with an optional version, plus the arguments for
+// an uninstaller without a silent command.
+func (s *Server) uninstallParams(r *http.Request) (map[string]any, string) {
 	name, version, code := strings.TrimSpace(r.PostFormValue("name")), strings.TrimSpace(r.PostFormValue("version")),
 		strings.ToUpper(strings.TrimSpace(r.PostFormValue("product_code")))
 	params := map[string]any{}
@@ -676,25 +696,15 @@ func (s *Server) handleUninstall(w http.ResponseWriter, r *http.Request) {
 			params["version"] = version
 		}
 	default:
-		s.flash(w, r, s.T(r, "Applicazione non valida."), back)
-		return
+		return nil, s.T(r, "Applicazione non valida.")
 	}
 	if n := strings.ToLower(name); strings.HasPrefix(n, "open-rmm") || strings.HasPrefix(n, "tempra rmm") {
-		s.flash(w, r, s.T(r, "L'agente Tempra RMM non si disinstalla dalla console."), back)
-		return
+		return nil, s.T(r, "L'agente Tempra RMM non si disinstalla dalla console.")
 	}
 	if extra := strings.TrimSpace(r.PostFormValue("uninstall_args")); extra != "" {
 		params["uninstall_args"] = extra
 	}
-	raw, _ := json.Marshal(params)
-	req := &openrmmv1.JobRequest{TenantId: t, AgentId: id, Module: man.ID, ModuleVersion: man.Version,
-		ModuleSha256: mod.ManifestSHA256, Action: "uninstall", ParamsJson: raw, TtlSeconds: ttlFrom(r),
-		RequestNonce: jobreq.NewRequestNonce()}
-	if err := jobreq.Validate(req); err != nil {
-		s.flash(w, r, s.Tf(r, "Richiesta non valida: %v", err), back)
-		return
-	}
-	s.startStepUp(w, r, sessionFrom(r.Context()), req, back)
+	return params, ""
 }
 
 // handleSetUnsigned allows or forbids installing a library package whose

@@ -184,7 +184,7 @@ Shows the user's screen and lets you move mouse and keyboard. It opens in a new 
 
 ### Bulk actions
 
-Tick computers in the agent list (or open a group) and choose an action: command, script, package installation, workflow, file management, site or update ring. One MFA approval covers up to 500 computers; each receives its own signed job. Only actions available on every selected platform are offered.
+Tick computers in the agent list (or open a group) and choose an action: command, script, package installation, application removal, workflow, file management, site or update ring. One MFA approval covers up to 500 computers; each receives its own signed job. Only actions available on every selected platform are offered.
 
 ### Jobs
 
@@ -227,6 +227,8 @@ Computers that are off receive the job when they reconnect, within its validity 
 ### Uninstalling an application
 
 In the agent's **Software** tab, choose **Uninstall…** on an application and approve with MFA. The removal is silent and verified afterwards. Per-user installations and the Tempra RMM agent cannot be removed this way.
+
+To remove an application from many computers (Admin): search for it in **Reporting → Computers** (software field) and choose **Uninstall from these computers… → Uninstall…**, or select the computers in the agent list and use **Uninstall an application** among the bulk actions. Give the exact name as listed in the inventory, or the MSI product code; one MFA approval covers all of them. A computer where the application is missing, or listed twice under the same name (give the version), fails on its own without stopping the others. Windows only.
 
 ### Upgrading an application on many computers
 

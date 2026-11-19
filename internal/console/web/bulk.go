@@ -44,6 +44,11 @@ type bulkData struct {
 	// which provisioning refuses.
 	Profiles         []store.Profile
 	ProvisionServers string
+	// Uninstall: an application can be removed from every selected agent
+	// (software module published for their platforms); UninstallName and
+	// UninstallVersion fill it in (?uninstall=&uninstall_version=).
+	Uninstall                       bool
+	UninstallName, UninstallVersion string
 }
 
 // selectedAgents returns the active agents listed in the "agent" values.
@@ -124,6 +129,10 @@ func (s *Server) handleBulkForm(w http.ResponseWriter, r *http.Request) {
 				d.Files = false
 			}
 		}
+	}
+	if man, _, err := s.softwareModule(r.Context()); err == nil && onPlatforms(man, agents) {
+		d.Uninstall = true
+		d.UninstallName, d.UninstallVersion = r.URL.Query().Get("uninstall"), r.URL.Query().Get("uninstall_version")
 	}
 	// Actions available on every selected agent's platform.
 	count := map[string]int{}
@@ -237,6 +246,24 @@ func (s *Server) handleBulkJobs(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/packages/"+sha+"/deploy?"+url.Values{"agent": targets}.Encode(), http.StatusSeeOther)
 		return
 	}
+	if r.PostFormValue("uninstall") == "1" {
+		man, mod, err := s.softwareModule(r.Context())
+		if err != nil {
+			s.flash(w, r, s.T(r, "Pubblica prima il modulo software."), back)
+			return
+		}
+		if !onPlatforms(man, agents) {
+			s.flash(w, r, s.T(r, "La disinstallazione è disponibile solo sui computer Windows: togli gli altri dalla selezione."), back)
+			return
+		}
+		params, msg := s.uninstallParams(r)
+		if msg != "" {
+			s.flash(w, r, msg, back)
+			return
+		}
+		s.startBulkJob(w, r, t, man, mod, "uninstall", params, targets, back)
+		return
+	}
 	target := strings.Split(r.PostFormValue("target"), "|")
 	if len(target) != 3 {
 		s.flash(w, r, s.T(r, "Seleziona un'azione."), back)
@@ -270,13 +297,20 @@ func (s *Server) handleBulkJobs(w http.ResponseWriter, r *http.Request) {
 		}
 		params["script"] = script
 	}
+	s.startBulkJob(w, r, t, man, mod, target[2], params, targets, back)
+}
+
+// startBulkJob starts the approval of one job of a module action on the
+// targets.
+func (s *Server) startBulkJob(w http.ResponseWriter, r *http.Request, t string, man *modules.Manifest, mod store.Module,
+	action string, params map[string]any, targets []string, back string) {
 	raw, err := json.Marshal(params)
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
 	req := &openrmmv1.JobRequest{TenantId: t, Module: man.ID, ModuleVersion: man.Version, ModuleSha256: mod.ManifestSHA256,
-		Action: target[2], ParamsJson: raw, TtlSeconds: ttlFrom(r), RequestNonce: jobreq.NewRequestNonce()}
+		Action: action, ParamsJson: raw, TtlSeconds: ttlFrom(r), RequestNonce: jobreq.NewRequestNonce()}
 	if len(targets) == 1 {
 		req.AgentId = targets[0]
 	} else {
@@ -287,6 +321,16 @@ func (s *Server) handleBulkJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.startStepUp(w, r, sessionFrom(r.Context()), req, back)
+}
+
+// onPlatforms tells whether a module runs on the platform of every agent.
+func onPlatforms(man *modules.Manifest, agents []store.Agent) bool {
+	for _, a := range agents {
+		if _, ok := man.Entrypoints[a.Host.OS+"/"+a.Host.Arch]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // presetField fills a parameter field with values from the URL.

@@ -7,11 +7,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"github.com/stefanozanarini/tempra-rmm/internal/console/authn"
+	"html"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -195,5 +197,50 @@ func TestConsoleUpload(t *testing.T) {
 	oc, ocsrf := e.login(t, op)
 	if code, _ := upload(t, oc, e.console.URL+"/packages/upload", [][2]string{{"csrf", ocsrf}, {"name", "x"}, {"version", "1"}}, file); code != 403 {
 		t.Fatalf("operator upload: %d", code)
+	}
+}
+
+// An application found by a software search is removed from many computers
+// with one approval.
+func TestBulkUninstall(t *testing.T) {
+	e := startConsole(t)
+	ctx := context.Background()
+	publishTo(t, e.store, filepath.Join(repoRoot(t), "modules", "software"))
+	pc1 := e.addWindowsAgent(t, "PC-01", inventory.Software{Name: "Notepad++ (64-bit x64)", Version: "8.6", Scope: "machine"})
+	pc2 := e.addWindowsAgent(t, "PC-02", inventory.Software{Name: "Notepad++ (64-bit x64)", Version: "8.7", Scope: "machine"})
+	e.addWindowsAgent(t, "PC-03", inventory.Software{Name: "Notepad++ (64-bit x64)", Version: "8.7", Scope: "user"})
+	c, csrf := e.login(t, admin)
+
+	// The report offers the removal from the two computers where the
+	// application is installed for all users.
+	_, body := get(t, c, e.console.URL+"/reports?tab=computers&software=Notepad")
+	link := regexp.MustCompile(`href="(/agents/bulk\?[^"]+)"`).FindStringSubmatch(body)
+	if link == nil || !strings.Contains(body, "installata per tutti gli utenti su 2 dei computer trovati") {
+		t.Fatalf("report lacks the uninstall: %s", body)
+	}
+	_, form := get(t, c, e.console.URL+html.UnescapeString(link[1]))
+	if !strings.Contains(form, `value="Notepad&#43;&#43; (64-bit x64)"`) || strings.Count(form, `name="uninstall" value="1"`) != 1 {
+		t.Fatalf("bulk form not prefilled: %s", form)
+	}
+
+	_, body, _ = post(t, c, e.console.URL+"/agents/bulk", url.Values{"csrf": {csrf}, "agent": {pc1, pc2}, "uninstall": {"1"},
+		"name": {"Notepad++ (64-bit x64)"}, "ttl_minutes": {"60"}})
+	if !strings.Contains(body, "2 comandi approvati") {
+		t.Fatalf("bulk uninstall: %s", body)
+	}
+	jobs, _ := e.store.ListJobs(ctx, e.tenant, "", 10)
+	targets := map[string]bool{}
+	for _, j := range jobs {
+		if j.Module != "software" || j.Action != "uninstall" || string(j.Params) != `{"name":"Notepad++ (64-bit x64)"}` {
+			t.Fatalf("job = %+v %s", j, j.Params)
+		}
+		targets[j.AgentID] = true
+	}
+	if len(jobs) != 2 || !targets[pc1] || !targets[pc2] {
+		t.Fatalf("jobs for %v", targets)
+	}
+	if _, body, _ = post(t, c, e.console.URL+"/agents/bulk", url.Values{"csrf": {csrf}, "agent": {pc1, pc2}, "uninstall": {"1"},
+		"name": {"Tempra RMM agent"}}); !strings.Contains(body, "non si disinstalla") {
+		t.Fatal("agent uninstall not refused")
 	}
 }

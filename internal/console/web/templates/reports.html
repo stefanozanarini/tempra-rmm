@@ -146,6 +146,9 @@
 {{if and $.CanRun .Upgrades}}<div class="stack">{{range .Upgrades}}<p><a class="button primary" href="{{.URL}}">↑ {{t "Aggiorna questa applicazione…"}}</a>
   {{.Name}} <code>{{.ID}}</code> → {{.Available}} · {{tf "aggiornabile con winget su %d dei computer trovati" .Count}}</p>{{end}}
   <p class="muted small">{{t "Apre l'azione già preparata: la controlli e la approvi con MFA una sola volta. Non sono inclusi i computer dove winget non vede l'applicazione (installata nel profilo dell'utente o winget assente)."}}</p></div>{{end}}
+{{if and $.IsAdmin .Uninstalls}}<details class="stack"><summary>{{t "Disinstalla da questi computer…"}}</summary>
+  {{range .Uninstalls}}<p><a class="button" href="{{.URL}}">{{t "Disinstalla…"}}</a> {{.Name}} · {{tf "installata per tutti gli utenti su %d dei computer trovati" .Count}}</p>{{end}}
+  <p class="muted small">{{t "Apre la disinstallazione già preparata: la controlli e la approvi con MFA una sola volta. Sono esclusi i computer non Windows e quelli dove l'applicazione è installata solo nel profilo di un utente."}}</p></details>{{end}}
 {{if .Rows}}
 <table>
 <thead><tr><th>{{t "Computer"}}</th><th>{{t "Sede"}}</th><th>{{t "Sistema operativo"}}</th><th>{{t "Modello"}}</th><th>{{t "Utente"}}</th>{{if .ShowSoftware}}<th>{{t "Software"}}</th>{{end}}{{range .Columns}}<th>{{t .Label}}</th>{{end}}<th>{{t "Inventario"}}</th></tr></thead>
