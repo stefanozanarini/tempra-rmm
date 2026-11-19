@@ -184,7 +184,7 @@ table.patches td:first-child, table.patches th:first-child { width:1.5em; }
 .ctxmenu a:hover, .ctxmenu button:hover, .ctxmenu a:focus, .ctxmenu button:focus { background:var(--line); outline:none; }
 .ctxmenu hr { border:0; border-top:1px solid var(--line); margin:4px 0; }
 /* Product logo: light artwork by default, dark artwork with the dark theme. */
-header img.brandmark { display:block; height:28px; width:auto; }
+header img.brandmark { display:block; height:40px; width:auto; }
 header img.brandmark.dark { display:none; }
 :root[data-theme=dark] header img.brandmark.light { display:none; }
 :root[data-theme=dark] header img.brandmark.dark { display:block; }
