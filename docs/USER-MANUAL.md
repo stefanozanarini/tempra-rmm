@@ -49,7 +49,7 @@ When you launch any command, a Microsoft sign-in opens for that command. Sign in
 
 ### The screen layout
 
-- **Header**: the menu, the open-alerts badge, the language selector (Italian / English) and the light/dark theme.
+- **Header**: the menu, the open-alerts badge, the language selector (Italian / English) and the light/dark theme and the style: **Classic** or **Alternative** (another palette and look of cards, badges, tabs and tables; same pages). Both are kept for the session and carried to linked consoles.
 - **Left column** (agent lists): the site tree, then the Active Directory OUs when AD is integrated. A click filters the list.
 - **Main area**: the page content. Pages with a **?** next to the title open a short contextual help.
 - **Bottom-right box**: your jobs in progress, on every page.

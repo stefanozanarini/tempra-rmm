@@ -57,13 +57,13 @@
     });
   });
 
-  // Theme and language apply as soon as they are chosen; the Apply buttons
+  // Theme, style and language apply as soon as they are chosen; the Apply buttons
   // stay for browsers without scripts.
   document.querySelectorAll("header form.theme, header form.lang").forEach(function (f) {
-    var sel = f.querySelector("select"), btn = f.querySelector("button");
-    if (!sel || !btn) return;
+    var sels = f.querySelectorAll("select"), btn = f.querySelector("button");
+    if (!sels.length || !btn) return;
     btn.hidden = true;
-    sel.addEventListener("change", function () { f.submit(); });
+    sels.forEach(function (sel) { sel.addEventListener("change", function () { f.submit(); }); });
   });
 
   // Filter forms (class autosubmit) apply as soon as a choice changes.

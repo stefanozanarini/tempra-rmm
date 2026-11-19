@@ -105,6 +105,22 @@ func TestConsoleSitesPanelNotesAndTheme(t *testing.T) {
 	if _, body = get(t, c, e.console.URL+"/agents"); !strings.Contains(body, `data-theme="dark"`) {
 		t.Fatal("dark theme not applied")
 	}
+	// Style, kept in the session alongside the theme; unknown ones ignored.
+	post(t, c, e.console.URL+"/theme", url.Values{"csrf": {csrf}, "theme": {"dark"}, "style": {"alternative"}})
+	if _, body = get(t, c, e.console.URL+"/agents"); !strings.Contains(body, `data-style="alternative"`) || !strings.Contains(body, `/static/alternative.css`) {
+		t.Fatal("alternative style not applied")
+	}
+	post(t, c, e.console.URL+"/theme", url.Values{"csrf": {csrf}, "theme": {"dark"}, "style": {"bogus"}})
+	if _, body = get(t, c, e.console.URL+"/agents"); !strings.Contains(body, `data-style="alternative"`) {
+		t.Fatal("unknown style replaced the choice")
+	}
+	post(t, c, e.console.URL+"/theme", url.Values{"csrf": {csrf}, "theme": {"dark"}, "style": {""}})
+	if _, body = get(t, c, e.console.URL+"/agents"); strings.Contains(body, `alternative.css`) {
+		t.Fatal("Classic style still loads alternative.css")
+	}
+	if code, _ := get(t, c, e.console.URL+"/static/alternative.css"); code != 200 {
+		t.Fatalf("alternative.css: %d", code)
+	}
 
 	// Only admins manage sites; notes need an operator.
 	op := admin

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{.Lang}}"{{if eq .Theme "light"}} data-theme="light"{{else if ne .Theme "auto"}} data-theme="dark"{{end}}>
+<html lang="{{.Lang}}"{{if eq .Theme "light"}} data-theme="light"{{else if ne .Theme "auto"}} data-theme="dark"{{end}}{{if eq .Style "alternative"}} data-style="alternative"{{end}}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,6 +7,7 @@
 <title>{{.Title}} · Tempra RMM</title>
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/app.css">
+{{if eq .Style "alternative"}}<link rel="stylesheet" href="/static/alternative.css">{{end}}
 <script src="/static/app.js" defer></script>
 </head>
 <body>
@@ -65,6 +66,7 @@
     <form method="post" action="/theme" class="inline theme">
       <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="return" value="{{.Path}}">
       <select name="theme" aria-label="{{t "Tema"}}"><option value="dark" {{if or (eq .Theme "dark") (not .Theme)}}selected{{end}}>{{t "Scuro"}}</option><option value="light" {{if eq .Theme "light"}}selected{{end}}>{{t "Chiaro"}}</option><option value="auto" {{if eq .Theme "auto"}}selected{{end}}>{{t "Tema automatico"}}</option></select>
+      <select name="style" aria-label="{{t "Stile"}}" title="{{t "Stile"}}"><option value="" {{if not .Style}}selected{{end}}>Classic</option><option value="alternative" {{if eq .Style "alternative"}}selected{{end}}>Alternative</option></select>
       <button>{{t "Applica"}}</button>
     </form>
     <span>{{.Operator.Username}}</span>

@@ -173,6 +173,7 @@ type Operator struct {
 	Session  string   `json:"session"`          // random per central session
 	Lang     string   `json:"lang,omitempty"`
 	Theme    string   `json:"theme,omitempty"`
+	Style    string   `json:"style,omitempty"`
 }
 
 // Encode returns the header value.

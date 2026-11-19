@@ -101,7 +101,7 @@ func (s *Server) openLink(r *http.Request, sess *session) (store.FederationLink,
 func (s *Server) assertion(r *http.Request, sess *session) string {
 	op := sess.data.Operator
 	return federation.Operator{ObjectID: op.ObjectID, TenantID: op.TenantID, Name: op.Name, Username: op.Username,
-		Roles: op.Roles, Groups: op.Groups, Session: sess.data.FedKey, Lang: langOf(r, sess), Theme: sess.data.Theme}.Encode()
+		Roles: op.Roles, Groups: op.Groups, Session: sess.data.FedKey, Lang: langOf(r, sess), Theme: sess.data.Theme, Style: sess.data.Style}.Encode()
 }
 
 // forwarded response headers; the security headers are the central
@@ -585,6 +585,9 @@ func (s *Server) fedSession(ctx context.Context, a federation.Operator, op *Oper
 	}
 	if a.Theme == "" || a.Theme == "light" || a.Theme == "dark" || a.Theme == "auto" {
 		sess.data.Theme = a.Theme
+	}
+	if validStyle(a.Style) {
+		sess.data.Style = a.Style
 	}
 	return sess, nil
 }

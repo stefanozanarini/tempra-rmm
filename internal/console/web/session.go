@@ -71,6 +71,7 @@ type SessionData struct {
 	Operator  *Operator `json:"operator,omitempty"`
 	CSRF      string    `json:"csrf"`
 	Theme     string    `json:"theme,omitempty"` // "", light, dark
+	Style     string    `json:"style,omitempty"` // "" (Classic), alternative
 	Lang      string    `json:"lang,omitempty"`  // "" (from the browser), it, en
 	Tenant    string    `json:"tenant,omitempty"`
 	Pending   *Pending  `json:"pending,omitempty"`

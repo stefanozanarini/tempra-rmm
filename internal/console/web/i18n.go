@@ -141,6 +141,7 @@ var catalogEN = map[string]string{ // #nosec G101 -- UI text, not credentials
 	"Tenant":           "Tenant",
 	"Cambia":           "Switch",
 	"Tema":             "Theme",
+	"Stile":            "Style",
 	"Tema automatico":  "Automatic theme",
 	"Chiaro":           "Light",
 	"Scuro":            "Dark",

@@ -638,12 +638,19 @@ func (s *Server) handleTheme(w http.ResponseWriter, r *http.Request) {
 	case "light", "dark", "auto", "":
 		sess.data.Theme = th
 	}
+	if st := r.PostFormValue("style"); validStyle(st) {
+		sess.data.Style = st
+	}
 	if err := s.save(r.Context(), w, sess); err != nil {
 		s.fail(w, r, err)
 		return
 	}
 	http.Redirect(w, r, safeReturn(r.PostFormValue("return"), "/agents"), http.StatusSeeOther)
 }
+
+// validStyle tells whether st is a console style: "" (Classic) or
+// "alternative" (static/alternative.css on top of app.css).
+func validStyle(st string) bool { return st == "" || st == "alternative" }
 
 // agentSite is the site of one agent, for its page.
 type agentSite struct {

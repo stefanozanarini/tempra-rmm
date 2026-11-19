@@ -1,0 +1,127 @@
+/* Tempra RMM console — "Alternative" style, loaded after app.css when the
+   operator chooses it (header: Style). Same pages and markup as Classic:
+   only the palette and the look of the components change. Every rule is
+   scoped to :root[data-style=alternative], so it wins over app.css's
+   :root[data-theme=…] rules of the same shape by coming later. */
+
+/* ---------- Colors ---------- */
+:root[data-style=alternative] {
+  color-scheme:light;
+  --bg:#eef2f7; --card:#ffffff; --card-2:#f5f7fb; --hover:#f0f4fa; --line:#dde3ec; --line-2:#e8edf4;
+  --fg:#142033; --fg-2:#2c3a50; --muted:#617089;
+  --accent:#1a5fd0; --blue:#1f6feb; --blue-soft:#e3edfd; --blue-line:#9fc0f7;
+  --red:#d7263d; --red-soft:#fde7ea; --red-line:#f3a6b0;
+  --danger:#c11f35; --ok:#16a34a; --warn:#fff3dc; --warn-accent:#f59e0b;
+  --sel:#e3edfd; --input:#ffffff; --dot-off:#a3afc2; --chip:#e9eef5;
+  --b-grey:#e9eef5; --b-yellow:#fff3dc; --b-green:#dcf5e5; --b-red:#fde7ea; --b-blue:#e3edfd; --b-warnfg:#8a5200;
+  --shadow:0 1px 2px rgba(15,30,60,.06), 0 2px 6px rgba(15,30,60,.05);
+  --pop:0 14px 40px rgba(15,30,60,.18);
+  --stripes:repeating-linear-gradient(135deg, rgba(30,78,140,.045) 0 22px, transparent 22px 44px);
+}
+:root[data-style=alternative][data-theme=dark] {
+  color-scheme:dark;
+  --bg:#09111f; --card:#0f1b2e; --card-2:#13213a; --hover:#16253f; --line:#1e2d47; --line-2:#1a2840;
+  --fg:#e7edf6; --fg-2:#c9d3e2; --muted:#8a99b3;
+  --accent:#5b9dff; --blue:#1f7af0; --blue-soft:#12305e; --blue-line:#2b63b8;
+  --red:#e5303f; --red-soft:#3a1520; --red-line:#a3283a;
+  --danger:#ff5a67; --ok:#22c55e; --warn:#2f2412; --warn-accent:#f5a524;
+  --sel:#12305e; --input:#13213a; --dot-off:#8c9ab3; --chip:#1a2942;
+  --b-grey:#1a2942; --b-yellow:#2f2412; --b-green:#0f3a2a; --b-red:#3a1520; --b-blue:#12305e; --b-warnfg:#f5a524;
+  --shadow:0 1px 2px rgba(0,0,0,.3);
+  --pop:0 18px 50px rgba(0,0,0,.55);
+  --stripes:repeating-linear-gradient(135deg, rgba(255,255,255,.028) 0 22px, transparent 22px 44px);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-style=alternative]:not([data-theme=light]) {
+    color-scheme:dark;
+    --bg:#09111f; --card:#0f1b2e; --card-2:#13213a; --hover:#16253f; --line:#1e2d47; --line-2:#1a2840;
+    --fg:#e7edf6; --fg-2:#c9d3e2; --muted:#8a99b3;
+    --accent:#5b9dff; --blue:#1f7af0; --blue-soft:#12305e; --blue-line:#2b63b8;
+    --red:#e5303f; --red-soft:#3a1520; --red-line:#a3283a;
+    --danger:#ff5a67; --ok:#22c55e; --warn:#2f2412; --warn-accent:#f5a524;
+    --sel:#12305e; --input:#13213a; --dot-off:#8c9ab3; --chip:#1a2942;
+    --b-grey:#1a2942; --b-yellow:#2f2412; --b-green:#0f3a2a; --b-red:#3a1520; --b-blue:#12305e; --b-warnfg:#f5a524;
+    --shadow:0 1px 2px rgba(0,0,0,.3);
+    --pop:0 18px 50px rgba(0,0,0,.55);
+    --stripes:repeating-linear-gradient(135deg, rgba(255,255,255,.028) 0 22px, transparent 22px 44px);
+  }
+}
+
+/* ---------- Base ---------- */
+:root[data-style=alternative] body { font-size:14px; font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased;
+  background-color:var(--bg); background-image:var(--stripes); background-attachment:fixed; }
+:root[data-style=alternative] header { background:var(--card); background-image:none; border-bottom:1px solid var(--line); padding:10px 22px; }
+:root[data-style=alternative] main h1 { font-size:28px; line-height:1.15; letter-spacing:-.015em; }
+:root[data-style=alternative] :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+/* ---------- Navigation ---------- */
+:root[data-style=alternative] nav.main { gap:4px 2px; }
+:root[data-style=alternative] nav.main > a, :root[data-style=alternative] nav.main > details > summary {
+  display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 9px; border:1px solid transparent; border-radius:7px; color:var(--fg-2); }
+:root[data-style=alternative] nav.main > a:hover, :root[data-style=alternative] nav.main > details > summary:hover { background:var(--hover); color:var(--fg); }
+:root[data-style=alternative] nav.main > details[open] > summary { border-color:var(--blue-line); background:var(--blue-soft); color:var(--fg); }
+:root[data-style=alternative] nav details.menu > div { background:var(--card); border:1px solid var(--line); border-radius:10px; box-shadow:var(--pop); padding:6px; }
+:root[data-style=alternative] nav details.menu > div a { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:7px; color:var(--fg-2); }
+:root[data-style=alternative] nav details.menu > div a:hover { background:var(--hover); color:var(--fg); }
+
+/* ---------- Summary cards: a colored tile, then the figure ---------- */
+:root[data-style=alternative] .cards { gap:14px; }
+:root[data-style=alternative] .card { display:grid; grid-template-columns:auto 1fr; align-items:center; column-gap:14px;
+  border:1px solid var(--line); border-radius:9px; box-shadow:var(--shadow); padding:12px 16px; color:var(--fg-2); font-size:13.5px; }
+:root[data-style=alternative] .card::before { content:""; grid-row:1 / span 2; width:46px; height:46px; border-radius:8px;
+  background:var(--blue) radial-gradient(circle, rgba(255,255,255,.95) 0 6px, transparent 7px); }
+:root[data-style=alternative] .card .num { font-size:24px; line-height:1.2; color:var(--fg); }
+:root[data-style=alternative] .card:hover { border-color:var(--blue-line); }
+:root[data-style=alternative] .card.ok::before { background:color-mix(in srgb, var(--ok) 22%, var(--card)) radial-gradient(circle, var(--ok) 0 9px, transparent 10px); }
+:root[data-style=alternative] .card.ok .num { color:var(--fg); }
+:root[data-style=alternative] .card.warn::before { background:color-mix(in srgb, var(--warn-accent) 22%, var(--card)) radial-gradient(circle, var(--warn-accent) 0 9px, transparent 10px); }
+:root[data-style=alternative] .card.bad::before { background:color-mix(in srgb, var(--red) 22%, var(--card)) radial-gradient(circle, var(--red) 0 9px, transparent 10px); }
+:root[data-style=alternative] .card.bad .num { color:var(--danger); }
+
+/* ---------- Tabs and filter chips ---------- */
+:root[data-style=alternative] nav.tabs { gap:8px; }
+:root[data-style=alternative] nav.tabs a { display:inline-flex; align-items:center; gap:8px; padding:7px 14px; border:1px solid var(--line); border-radius:7px;
+  background:var(--card); color:var(--fg-2); text-decoration:none; }
+:root[data-style=alternative] nav.tabs a:hover { background:var(--hover); }
+:root[data-style=alternative] nav.tabs a.current { border-color:var(--blue); color:var(--fg); box-shadow:inset 0 -3px 0 var(--blue); }
+:root[data-style=alternative] nav.tabs.filters a { padding:4px 12px; border-radius:17px; font-size:13px; }
+:root[data-style=alternative] nav.tabs.filters a.current { background:var(--blue-soft); box-shadow:none; }
+
+/* ---------- Badges: filled, slightly squarer ---------- */
+:root[data-style=alternative] .badge { border-radius:6px; padding:2px 9px; font-weight:500; background:var(--chip); color:var(--fg-2); }
+:root[data-style=alternative] .badge.chk-warning, :root[data-style=alternative] .badge.sev-warning,
+:root[data-style=alternative] .badge.pending, :root[data-style=alternative] .badge.queued, :root[data-style=alternative] .badge.sent,
+:root[data-style=alternative] .badge.partial { background:#f59e0b; color:#1b1300; font-weight:600; }
+:root[data-style=alternative] .badge.chk-failing, :root[data-style=alternative] .badge.sev-critical,
+:root[data-style=alternative] .badge.failed, :root[data-style=alternative] .badge.rejected, :root[data-style=alternative] .badge.expired,
+:root[data-style=alternative] .badge.revoked, :root[data-style=alternative] .badge.rolled_back,
+:root[data-style=alternative] .badge.bl-off, :root[data-style=alternative] .badge.bl-suspended { background:#b4232f; color:#fff; }
+:root[data-style=alternative] .badge.chk-ok, :root[data-style=alternative] .badge.active, :root[data-style=alternative] .badge.succeeded,
+:root[data-style=alternative] .badge.online, :root[data-style=alternative] .badge.applied, :root[data-style=alternative] .badge.bl-on { background:var(--b-green); color:var(--ok); }
+:root[data-style=alternative] .badge.running, :root[data-style=alternative] .badge.accepted, :root[data-style=alternative] .badge.downloading,
+:root[data-style=alternative] .badge.staged, :root[data-style=alternative] .badge.sev-info { background:var(--blue); color:#fff; }
+
+/* ---------- Tables ---------- */
+:root[data-style=alternative] table { border-radius:9px; box-shadow:var(--shadow); }
+:root[data-style=alternative] th { font-weight:500; font-size:13px; color:var(--fg-2); background:var(--card-2); padding:10px 12px; }
+:root[data-style=alternative] td { padding:9px 12px; border-bottom-color:var(--line-2); color:var(--fg-2); }
+:root[data-style=alternative] tbody tr:hover td { background:var(--hover); }
+:root[data-style=alternative] .list.scroll thead th { background:var(--card-2); }
+
+/* ---------- Buttons and fields ---------- */
+:root[data-style=alternative] button, :root[data-style=alternative] input, :root[data-style=alternative] select,
+:root[data-style=alternative] textarea { border-radius:7px; border-color:var(--line); }
+:root[data-style=alternative] button:hover { background:var(--hover); }
+:root[data-style=alternative] button.primary, :root[data-style=alternative] a.button { background:var(--blue); border-color:var(--blue); color:#fff; }
+:root[data-style=alternative] button.primary:hover, :root[data-style=alternative] a.button:hover { filter:brightness(1.08); background:var(--blue); }
+:root[data-style=alternative] input:focus, :root[data-style=alternative] select:focus, :root[data-style=alternative] textarea:focus {
+  outline:none; border-color:var(--blue); box-shadow:0 0 0 3px color-mix(in srgb, var(--blue) 25%, transparent); }
+
+/* ---------- Panels: site tree, facts, forms ---------- */
+:root[data-style=alternative] .tree { border-radius:9px; box-shadow:var(--shadow); padding:12px 10px; }
+:root[data-style=alternative] .tree a { padding:6px 10px; border-radius:7px; color:var(--fg-2); }
+:root[data-style=alternative] .tree a:hover { background:var(--hover); }
+:root[data-style=alternative] .tree a.current { background:var(--red-soft); color:var(--fg); box-shadow:inset 3px 0 0 var(--red); }
+:root[data-style=alternative] .tree-title { font-size:12px; font-weight:500; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); }
+:root[data-style=alternative] dl.facts, :root[data-style=alternative] form.stack { border-radius:9px; box-shadow:var(--shadow); }
+:root[data-style=alternative] .flash { border-radius:9px; }

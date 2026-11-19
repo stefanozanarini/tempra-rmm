@@ -632,6 +632,8 @@ type page struct {
 	// Theme is the operator's choice: "" (the default, dark), light, dark
 	// or auto (follows the browser).
 	Theme string
+	// Style is the operator's console style: "" (Classic) or alternative.
+	Style string
 	Lang  string
 	Path  string
 	// Federation: Federated when a central console's operator works on
@@ -653,7 +655,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, name, title stri
 	p := page{Title: title, Data: data, Lang: lang, Page: name}
 	if sess != nil && sess.data.Operator != nil {
 		op := sess.data.Operator
-		p.Operator, p.CSRF, p.Flash, p.Theme = op, sess.data.CSRF, sess.data.Flash, sess.data.Theme
+		p.Operator, p.CSRF, p.Flash, p.Theme, p.Style = op, sess.data.CSRF, sess.data.Flash, sess.data.Theme, sess.data.Style
 		p.Path = r.URL.RequestURI()
 		a := s.access(r.Context(), sess)
 		p.Access = a
