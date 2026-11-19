@@ -69,3 +69,16 @@ func TestParseFirmware(t *testing.T) {
 		t.Fatal("SourceOf")
 	}
 }
+
+func TestFirmwareVirtual(t *testing.T) {
+	vm := `{"vendor":"dell","supported":false,"tool_missing":"Dell Command Update","updates":[],
+		"components":[{"category":"bios","name":"BIOS","version":"VMW71.00V.11599183.B64.1901030933","provider":"VMware, Inc."}]}`
+	dell := `{"vendor":"dell","supported":false,"tool_missing":"Dell Command Update","updates":[],
+		"components":[{"category":"bios","name":"BIOS","version":"2.12.2","provider":"Dell Inc."}]}`
+	for raw, want := range map[string]bool{vm: true, dell: false, `{"vendor":"virtual","updates":[]}`: true} {
+		r, err := ParseFirmware([]byte(raw), time.Now())
+		if err != nil || r.Virtual() != want {
+			t.Errorf("%s: Virtual() = %v, %v", raw, r.Virtual(), err)
+		}
+	}
+}

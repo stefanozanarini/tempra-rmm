@@ -42,7 +42,7 @@ var resultKeys = map[string]string{
 	"block": "blocca", "limit": "limita", "info": "informazione", "warning": "avviso", "critical": "critico",
 	"manager": "gestore pacchetti", "os": "sistema operativo", "output": "output",
 	"tool": "strumento", "tool_missing": "strumento mancante", "vendor": "produttore", "supported": "supportato",
-	"tool_install": "installazione dello strumento", "present": "già presente", "unsupported_vendor": "produttore non supportato",
+	"tool_install": "installazione dello strumento", "present": "già presente", "unsupported_vendor": "produttore non supportato", "virtual_machine": "macchina virtuale",
 	"classifications": "classificazioni", "include_kbs": "KB da includere", "exclude_kbs": "KB da escludere", "allow_managed": "anche se gestito da WSUS o Intune", "pending_reboot": "riavvio in sospeso", "searcher": "ricerca",
 	"drive": "unità", "freed_gb": "liberati (GB)", "free_before_gb": "spazio libero prima (GB)", "free_after_gb": "spazio libero dopo (GB)",
 	"space_usage": "cosa occupa lo spazio", "size_gb": "dimensione (GB)", "steps": "passaggi", "step": "passaggio", "note": "nota",

@@ -256,6 +256,7 @@
 </form>
 {{end}}
 {{else}}<p><span class="badge chk-ok">{{t "aggiornato"}}</span> {{t "nessun aggiornamento di BIOS, firmware o driver."}}</p>{{end}}
+{{else if .Virtual}}<p class="muted">{{t "Macchina virtuale: BIOS e driver vengono dall'hypervisor, non dagli strumenti del produttore."}}</p>
 {{else if .ToolMissing}}<p><span class="badge chk-warning">{{t "strumento mancante"}}</span> {{tf "%s non è installato." .ToolMissing}}</p>
 {{if and $.CanRun $.Data.Updates.FirmwareVersion}}<form method="post" action="/agents/{{$.Data.Agent.ID}}/firmware-tool" class="inline">
   <input type="hidden" name="csrf" value="{{$.CSRF}}">

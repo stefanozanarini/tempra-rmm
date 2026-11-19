@@ -69,7 +69,10 @@ function Get-SystemInfo {
         chassis        = Get-Str $chassis
         domain         = Get-Str $cs.Domain
         part_of_domain = [bool]$cs.PartOfDomain
-        virtual        = [bool]("$manufacturer $model" -match 'VMware|VirtualBox|Virtual Machine|QEMU|KVM|Xen|Parallels|Hyper-V')
+        # A VM may show its host's maker and model (VMware with
+        # SMBIOS.reflectHost), but not its BIOS or serial number.
+        virtual        = [bool]("$manufacturer $model $(Get-Str $bios.Manufacturer) $(Get-Str $bios.SMBIOSBIOSVersion) $(Get-Str $bios.SerialNumber)" -match
+            'VMware|\bVMW\d|VirtualBox|innotek|Virtual Machine|VRTUAL|QEMU|KVM|\bXen\b|Parallels|Hyper-V|Amazon EC2|Google Compute Engine|BHYVE')
     }
 }
 

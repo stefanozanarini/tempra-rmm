@@ -78,6 +78,7 @@ var messages = []message{
 	msg("Lenovo System Update non installato: distribuiscilo dalla pagina Software (Lenovo.SystemUpdate)", "Lenovo System Update not installed: deploy it from the Software page (Lenovo.SystemUpdate)"),
 	msg("HP Image Assistant non installato: distribuiscilo dalla pagina Software", "HP Image Assistant not installed: deploy it from the Software page"),
 	msg("Modello HP non supportato da HP Image Assistant", "HP model not supported by HP Image Assistant"),
+	msg("Macchina virtuale: BIOS e driver vengono dall'hypervisor", "Virtual machine: BIOS and drivers come from the hypervisor"),
 	msg("Produttore {} non supportato per gli aggiornamenti firmware", "Manufacturer ${1} not supported for firmware updates"),
 	msg("BIOS, firmware e driver aggiornati", "BIOS, firmware and drivers up to date"),
 	msg("{} aggiornamenti firmware/driver, BIOS da aggiornare, {} critici", "${1} firmware/driver updates, BIOS to update, ${2} critical"),

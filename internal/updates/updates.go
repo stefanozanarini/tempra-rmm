@@ -423,6 +423,26 @@ type FirmwareReport struct {
 	Components []FirmwareComponent `json:"components,omitempty"`
 }
 
+// virtualBIOS matches the maker, model, BIOS or serial number of a virtual
+// machine (the same pattern as the firmware and inventory modules).
+var virtualBIOS = regexp.MustCompile(`VMware|\bVMW\d|VirtualBox|innotek|Virtual Machine|VRTUAL|QEMU|KVM|\bXen\b|Parallels|Hyper-V|Amazon EC2|Google Compute Engine|BHYVE`)
+
+// Virtual tells whether the report comes from a virtual machine: said so
+// by the module (firmware 1.3.1), or seen in the BIOS of a report from an
+// older one, which took a VM showing its host's maker for that maker's
+// hardware.
+func (r *FirmwareReport) Virtual() bool {
+	if r.Vendor == "virtual" {
+		return true
+	}
+	for _, c := range r.Components {
+		if c.Category == "bios" && virtualBIOS.MatchString(c.Provider+" "+c.Version) {
+			return true
+		}
+	}
+	return false
+}
+
 // FirmwareComponent is an installed BIOS, device firmware or driver.
 type FirmwareComponent struct {
 	Category string `json:"category"` // bios | firmware | driver

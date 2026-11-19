@@ -37,8 +37,19 @@ function Set-RebootMarker([string]$Reason) {
     Set-ItemProperty -Path $key -Name 'RebootRequiredBy' -Value $Reason
 }
 
+# Get-Vendor returns dell, lenovo, hp, virtual or the manufacturer's name.
+# A virtual machine may show its host's maker and model (VMware with
+# SMBIOS.reflectHost: a "Dell PowerEdge"), but not its BIOS or serial
+# number; its firmware and drivers come from the hypervisor, never from
+# the vendor tools.
 function Get-Vendor {
-    $m = [string](Get-CimInstance Win32_ComputerSystem).Manufacturer
+    $cs = Get-CimInstance Win32_ComputerSystem
+    $bios = Get-CimInstance Win32_BIOS -ErrorAction SilentlyContinue
+    $m = [string]$cs.Manufacturer
+    if ("$m $($cs.Model) $($bios.Manufacturer) $($bios.SMBIOSBIOSVersion) $($bios.SerialNumber)" -match
+        'VMware|\bVMW\d|VirtualBox|innotek|Virtual Machine|VRTUAL|QEMU|KVM|\bXen\b|Parallels|Hyper-V|Amazon EC2|Google Compute Engine|BHYVE') {
+        return 'virtual'
+    }
     switch -Regex ($m) {
         '^\s*Dell' { return 'dell' }
         '^\s*LENOVO' { return 'lenovo' }
@@ -378,6 +389,10 @@ function New-Report($Params) {
             $report.supported, $report.tool = $true, 'HP Image Assistant'
             $report.updates = @($updates)
         }
+        'virtual' {
+            $report.checks = @(@{ id = 'firmware'; status = 'ok'; summary = 'Macchina virtuale: BIOS e driver vengono dall''hypervisor' })
+            return $report
+        }
         default {
             $report.checks = @(@{ id = 'firmware'; status = 'ok'; summary = "Produttore $vendor non supportato per gli aggiornamenti firmware" })
             return $report
@@ -429,6 +444,10 @@ function Find-Winget {
 function Install-VendorTool($Params) {
     $vendor = Get-Vendor
     $result = @{ vendor = $vendor; action = 'skipped' }
+    if ($vendor -eq 'virtual') {
+        $result.reason = 'virtual_machine'
+        return $result
+    }
     if ((Get-CimInstance Win32_OperatingSystem).ProductType -ne 1) {
         $result.reason = 'server'
         return $result
