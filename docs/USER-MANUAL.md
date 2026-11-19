@@ -177,7 +177,7 @@ Opens PowerShell (bash on Linux) in a terminal in the browser. Every line you ty
 
 Shows the user's screen and lets you move mouse and keyboard. It opens in a new browser tab. The console warns you if no user appears logged on or the screen is locked. Tell the user before you connect.
 
-With agent 1.2.4 the clipboard is shared (text only): **Ctrl+V** in the session pastes your own clipboard on the remote computer, and **Paste text…** sends text typed in a box; text copied on the remote computer during the session lands in your clipboard, or in a box to copy from when the browser does not allow it. What was on the remote clipboard before the session is never sent. Each paste is in the activity log with its length, never its content. The local policy AllowRemoteClipboard turns it off.
+With agent 1.2.4, on a computer with several monitors a menu shows one of them or all together, and only the parts of the screen that change are sent, nothing while it stays still: sessions are much lighter on slow links. The clipboard is also shared (text only): **Ctrl+V** in the session pastes your own clipboard on the remote computer, and **Paste text…** sends text typed in a box; text copied on the remote computer during the session lands in your clipboard, or in a box to copy from when the browser does not allow it. What was on the remote clipboard before the session is never sent. Each paste is in the activity log with its length, never its content. The local policy AllowRemoteClipboard turns it off.
 
 ### File management
 

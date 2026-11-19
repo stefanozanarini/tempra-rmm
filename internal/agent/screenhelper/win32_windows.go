@@ -14,6 +14,8 @@ package screenhelper
 import (
 	"fmt"
 	"image"
+	"sort"
+	"sync"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -239,4 +241,61 @@ func keyInput(vk uint32, down bool) error {
 		ki.flags = keyUp
 	}
 	return sendInput(&in)
+}
+
+var (
+	procEnumDisplayMonitors = user32.NewProc("EnumDisplayMonitors")
+	procGetMonitorInfoW     = user32.NewProc("GetMonitorInfoW")
+)
+
+type monitorInfo struct {
+	size    uint32
+	monitor rect
+	work    rect
+	flags   uint32
+}
+
+const monitorInfoPrimary = 1
+
+// monitorEnum collects the monitors EnumDisplayMonitors reports. Its
+// callback is made once: Windows callbacks made by windows.NewCallback are
+// never freed, and their number is limited.
+var monitorEnum struct {
+	sync.Mutex
+	primary, others []image.Rectangle
+	cb              uintptr
+}
+
+func init() {
+	monitorEnum.cb = windows.NewCallback(func(h, _, _, _ uintptr) uintptr {
+		mi := monitorInfo{size: uint32(unsafe.Sizeof(monitorInfo{}))}
+		if r, _, _ := procGetMonitorInfoW.Call(h, uintptr(unsafe.Pointer(&mi))); r == 0 { // #nosec G103 -- Win32 API call
+			return 1
+		}
+		m := mi.monitor
+		r := image.Rect(int(m.left), int(m.top), int(m.right), int(m.bottom))
+		if mi.flags&monitorInfoPrimary != 0 {
+			monitorEnum.primary = append(monitorEnum.primary, r)
+		} else {
+			monitorEnum.others = append(monitorEnum.others, r)
+		}
+		return 1
+	})
+}
+
+// monitorRects returns the monitors, in frame pixels (relative to the
+// virtual desktop's top-left corner), the primary first, then left to
+// right.
+func monitorRects() []image.Rectangle {
+	monitorEnum.Lock()
+	defer monitorEnum.Unlock()
+	monitorEnum.primary, monitorEnum.others = nil, nil
+	procEnumDisplayMonitors.Call(0, 0, monitorEnum.cb, 0)
+	sort.Slice(monitorEnum.others, func(i, j int) bool { return monitorEnum.others[i].Min.X < monitorEnum.others[j].Min.X })
+	vx, vy, _, _ := virtualScreen()
+	out := append(monitorEnum.primary, monitorEnum.others...)
+	for i := range out {
+		out[i] = out[i].Sub(image.Pt(vx, vy))
+	}
+	return out
 }

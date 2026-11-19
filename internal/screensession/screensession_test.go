@@ -109,3 +109,30 @@ func TestClipboardFrames(t *testing.T) {
 		t.Fatal("oversized clipboard accepted")
 	}
 }
+
+func TestMonitorAndTileFrames(t *testing.T) {
+	mons := []Rect{{0, 0, 1920, 1080}, {-1280, 100, 1280, 1024}}
+	var wire []byte
+	wire = append(wire, EncodeMonitors(mons)...)
+	wire = append(wire, EncodeTile(64, 128, []byte{9, 8, 7})...)
+	wire = append(wire, EncodeView(1)...)
+	wire = append(wire, EncodeView(AllMonitors)...)
+	wire = append(wire, EncodeRefresh()...)
+	frames := feedByte(t, wire)
+	if len(frames) != 5 {
+		t.Fatalf("got %d frames", len(frames))
+	}
+	if frames[0].Kind != Monitors || len(frames[0].Rects) != 2 || frames[0].Rects[1] != mons[1] {
+		t.Errorf("monitors frame: %+v", frames[0])
+	}
+	if frames[1].Kind != Tile || frames[1].X != 64 || frames[1].Y != 128 || !bytes.Equal(frames[1].Image, []byte{9, 8, 7}) {
+		t.Errorf("tile frame: %+v", frames[1])
+	}
+	if frames[2].Kind != View || frames[2].Monitor != 1 || frames[3].Monitor != AllMonitors || frames[4].Kind != Refresh {
+		t.Errorf("view/refresh frames: %+v", frames[2:])
+	}
+	var dec Decoder
+	if _, err := dec.Feed([]byte{Monitors, MaxMonitors + 1}); err == nil {
+		t.Fatal("too many monitors accepted")
+	}
+}

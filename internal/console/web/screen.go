@@ -46,14 +46,17 @@ func logonScreenAgent(version string) bool {
 	return version != "" && vuln.CompareVersions(version, minLogonScreenAgent) >= 0
 }
 
-// minClipboardAgent is the first agent version whose screenhelper shares
-// the clipboard; older ones cannot decode a Clip frame and would end the
-// session on one.
-const minClipboardAgent = "1.2.4"
+// minScreenV2Agent is the first agent version whose screenhelper speaks
+// the second version of internal/screensession: shared clipboard, monitor
+// choice, changed parts only. Older ones cannot decode the frames the
+// console sends for these (Clip, View, Refresh) and would end the session
+// on one.
+const minScreenV2Agent = "1.2.4"
 
-// clipboardAgent tells whether an agent version shares the clipboard.
-func clipboardAgent(version string) bool {
-	return version != "" && vuln.CompareVersions(version, minClipboardAgent) >= 0
+// screenV2Agent tells whether an agent version's screenhelper speaks the
+// second version of the protocol.
+func screenV2Agent(version string) bool {
+	return version != "" && vuln.CompareVersions(version, minScreenV2Agent) >= 0
 }
 
 // Remote-control sessions: one MFA approval opens a view of one agent's
@@ -186,14 +189,15 @@ func (s *Server) handleScreenPage(w http.ResponseWriter, r *http.Request) {
 // screenMsg is the browser's input events; the server turns them into the
 // internal/screensession wire format the agent's screenhelper speaks.
 type screenMsg struct {
-	T      string `json:"t"` // move, button, wheel, key, sas, clip, close
-	X      int32  `json:"x,omitempty"`
-	Y      int32  `json:"y,omitempty"`
-	Button byte   `json:"button,omitempty"`
-	Down   bool   `json:"down,omitempty"`
-	Delta  int32  `json:"delta,omitempty"`
-	Key    uint32 `json:"key,omitempty"`
-	Text   string `json:"text,omitempty"` // clip
+	T       string `json:"t"` // move, button, wheel, key, sas, clip, monitor, close
+	X       int32  `json:"x,omitempty"`
+	Y       int32  `json:"y,omitempty"`
+	Button  byte   `json:"button,omitempty"`
+	Down    bool   `json:"down,omitempty"`
+	Delta   int32  `json:"delta,omitempty"`
+	Key     uint32 `json:"key,omitempty"`
+	Text    string `json:"text,omitempty"` // clip
+	Monitor int    `json:"monitor"`        // monitor: index, or -1 for all
 }
 
 // handleScreenSocket joins the browser's canvas to the session.
@@ -235,6 +239,15 @@ func (s *Server) serveScreen(ws *websocket.Conn, r *http.Request, j store.Job, a
 		return
 	}
 	s.audit(r.Context(), j.TenantID, op, "screen.attached", j.ID, map[string]any{"agent": a.ID, "hostname": a.Host.Hostname})
+	v2 := screenV2Agent(a.Host.AgentVersion)
+	if v2 {
+		// The helper sends only what changes: a browser joining (or
+		// rejoining after a reload) needs the whole screen first.
+		if err := stream.Send(&openrmmv1.ShellFrame{Data: screensession.EncodeRefresh()}); err != nil {
+			_ = websocket.Message.Send(ws, s.T(r, "La sessione non è disponibile."))
+			return
+		}
+	}
 	var wsMu sync.Mutex
 	sendWS := func(v any) error {
 		wsMu.Lock()
@@ -268,13 +281,22 @@ func (s *Server) serveScreen(ws *websocket.Conn, r *http.Request, j store.Job, a
 			case "clip":
 				// Pasted text for the remote clipboard; the helper ignores
 				// it where the local policy does not share the clipboard.
-				if !clipboardAgent(a.Host.AgentVersion) || len(m.Text) > screensession.MaxClipboardSize {
+				if !v2 || len(m.Text) > screensession.MaxClipboardSize {
 					continue
 				}
 				f.Data = screensession.EncodeClipboard([]byte(m.Text))
 				// The length only: pasted text is often a password.
 				s.audit(context.WithoutCancel(r.Context()), j.TenantID, op, "screen.clipboard_pasted", j.ID,
 					map[string]any{"agent": a.ID, "characters": utf8.RuneCountInString(m.Text)})
+			case "monitor":
+				if !v2 || m.Monitor < -1 || m.Monitor >= screensession.MaxMonitors {
+					continue
+				}
+				view := byte(screensession.AllMonitors)
+				if m.Monitor >= 0 {
+					view = byte(m.Monitor)
+				}
+				f.Data = screensession.EncodeView(view)
 			case "close":
 				f.Close = true
 			default:

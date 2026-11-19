@@ -66,9 +66,10 @@ func (s *fakeStream) Recv() (*openrmmv1.ShellFrame, error) {
 
 func (s *fakeStream) CloseSend() error { return nil }
 
-// Text pasted by the operator reaches the agent as a Clip frame, only for
-// agents that can decode one, and the audit log records its length only.
-func TestScreenClipboard(t *testing.T) {
+// The frames of the second protocol version (pasted text, monitor choice,
+// refresh) reach only agents that can decode them, and the audit log
+// records the length of pasted text only.
+func TestScreenProtocolV2(t *testing.T) {
 	broker := &fakeBroker{recv: make(chan *openrmmv1.ShellFrame, 4)}
 	e := startConsole(t, func(cfg *web.Config, _ *signer.Server, _ string) { cfg.Shell = broker })
 	ctx := context.Background()
@@ -84,8 +85,8 @@ func TestScreenClipboard(t *testing.T) {
 		if code != 200 || !strings.HasPrefix(final.Path, "/screen/") {
 			t.Fatalf("open screen: %d at %s: %s", code, final, body)
 		}
-		if strings.Contains(body, `data-clipboard="1"`) != (version == "1.2.4") {
-			t.Fatalf("clipboard marker for %s: %s", version, body)
+		if strings.Contains(body, `data-v2="1"`) != (version == "1.2.4") {
+			t.Fatalf("protocol marker for %s: %s", version, body)
 		}
 		u, _ := url.Parse(e.console.URL)
 		wcfg, _ := websocket.NewConfig("wss://"+u.Host+final.Path+"/ws", e.console.URL)
@@ -100,19 +101,31 @@ func TestScreenClipboard(t *testing.T) {
 		return ws, strings.TrimPrefix(final.Path, "/screen/")
 	}
 
-	// An agent too old to decode it never gets the pasted text.
+	// An agent too old to decode them never gets the pasted text, a
+	// monitor choice or a refresh request.
 	ws, _ := session("1.2.3")
 	websocket.Message.Send(ws, `{"t":"clip","text":"segreto"}`)
+	websocket.Message.Send(ws, `{"t":"monitor","monitor":1}`)
 	websocket.Message.Send(ws, `{"t":"key","key":86,"down":true}`)
 	key := screensession.EncodeKey(86, true)
 	waitFor(t, func() bool { return bytes.Contains(broker.data(), key) })
-	if bytes.Contains(broker.data(), []byte("segreto")) {
-		t.Fatal("clipboard sent to an agent that cannot decode it")
+	// Only the key went through.
+	if d := broker.data(); !bytes.Equal(d, key) {
+		t.Fatalf("new frames sent to an agent that cannot decode them: %q", d)
 	}
 	ws.Close()
 
+	// A newer agent is asked for the whole screen as the browser joins.
+	before := len(broker.data())
 	ws, jobID := session("1.2.4")
 	defer ws.Close()
+	waitFor(t, func() bool { return bytes.Contains(broker.data()[before:], screensession.EncodeRefresh()) })
+	websocket.Message.Send(ws, `{"t":"monitor","monitor":1}`)
+	websocket.Message.Send(ws, `{"t":"monitor","monitor":-1}`)
+	waitFor(t, func() bool {
+		d := broker.data()[before:]
+		return bytes.Contains(d, screensession.EncodeView(1)) && bytes.Contains(d, screensession.EncodeView(screensession.AllMonitors))
+	})
 	websocket.Message.Send(ws, `{"t":"clip","text":"città"}`)
 	want := screensession.EncodeClipboard([]byte("città"))
 	waitFor(t, func() bool { return bytes.Contains(broker.data(), want) })

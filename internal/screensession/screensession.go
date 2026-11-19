@@ -26,6 +26,13 @@
 //	    console then sends them no Clip frame, which they cannot decode.
 //	'C' + 4-byte length + UTF-8 text: the remote clipboard changed during
 //	    the session (its content from before the session is never sent).
+//	'L' + 1-byte count + count x (4-byte x, y, width, height, big-endian,
+//	    signed, virtual-desktop pixels): the monitors, the primary first,
+//	    sent at the start and again when they change.
+//	'T' + 4-byte x + 4-byte y + 4-byte length + JPEG bytes: one changed
+//	    part of the screen, at (x, y) of the image last sized by 'S'.
+//	    Helpers from agent 1.2.4 send these instead of 'F', and nothing at
+//	    all while the screen does not change.
 //
 // From the console to the helper:
 //
@@ -40,6 +47,13 @@
 //	'C' + 4-byte length + UTF-8 text: put this text on the remote
 //	    clipboard (the operator is pasting); ignored when the clipboard is
 //	    not shared.
+//	'V' + 1 byte: show monitor n of the last 'L' list, or every monitor
+//	    (AllMonitors). Mouse positions are then relative to that monitor.
+//	'R': send the whole screen again, with its 'S' and 'L' (a browser
+//	    joined or rejoined the session).
+//
+// The console sends 'C', 'V' and 'R' only to agents from 1.2.4: older
+// helpers do not decode them and would end the session.
 //
 // The session's end is carried by ShellFrame.close itself, like the
 // shell: no close marker is needed in this protocol.
@@ -53,17 +67,27 @@ import (
 
 // Frame kinds.
 const (
-	Size   = 'S'
-	Image  = 'F'
-	Move   = 'M'
-	Button = 'B'
-	Wheel  = 'W'
-	Key    = 'K'
-	SAS    = 'A'
-	Desk   = 'D'
-	Clip   = 'C'
-	Policy = 'P'
+	Size     = 'S'
+	Image    = 'F'
+	Move     = 'M'
+	Button   = 'B'
+	Wheel    = 'W'
+	Key      = 'K'
+	SAS      = 'A'
+	Desk     = 'D'
+	Clip     = 'C'
+	Policy   = 'P'
+	Monitors = 'L'
+	Tile     = 'T'
+	View     = 'V'
+	Refresh  = 'R'
 )
+
+// AllMonitors in a View frame shows the whole virtual desktop.
+const AllMonitors = 0xff
+
+// MaxMonitors bounds a Monitors frame.
+const MaxMonitors = 16
 
 // Desktops reported by Desk frames.
 const (
@@ -89,7 +113,7 @@ const MaxClipboardSize = 128 << 10
 // Frame is one decoded message.
 type Frame struct {
 	Kind          byte
-	X, Y          int32  // Move
+	X, Y          int32  // Move, Tile
 	Width, Height uint32 // Size
 	Button        byte   // Button
 	Down          bool   // Button, Key
@@ -97,9 +121,48 @@ type Frame struct {
 	Key           uint32 // Key
 	Desktop       byte   // Desk
 	Shared        bool   // Policy
-	Image         []byte // Image (shares the decoder's buffer: copy before reuse)
+	Monitor       byte   // View
+	Rects         []Rect // Monitors
+	Image         []byte // Image, Tile (shares the decoder's buffer: copy before reuse)
 	Text          []byte // Clip (shares the decoder's buffer: copy before reuse)
 }
+
+// Rect is a monitor, in virtual-desktop pixels.
+type Rect struct{ X, Y, Width, Height int32 }
+
+// EncodeMonitors returns the wire bytes of a Monitors frame (at most
+// MaxMonitors are sent).
+func EncodeMonitors(rects []Rect) []byte {
+	if len(rects) > MaxMonitors {
+		rects = rects[:MaxMonitors]
+	}
+	b := make([]byte, 2+16*len(rects))
+	b[0], b[1] = Monitors, byte(len(rects)) // #nosec G115 -- at most MaxMonitors
+	for i, r := range rects {
+		o := 2 + 16*i
+		for j, v := range []int32{r.X, r.Y, r.Width, r.Height} {
+			binary.BigEndian.PutUint32(b[o+4*j:], uint32(v)) // #nosec G115 -- round-trips through the decoder
+		}
+	}
+	return b
+}
+
+// EncodeTile returns the wire bytes of a Tile frame.
+func EncodeTile(x, y uint32, jpeg []byte) []byte {
+	b := make([]byte, 13+len(jpeg))
+	b[0] = Tile
+	binary.BigEndian.PutUint32(b[1:], x)
+	binary.BigEndian.PutUint32(b[5:], y)
+	binary.BigEndian.PutUint32(b[9:], uint32(len(jpeg))) // #nosec G115 -- bounded by the encoder
+	copy(b[13:], jpeg)
+	return b
+}
+
+// EncodeView returns the wire bytes of a View frame.
+func EncodeView(monitor byte) []byte { return []byte{View, monitor} }
+
+// EncodeRefresh returns the wire bytes of a Refresh frame.
+func EncodeRefresh() []byte { return []byte{Refresh} }
 
 // EncodeSize returns the wire bytes of a Size frame.
 func EncodeSize(width, height uint32) []byte {
@@ -177,8 +240,9 @@ func boolByte(b bool) byte {
 }
 
 // fixedLen is the payload length (after the tag byte) of every frame kind
-// except Image and Clip, whose length is carried in their own 4-byte prefix.
-var fixedLen = map[byte]int{Size: 8, Move: 8, Button: 2, Wheel: 4, Key: 5, SAS: 0, Desk: 1, Policy: 1}
+// except Image, Clip and Tile, whose length is carried in a 4-byte prefix,
+// and Monitors, whose length follows from its count.
+var fixedLen = map[byte]int{Size: 8, Move: 8, Button: 2, Wheel: 4, Key: 5, SAS: 0, Desk: 1, Policy: 1, View: 1, Refresh: 0}
 
 // maxLen bounds the frames that carry their own length.
 var maxLen = map[byte]uint32{Image: MaxImageSize, Clip: MaxClipboardSize}
@@ -227,6 +291,45 @@ func (d *Decoder) Feed(data []byte) ([]Frame, error) {
 			d.buf = d.buf[total:]
 			continue
 		}
+		if kind == Tile {
+			if len(d.buf) < 13 {
+				return out, nil
+			}
+			n := binary.BigEndian.Uint32(d.buf[9:13])
+			if n > MaxImageSize {
+				return out, fmt.Errorf("%w: %d bytes", ErrFrameTooLarge, n)
+			}
+			total := 13 + int(n)
+			if len(d.buf) < total {
+				return out, nil
+			}
+			out = append(out, Frame{Kind: Tile, X: int32(binary.BigEndian.Uint32(d.buf[1:5])), Y: int32(binary.BigEndian.Uint32(d.buf[5:9])), // #nosec G115 -- inverse of EncodeTile
+				Image: d.buf[13:total]})
+			d.buf = d.buf[total:]
+			continue
+		}
+		if kind == Monitors {
+			if len(d.buf) < 2 {
+				return out, nil
+			}
+			count := int(d.buf[1])
+			if count > MaxMonitors {
+				return out, fmt.Errorf("%w: %d monitors", ErrFrameTooLarge, count)
+			}
+			total := 2 + 16*count
+			if len(d.buf) < total {
+				return out, nil
+			}
+			f := Frame{Kind: Monitors, Rects: make([]Rect, count)}
+			for i := range f.Rects {
+				p := d.buf[2+16*i:]
+				f.Rects[i] = Rect{int32(binary.BigEndian.Uint32(p)), int32(binary.BigEndian.Uint32(p[4:])), // #nosec G115 -- inverse of EncodeMonitors
+					int32(binary.BigEndian.Uint32(p[8:])), int32(binary.BigEndian.Uint32(p[12:]))} // #nosec G115 -- inverse of EncodeMonitors
+			}
+			out = append(out, f)
+			d.buf = d.buf[total:]
+			continue
+		}
 		n, ok := fixedLen[kind]
 		if !ok {
 			return out, fmt.Errorf("screensession: unknown frame kind %q", kind)
@@ -251,6 +354,8 @@ func (d *Decoder) Feed(data []byte) ([]Frame, error) {
 			f.Desktop = p[0]
 		case Policy:
 			f.Shared = p[0] != 0
+		case View:
+			f.Monitor = p[0]
 		}
 		out = append(out, f)
 		d.buf = d.buf[1+n:]

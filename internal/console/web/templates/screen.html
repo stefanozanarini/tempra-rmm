@@ -9,6 +9,7 @@
 {{end}}
 <div class="shell-bar"><span id="screen-status">{{t "Connessione…"}}</span> <span id="screen-desktop" class="muted"
   data-d0="{{t "desktop dell'utente"}}" data-d1="{{t "schermata di accesso o di blocco"}}" data-d2="{{t "desktop protetto (es. prompt UAC)"}}"></span>
+  <select id="screen-monitor" aria-label="{{t "Monitor"}}" hidden data-all="{{t "Tutti i monitor"}}" data-one="{{t "Monitor %d"}}" data-primary="{{t "principale"}}"></select>
   <button type="button" id="screen-sas">{{t "Ctrl+Alt+Canc"}}</button>
   <button type="button" id="screen-paste" hidden>{{t "Incolla testo…"}}</button>
   <button type="button" id="screen-close" class="danger">{{t "Chiudi la sessione"}}</button>
@@ -22,7 +23,7 @@
   <label>{{t "Testo copiato sul computer remoto"}} <textarea id="screen-remote-text" rows="4" readonly spellcheck="false"></textarea></label>
   <div><button type="button" id="screen-remote-copy">{{t "Copia nei miei appunti"}}</button> <button type="button" id="screen-remote-hide">{{t "Chiudi"}}</button></div>
 </div>
-<canvas id="screen-canvas" class="screen-canvas" tabindex="0" data-ws="/screen/{{.Job.ID}}/ws"{{if clipboardAgent .Agent.Host.AgentVersion}} data-clipboard="1"{{end}}
+<canvas id="screen-canvas" class="screen-canvas" tabindex="0" data-ws="/screen/{{.Job.ID}}/ws"{{if screenV2Agent .Agent.Host.AgentVersion}} data-v2="1"{{end}}
   data-connected="{{t "Connesso"}}" data-closed="{{t "Sessione terminata"}}"></canvas>
 <script src="/static/screen.js"></script>
 {{end}}

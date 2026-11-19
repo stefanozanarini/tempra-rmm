@@ -161,7 +161,7 @@ func funcs(lang string) template.FuncMap {
 		"filesAgent":       filesAgent,
 		"screenAgent":      screenAgent,
 		"logonScreenAgent": logonScreenAgent,
-		"clipboardAgent":   clipboardAgent,
+		"screenV2Agent":    screenV2Agent,
 		"tf":               func(key string, args ...any) string { return trf(lang, key, args...) },
 		"th":               func(key string) template.HTML { return trHTML(lang, key) },
 		"msg":              func(s string) string { return trMessage(lang, s) },

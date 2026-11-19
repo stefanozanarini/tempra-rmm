@@ -9,7 +9,6 @@
   var status = document.getElementById("screen-status");
   var desk = document.getElementById("screen-desktop");
   var ctx = canvas.getContext("2d");
-  var img = new Image();
   var buf = new Uint8Array(0);
   var scale = 1; // canvas device pixels per remote virtual-desktop pixel
   var clip = document.getElementById("screen-clip");
@@ -23,6 +22,13 @@
   // texts sent, as older helpers cannot decode them.
   var shared = false;
   var maxClip = 128 * 1024; // internal/screensession.MaxClipboardSize
+  var monitorSel = document.getElementById("screen-monitor");
+  // Drawing happens in arrival order: images decode asynchronously, and a
+  // part of the screen must never be painted over by an older one.
+  var drawing = Promise.resolve();
+  function queue(fn) {
+    drawing = drawing.then(fn).catch(function () {});
+  }
 
   function append(chunk) {
     var next = new Uint8Array(buf.length + chunk.length);
@@ -42,6 +48,28 @@
         if (buf.length < 5 + n) return;
         showImage(buf.slice(5, 5 + n));
         buf = buf.slice(5 + n);
+        continue;
+      }
+      if (kind === 0x54 /* 'T' */) {
+        if (buf.length < 13) return;
+        var th = new DataView(buf.buffer, buf.byteOffset + 1, 12);
+        var tn = th.getUint32(8, false);
+        if (buf.length < 13 + tn) return;
+        showTile(th.getUint32(0, false), th.getUint32(4, false), buf.slice(13, 13 + tn));
+        buf = buf.slice(13 + tn);
+        continue;
+      }
+      if (kind === 0x4c /* 'L' */) {
+        if (buf.length < 2) return;
+        var count = buf[1];
+        if (buf.length < 2 + 16 * count) return;
+        var mons = [];
+        var lv = new DataView(buf.buffer, buf.byteOffset + 2, 16 * count);
+        for (var i = 0; i < count; i++) {
+          mons.push({ w: lv.getInt32(16 * i + 8, false), h: lv.getInt32(16 * i + 12, false) });
+        }
+        setMonitors(mons);
+        buf = buf.slice(2 + 16 * count);
         continue;
       }
       if (kind === 0x53 /* 'S' */) {
@@ -78,7 +106,7 @@
   }
 
   function setShared(on) {
-    if (!canvas.dataset.clipboard) return;
+    if (!canvas.dataset.v2) return;
     shared = on;
     pasteBtn.hidden = !on;
     if (!on) clip.textContent = clip.dataset.off;
@@ -120,20 +148,51 @@
   }
 
   function resize(w, h) {
-    canvas.width = w;
-    canvas.height = h;
+    queue(function () {
+      canvas.width = w;
+      canvas.height = h;
+    });
   }
 
+  // A whole frame (agents before 1.2.4), scaled to the canvas.
   function showImage(jpegBytes) {
-    var blob = new Blob([jpegBytes], { type: "image/jpeg" });
-    var url = URL.createObjectURL(blob);
-    var im = new Image();
-    im.onload = function () {
-      if (canvas.width && canvas.height) ctx.drawImage(im, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(url);
-    };
-    im.onerror = function () { URL.revokeObjectURL(url); };
-    im.src = url;
+    var decoded = createImageBitmap(new Blob([jpegBytes], { type: "image/jpeg" }));
+    queue(function () {
+      return decoded.then(function (bmp) {
+        if (canvas.width && canvas.height) ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+        bmp.close();
+      });
+    });
+  }
+
+  // A changed part of the screen, at its place.
+  function showTile(x, y, jpegBytes) {
+    var decoded = createImageBitmap(new Blob([jpegBytes], { type: "image/jpeg" }));
+    queue(function () {
+      return decoded.then(function (bmp) {
+        ctx.drawImage(bmp, x, y);
+        bmp.close();
+      });
+    });
+  }
+
+  // The monitor menu: shown with two monitors or more.
+  function setMonitors(mons) {
+    if (!canvas.dataset.v2) return;
+    var current = monitorSel.value || "-1";
+    monitorSel.textContent = "";
+    var all = document.createElement("option");
+    all.value = "-1";
+    all.textContent = monitorSel.dataset.all;
+    monitorSel.appendChild(all);
+    mons.forEach(function (m, i) {
+      var o = document.createElement("option");
+      o.value = String(i);
+      o.textContent = monitorSel.dataset.one.replace("%d", i + 1) + (i === 0 ? " (" + monitorSel.dataset.primary + ")" : "") + " · " + m.w + "×" + m.h;
+      monitorSel.appendChild(o);
+    });
+    monitorSel.value = Number(current) < mons.length ? current : "-1";
+    monitorSel.hidden = mons.length < 2;
   }
 
   // wss:// whenever the page itself is https:, which it always is outside
@@ -249,6 +308,10 @@
   });
   document.getElementById("screen-remote-hide").addEventListener("click", function () {
     remoteBox.hidden = true;
+    canvas.focus();
+  });
+  monitorSel.addEventListener("change", function () {
+    send({ t: "monitor", monitor: Number(monitorSel.value) });
     canvas.focus();
   });
   document.getElementById("screen-sas").addEventListener("click", function () { send({ t: "sas" }); canvas.focus(); });

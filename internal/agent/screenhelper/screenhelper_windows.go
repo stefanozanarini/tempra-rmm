@@ -5,9 +5,11 @@ package screenhelper
 import (
 	"bytes"
 	"context"
+	"image"
 	"image/jpeg"
 	"io"
 	"log"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -62,7 +64,9 @@ func Run(stdin io.Reader, stdout io.Writer, shareClipboard bool) error {
 	if shareClipboard {
 		go clipboardLoop(ctx, out, &seen)
 	}
-	go captureLoop(ctx, out)
+	v := &view{}
+	v.monitor.Store(screensession.AllMonitors)
+	go captureLoop(ctx, out, v)
 
 	dec := screensession.Decoder{}
 	buf := make([]byte, 4096)
@@ -74,15 +78,26 @@ func Run(stdin io.Reader, stdout io.Writer, shareClipboard bool) error {
 				return derr
 			}
 			for _, f := range frames {
-				if f.Kind == screensession.Clip {
+				switch f.Kind {
+				case screensession.Clip:
 					// Set before the next frame (the operator's Ctrl+V)
 					// is injected.
 					if shareClipboard {
 						pasteText(string(f.Text), &seen)
 					}
-					continue
+				case screensession.View:
+					v.monitor.Store(int32(f.Monitor))
+					v.refresh.Store(true)
+				case screensession.Refresh:
+					v.refresh.Store(true)
+				case screensession.Move:
+					// Relative to the monitor shown.
+					f.X += v.offX.Load()
+					f.Y += v.offY.Load()
+					applyInput(f)
+				default:
+					applyInput(f)
 				}
-				applyInput(f)
 			}
 		}
 		if err != nil {
@@ -155,12 +170,29 @@ func injectInput(f screensession.Frame) {
 	}
 }
 
-func captureLoop(ctx context.Context, stdout io.Writer) {
-	var lastW, lastH int
+// view is what the operator is shown: one monitor or all of them, and
+// where it sits in the virtual desktop (to place the mouse).
+type view struct {
+	monitor    atomic.Int32 // index in the last monitor list, or AllMonitors
+	refresh    atomic.Bool  // send everything again
+	offX, offY atomic.Int32
+}
+
+// captureLoop sends the screen: the monitor list, the size of the part
+// shown, then only the parts that changed since the previous frame, each
+// as its own JPEG. Nothing is sent while the screen does not change.
+func captureLoop(ctx context.Context, stdout io.Writer, v *view) {
 	var lastErr string // logged once until capture recovers or fails differently
 	lastDesk := int32(-1)
+	var mons []image.Rectangle
+	var area image.Rectangle
+	var prev, cur *image.RGBA
 	ticker := time.NewTicker(frameInterval)
 	defer ticker.Stop()
+	write := func(b []byte) bool {
+		_, err := stdout.Write(b)
+		return err == nil
+	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -170,7 +202,7 @@ func captureLoop(ctx context.Context, stdout io.Writer) {
 		img, err := captureScreen()
 		if d := currentDesktop(); d >= 0 && d != lastDesk {
 			lastDesk = d
-			if _, err := stdout.Write(screensession.EncodeDesktop(byte(d))); err != nil { // #nosec G115 -- a desktop kind
+			if !write(screensession.EncodeDesktop(byte(d))) { // #nosec G115 -- a desktop kind
 				return
 			}
 		}
@@ -182,20 +214,42 @@ func captureLoop(ctx context.Context, stdout io.Writer) {
 			continue
 		}
 		lastErr = ""
-		b := img.Bounds()
-		if b.Dx() != lastW || b.Dy() != lastH {
-			lastW, lastH = b.Dx(), b.Dy()
-			if _, err := stdout.Write(screensession.EncodeSize(uint32(lastW), uint32(lastH))); err != nil { // #nosec G115 -- screen dimensions
+		full := v.refresh.Swap(false)
+		if m := monitorRects(); full || !slices.Equal(m, mons) {
+			mons = m
+			rects := make([]screensession.Rect, len(m))
+			for i, r := range m {
+				rects[i] = screensession.Rect{X: int32(r.Min.X), Y: int32(r.Min.Y), Width: int32(r.Dx()), Height: int32(r.Dy())} // #nosec G115 -- screen coordinates
+			}
+			if !write(screensession.EncodeMonitors(rects)) {
 				return
 			}
 		}
-		var jpegBuf bytes.Buffer
-		if err := jpeg.Encode(&jpegBuf, img, &jpeg.Options{Quality: jpegQuality}); err != nil {
-			log.Printf("screenhelper: encode: %v", err)
-			continue
+		a := img.Rect
+		if i := int(v.monitor.Load()); i != screensession.AllMonitors && i < len(mons) {
+			if r := mons[i].Intersect(img.Rect); !r.Empty() {
+				a = r
+			}
 		}
-		if _, err := stdout.Write(screensession.EncodeImage(jpegBuf.Bytes())); err != nil {
-			return
+		if full || a != area {
+			area, prev = a, nil
+			v.offX.Store(int32(a.Min.X))                                          // #nosec G115 -- screen coordinates
+			v.offY.Store(int32(a.Min.Y))                                          // #nosec G115 -- screen coordinates
+			if !write(screensession.EncodeSize(uint32(a.Dx()), uint32(a.Dy()))) { // #nosec G115 -- screen dimensions
+				return
+			}
 		}
+		cur = cropCopy(cur, img, a)
+		for _, r := range changedStrips(prev, cur) {
+			var jpegBuf bytes.Buffer
+			if err := jpeg.Encode(&jpegBuf, cur.SubImage(r), &jpeg.Options{Quality: jpegQuality}); err != nil {
+				log.Printf("screenhelper: encode: %v", err)
+				continue
+			}
+			if !write(screensession.EncodeTile(uint32(r.Min.X), uint32(r.Min.Y), jpegBuf.Bytes())) { // #nosec G115 -- within the image
+				return
+			}
+		}
+		prev, cur = cur, prev
 	}
 }
