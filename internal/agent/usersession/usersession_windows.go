@@ -255,6 +255,32 @@ func DesktopFolder(session uint32) (string, error) {
 	return token.KnownFolderPath(windows.FOLDERID_Desktop, 0)
 }
 
+// Place is a folder of the signed-in user, to start browsing from.
+type Place struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+}
+
+// UserPlaces returns the Desktop, Documents and Downloads folders of the
+// user signed in to session (where they really are), those it finds.
+func UserPlaces(session uint32) ([]Place, error) {
+	var token windows.Token
+	if err := windows.WTSQueryUserToken(session, &token); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrNoUser, err)
+	}
+	defer token.Close()
+	var out []Place
+	for _, f := range []struct {
+		name string
+		id   *windows.KNOWNFOLDERID
+	}{{"Desktop", windows.FOLDERID_Desktop}, {"Documents", windows.FOLDERID_Documents}, {"Downloads", windows.FOLDERID_Downloads}} {
+		if p, err := token.KnownFolderPath(f.id, 0); err == nil && p != "" {
+			out = append(out, Place{Name: f.name, Path: p})
+		}
+	}
+	return out, nil
+}
+
 // Session returns the session the process runs in.
 func (p *Process) Session() uint32 { return p.session }
 

@@ -124,10 +124,13 @@
   // Text copied on the remote computer: straight to the operator's
   // clipboard where the browser allows it, otherwise shown to copy by hand.
   function remoteCopied(text) {
+    // Only whitespace (some programs clear the clipboard so): nothing to show.
+    if (!text.trim()) return;
     var shown = function () {
       remoteFull = text;
-      var lines = text.split(/\r?\n/);
-      remoteText.value = lines[0] + (lines.length > 1 ? " …" : "");
+      // The first line with text in it, "…" when there is more.
+      var lines = text.split(/\r?\n/).filter(function (l) { return l.trim(); });
+      remoteText.value = lines[0].trim() + (lines.length > 1 ? " …" : "");
       remoteText.title = text.length > 2000 ? text.slice(0, 2000) + " …" : text;
       remoteBox.hidden = false;
     };
@@ -484,12 +487,96 @@
     fileSay(fmt("sending", p.name, 0));
     next();
   }
+  // The remote file browser (agent 1.2.6): folders open in place, a file
+  // is fetched on click.
+  var browser = document.getElementById("screen-browser");
+  var browserNote = document.getElementById("screen-browser-note");
+  var browserPath = document.getElementById("screen-browser-path");
+  var browserRows = document.getElementById("screen-browser-rows");
+  var browserUp = document.getElementById("screen-browser-up");
+  var fetchPicked = null;
+  var listed = null; // the listing shown
+  function listFolder(path) {
+    if (!browser || ws.readyState !== WebSocket.OPEN) return;
+    browserNote.textContent = "…";
+    send({ t: "filelist", path: path });
+  }
+  function joinPath(dir, name) {
+    var sep = /^[A-Za-z]:/.test(dir) || dir.indexOf("\\") >= 0 ? "\\" : "/";
+    return dir.charAt(dir.length - 1) === sep ? dir + name : dir + sep + name;
+  }
+  function humanSize(n) {
+    var units = ["B", "KB", "MB", "GB", "TB"], i = 0;
+    while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+    return (i ? n.toFixed(n < 10 ? 1 : 0) : n) + " " + units[i];
+  }
+  function browserRow(label, sub, onClick, size, modified) {
+    var tr = document.createElement("tr");
+    var td = document.createElement("td");
+    var a = document.createElement("a");
+    a.textContent = label;
+    a.addEventListener("click", onClick);
+    td.appendChild(a);
+    if (sub) {
+      var m = document.createElement("span");
+      m.className = "muted small";
+      m.textContent = " " + sub;
+      td.appendChild(m);
+    }
+    tr.appendChild(td);
+    [size || "", modified || ""].forEach(function (v) {
+      var c = document.createElement("td");
+      c.className = "muted";
+      c.textContent = v;
+      tr.appendChild(c);
+    });
+    browserRows.appendChild(tr);
+  }
+  function showListing(l) {
+    if (!browser) return;
+    listed = l;
+    browserRows.textContent = "";
+    browserPath.textContent = l.path || browser.dataset.places;
+    browserUp.disabled = !l.path;
+    browserNote.textContent = "";
+    (l.places || []).forEach(function (p) {
+      browserRow("📁 " + p.name, p.name === p.path ? "" : p.path, function () { listFolder(p.path); });
+    });
+    (l.entries || []).forEach(function (e) {
+      var full = joinPath(l.path, e.name);
+      var when = e.modified ? new Date(e.modified).toLocaleString() : "";
+      if (e.dir) {
+        browserRow("📁 " + e.name, "", function () { listFolder(full); }, "", when);
+      } else {
+        browserRow("📄 " + e.name, "", function () { if (fetchPicked) fetchPicked(full); }, humanSize(e.size || 0), when);
+      }
+    });
+    if (l.path && !(l.entries || []).length) browserNote.textContent = browser.dataset.empty;
+    if (l.truncated) browserNote.textContent = browser.dataset.truncated.replace("%d", (l.entries || []).length);
+  }
+  if (browser) {
+    document.getElementById("screen-file-browse").addEventListener("click", function () {
+      browser.hidden = !browser.hidden;
+      if (!browser.hidden && !listed) listFolder("");
+    });
+    browserUp.addEventListener("click", function () { if (listed && listed.path) listFolder(listed.parent || ""); });
+    document.getElementById("screen-browser-home").addEventListener("click", function () { listFolder(""); });
+  }
+
   function fileFrame(op, data) {
     var json = function () {
       try { return JSON.parse(new TextDecoder().decode(data)); } catch (e) { return {}; }
     };
+    if (op === 11 /* FileListing */) {
+      showListing(json());
+      return;
+    }
     if (op === 8 /* FileResult */) {
       var r = json();
+      if (r.op === "list") {
+        if (browserNote) browserNote.textContent = failText(r);
+        return;
+      }
       if (r.op === "put" && putting) {
         var cancelled = putting.cancelled;
         putting = null;
@@ -539,8 +626,8 @@
       if (pick.files.length) sendFile(pick.files[0]);
       pick.value = "";
     });
-    var fetchFile = function () {
-      var path = pathIn.value.trim();
+    var fetchFile = function (picked) {
+      var path = typeof picked === "string" ? picked : pathIn.value.trim();
       if (!path || ws.readyState !== WebSocket.OPEN) return;
       if (getting) {
         fileSay(fmt("busy"));
@@ -550,7 +637,8 @@
       send({ t: "fileget", path: path });
       fileSay(fmt("receiving", path, 0));
     };
-    document.getElementById("screen-file-get").addEventListener("click", fetchFile);
+    document.getElementById("screen-file-get").addEventListener("click", function () { fetchFile(); });
+    fetchPicked = fetchFile;
     pathIn.addEventListener("keydown", function (e) {
       if (e.key === "Enter") fetchFile();
     });

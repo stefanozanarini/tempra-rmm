@@ -197,6 +197,9 @@ func TestScreenProtocolV3(t *testing.T) {
 	if !strings.Contains(body, `data-v3="1"`) || !strings.Contains(body, `id="screen-files"`) {
 		t.Fatal("no file transfer for agent 1.2.5")
 	}
+	// The browser's right button (2) is the protocol's ButtonRight (1).
+	websocket.Message.Send(ws, `{"t":"button","button":2,"down":true}`)
+	websocket.Message.Send(ws, `{"t":"button","button":1,"down":true}`)
 	websocket.Message.Send(ws, `{"t":"char","char":"è"}`)
 	websocket.Message.Send(ws, `{"t":"char","char":"ab"}`) // not one character: dropped
 	websocket.Message.Send(ws, `{"t":"fileput","name":"report.pdf","size":3}`)
@@ -205,7 +208,8 @@ func TestScreenProtocolV3(t *testing.T) {
 	websocket.Message.Send(ws, `{"t":"fileget","path":"C:\\Windows\\win.ini"}`)
 	head, _ := json.Marshal(map[string]any{"name": "report.pdf", "size": 3})
 	get, _ := json.Marshal(map[string]string{"path": `C:\Windows\win.ini`})
-	want := [][]byte{screensession.EncodeUnicode('è'), screensession.EncodeFile(screensession.FilePut, head),
+	want := [][]byte{screensession.EncodeButton(screensession.ButtonRight, true), screensession.EncodeButton(screensession.ButtonMiddle, true),
+		screensession.EncodeUnicode('è'), screensession.EncodeFile(screensession.FilePut, head),
 		screensession.EncodeFile(screensession.FilePutData, []byte("abc")), screensession.EncodeFile(screensession.FilePutEnd, nil),
 		screensession.EncodeFile(screensession.FileGet, get)}
 	waitFor(t, func() bool { return bytes.Contains(broker.data(), want[len(want)-1]) })
@@ -217,6 +221,24 @@ func TestScreenProtocolV3(t *testing.T) {
 	}
 	if bytes.Contains(d, screensession.EncodeUnicode('a')) {
 		t.Fatal("a two-character message went through")
+	}
+	// 1.2.5 cannot list folders: no browser, no FileList.
+	websocket.Message.Send(ws, `{"t":"filelist","path":"C:\\"}`)
+	if strings.Contains(body, `id="screen-file-browse"`) {
+		t.Fatal("folder browser offered to agent 1.2.5")
+	}
+	ws6, _, body6 := openScreen(t, e, c, csrf, "1.2.6")
+	defer ws6.Close()
+	if !strings.Contains(body6, `id="screen-file-browse"`) || !strings.Contains(body6, `data-browse="1"`) {
+		t.Fatal("no folder browser for agent 1.2.6")
+	}
+	websocket.Message.Send(ws6, `{"t":"filelist","path":""}`)
+	list, _ := json.Marshal(map[string]string{"path": ""})
+	waitFor(t, func() bool {
+		return bytes.Contains(broker.data(), screensession.EncodeFile(screensession.FileList, list))
+	})
+	if bytes.Contains(broker.data(), screensession.EncodeFile(screensession.FileList, []byte(`{"path":"C:\\"}`))) {
+		t.Fatal("FileList sent to agent 1.2.5")
 	}
 	waitFor(t, func() bool {
 		events, _ := e.store.ListAudit(ctx, e.tenant)

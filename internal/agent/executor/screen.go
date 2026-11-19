@@ -143,7 +143,11 @@ func (e *Executor) runScreen(job *openrmmv1.Job, send func(*openrmmv1.JobUpdate)
 	var view atomic.Pointer[[]byte]
 	files := &screenFiles{maxBytes: screenFileMax, log: log,
 		desktop: func() (string, error) { return usersession.DesktopFolder(current().Session()) },
-		send:    func(b []byte) error { return sendFrame(&openrmmv1.ShellFrame{Data: b}) },
+		places: func() []usersession.Place {
+			p, _ := usersession.UserPlaces(current().Session())
+			return p
+		},
+		send: func(b []byte) error { return sendFrame(&openrmmv1.ShellFrame{Data: b}) },
 		notify: func(msg string) {
 			send(&openrmmv1.JobUpdate{JobId: job.GetJobId(), State: openrmmv1.JobUpdate_STATE_RUNNING, Message: msg})
 		}}

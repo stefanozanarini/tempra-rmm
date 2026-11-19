@@ -71,6 +71,15 @@ func screenV3Agent(version string) bool {
 	return version != "" && vuln.CompareVersions(version, minScreenV3Agent) >= 0
 }
 
+// minScreenBrowseAgent is the first agent version that lists the remote
+// folders (FileList), so that a file to fetch is picked, not typed.
+const minScreenBrowseAgent = "1.2.6"
+
+// screenBrowseAgent tells whether an agent version lists remote folders.
+func screenBrowseAgent(version string) bool {
+	return version != "" && vuln.CompareVersions(version, minScreenBrowseAgent) >= 0
+}
+
 // Remote-control sessions: one MFA approval opens a view of one agent's
 // screen, with mouse/keyboard control, for a limited time. Served the
 // same way as the interactive shell (same Shell stream, same gateway). The
@@ -208,7 +217,7 @@ func (s *Server) handleScreenPage(w http.ResponseWriter, r *http.Request) {
 // screenMsg is the browser's input events; the server turns them into the
 // internal/screensession wire format the agent's screenhelper speaks.
 type screenMsg struct {
-	T       string `json:"t"` // move, button, wheel, key, char, sas, clip, monitor, fileput, filedata, fileend, fileget, filecancel, close
+	T       string `json:"t"` // move, button, wheel, key, char, sas, clip, monitor, fileput, filedata, fileend, fileget, filelist, filecancel, close
 	X       int32  `json:"x,omitempty"`
 	Y       int32  `json:"y,omitempty"`
 	Button  byte   `json:"button,omitempty"`
@@ -223,6 +232,9 @@ type screenMsg struct {
 	Data    []byte `json:"data,omitempty"` // filedata (base64 in JSON)
 	Path    string `json:"path,omitempty"` // fileget
 }
+
+// domButtons maps MouseEvent.button to the protocol's buttons.
+var domButtons = map[byte]byte{0: screensession.ButtonLeft, 1: screensession.ButtonMiddle, 2: screensession.ButtonRight}
 
 // handleScreenSocket joins the browser's canvas to the session.
 func (s *Server) handleScreenSocket(w http.ResponseWriter, r *http.Request) {
@@ -265,6 +277,7 @@ func (s *Server) serveScreen(ws *websocket.Conn, r *http.Request, j store.Job, a
 	s.audit(r.Context(), j.TenantID, op, "screen.attached", j.ID, map[string]any{"agent": a.ID, "hostname": a.Host.Hostname})
 	v2 := screenV2Agent(a.Host.AgentVersion)
 	v3 := screenV3Agent(a.Host.AgentVersion)
+	browse := screenBrowseAgent(a.Host.AgentVersion)
 	if v2 {
 		// The helper sends only what changes: a browser joining (or
 		// rejoining after a reload) needs the whole screen first.
@@ -296,7 +309,13 @@ func (s *Server) serveScreen(ws *websocket.Conn, r *http.Request, j store.Job, a
 			case "move":
 				f.Data = screensession.EncodeMove(m.X, m.Y)
 			case "button":
-				f.Data = screensession.EncodeButton(m.Button, m.Down)
+				// The browser numbers the buttons left 0, middle 1, right 2;
+				// the protocol left, right, middle.
+				b, ok := domButtons[m.Button]
+				if !ok {
+					continue
+				}
+				f.Data = screensession.EncodeButton(b, m.Down)
 			case "wheel":
 				f.Data = screensession.EncodeWheel(m.Delta)
 			case "key":
@@ -354,6 +373,12 @@ func (s *Server) serveScreen(ws *websocket.Conn, r *http.Request, j store.Job, a
 				f.Data = screensession.EncodeFile(screensession.FileGet, req)
 				s.audit(context.WithoutCancel(r.Context()), j.TenantID, op, "screen.file_fetched", j.ID,
 					map[string]any{"agent": a.ID, "path": m.Path})
+			case "filelist":
+				if !browse || len(m.Path) > 1024 {
+					continue
+				}
+				req, _ := json.Marshal(map[string]string{"path": m.Path})
+				f.Data = screensession.EncodeFile(screensession.FileList, req)
 			case "filecancel":
 				if !v3 {
 					continue

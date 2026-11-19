@@ -7,7 +7,7 @@
 <p class="muted">{{tf "Sessione approvata da %s · al massimo %d minuti · richiede un utente collegato e con lo schermo sbloccato." .By .Minutes}}
  <a href="/agents/{{.Agent.ID}}" id="screen-back">{{t "Torna all'agente"}}</a></p>
 {{end}}
-{{$v3 := screenV3Agent .Agent.Host.AgentVersion}}
+{{$v3 := screenV3Agent .Agent.Host.AgentVersion}}{{$browse := screenBrowseAgent .Agent.Host.AgentVersion}}
 <div id="screen-wrap" class="screen-wrap">
 <div class="shell-bar"><span id="screen-status">{{t "Connessione…"}}</span> <span id="screen-desktop" class="muted"
   data-d0="{{t "desktop dell'utente"}}" data-d1="{{t "schermata di accesso o di blocco"}}" data-d2="{{t "desktop protetto (es. prompt UAC)"}}"></span>
@@ -52,7 +52,17 @@
     <input type="file" id="screen-file-pick" hidden></div>
   <div class="screen-remote"><label for="screen-file-path">{{t "Scarica dal computer remoto"}}</label>
     <input id="screen-file-path" type="text" spellcheck="false" placeholder="C:\Users\…\Desktop\file.txt">
-    <button type="button" id="screen-file-get">{{t "Scarica"}}</button></div>
+    <button type="button" id="screen-file-get">{{t "Scarica"}}</button>
+    {{if $browse}}<button type="button" id="screen-file-browse" class="primary">{{t "Sfoglia il computer remoto…"}}</button>{{end}}</div>
+  {{if $browse}}<div id="screen-browser" class="screen-browser" hidden
+    data-empty="{{t "Cartella vuota."}}" data-truncated="{{t "Sono mostrati solo i primi %d elementi."}}" data-places="{{t "Computer"}}">
+    <div class="screen-remote"><button type="button" id="screen-browser-up" title="{{t "Cartella superiore"}}">↑</button>
+      <button type="button" id="screen-browser-home">{{t "Computer"}}</button>
+      <code id="screen-browser-path"></code></div>
+    <div class="screen-browser-list"><table><thead><tr><th>{{t "Nome"}}</th><th>{{t "Dimensione"}}</th><th>{{t "Modificato"}}</th></tr></thead>
+      <tbody id="screen-browser-rows"></tbody></table></div>
+    <p id="screen-browser-note" class="muted small"></p>
+  </div>{{end}}
   <div class="screen-remote"><span id="screen-file-status" class="muted"
     data-sending="{{t "Invio di %s: %d%%"}}" data-sent="{{t "File salvato in %s"}}" data-receiving="{{t "Download di %s: %d%%"}}" data-received="{{t "Scaricato: %s"}}"
     data-busy="{{t "Attendi la fine del trasferimento in corso."}}" data-cancelled="{{t "Trasferimento annullato."}}" data-failed="{{t "Trasferimento non riuscito: %s"}}"
@@ -62,7 +72,7 @@
     data-bad_path="{{t "Scrivi il percorso completo del file."}}" data-bad_name="{{t "Nome del file non valido."}}"></span>
     <button type="button" id="screen-file-cancel" hidden>{{t "Annulla"}}</button> <button type="button" id="screen-files-hide">{{t "Chiudi"}}</button></div>
 </div>{{end}}
-<canvas id="screen-canvas" class="screen-canvas" tabindex="0" data-ws="/screen/{{.Job.ID}}/ws"{{if screenV2Agent .Agent.Host.AgentVersion}} data-v2="1"{{end}}{{if $v3}} data-v3="1"{{end}}
+<canvas id="screen-canvas" class="screen-canvas" tabindex="0" data-ws="/screen/{{.Job.ID}}/ws"{{if screenV2Agent .Agent.Host.AgentVersion}} data-v2="1"{{end}}{{if $v3}} data-v3="1"{{end}}{{if $browse}} data-browse="1"{{end}}
   data-connected="{{t "Connesso"}}" data-closed="{{t "Sessione terminata"}}"></canvas>
 </div>
 <script src="/static/screen.js"></script>

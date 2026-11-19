@@ -25,6 +25,15 @@ func StartSystem(argv, env []string, dir string) (*Process, error) { return nil,
 // DesktopFolder always fails, like Start.
 func DesktopFolder(session uint32) (string, error) { return "", ErrUnsupported }
 
+// Place is a folder of the signed-in user, to start browsing from.
+type Place struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+}
+
+// UserPlaces always fails, like Start.
+func UserPlaces(session uint32) ([]Place, error) { return nil, ErrUnsupported }
+
 // ConsoleSession reports no console session.
 func ConsoleSession() (uint32, bool) { return 0, false }
 

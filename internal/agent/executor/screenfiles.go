@@ -10,8 +10,11 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/stefanozanarini/tempra-rmm/internal/agent/usersession"
 	"github.com/stefanozanarini/tempra-rmm/internal/screensession"
@@ -27,7 +30,8 @@ const screenFileMax = 512 << 20
 // already controls the computer.
 type screenFiles struct {
 	maxBytes int64
-	desktop  func() (string, error) // where received files go
+	desktop  func() (string, error)     // where received files go
+	places   func() []usersession.Place // the signed-in user's folders, to start browsing from
 	send     func(frame []byte) error
 	log      *slog.Logger
 	notify   func(msg string) // a line for the job's history
@@ -118,6 +122,20 @@ func (f *screenFiles) handle(ctx context.Context, fr screensession.Frame) {
 			return
 		}
 		f.startGet(ctx, p.Path)
+	case screensession.FileList:
+		var p struct {
+			Path string `json:"path"`
+		}
+		if err := json.Unmarshal(fr.Data, &p); err != nil {
+			f.result("list", "", err)
+			return
+		}
+		b, err := f.list(p.Path)
+		if err != nil {
+			f.result("list", p.Path, err)
+			return
+		}
+		_ = f.send(screensession.EncodeFile(screensession.FileListing, b))
 	case screensession.FileCancel:
 		f.abortPut()
 		f.mu.Lock()
@@ -304,4 +322,104 @@ func (f *screenFiles) close() {
 		f.getCancel()
 	}
 	f.mu.Unlock()
+}
+
+// listing is the FileListing payload: a folder's content, or with no
+// path the places to start from.
+type listing struct {
+	Path      string              `json:"path"`
+	Parent    string              `json:"parent"` // "" back to the places
+	Places    []usersession.Place `json:"places,omitempty"`
+	Entries   []listEntry         `json:"entries"`
+	Truncated bool                `json:"truncated,omitempty"`
+}
+
+type listEntry struct {
+	Name     string    `json:"name"`
+	Dir      bool      `json:"dir,omitempty"`
+	Size     int64     `json:"size,omitempty"`
+	Modified time.Time `json:"modified,omitzero"`
+}
+
+// maxListing bounds the entries listed: the reply must fit one frame.
+const maxListing = 1000
+
+// list returns the JSON listing of path, or of the places when empty.
+func (f *screenFiles) list(path string) ([]byte, error) {
+	path = strings.Trim(strings.TrimSpace(path), `"`)
+	l := listing{Path: path, Entries: []listEntry{}}
+	if path == "" {
+		if f.places != nil {
+			l.Places = f.places()
+		}
+		for _, d := range drives() {
+			l.Places = append(l.Places, usersession.Place{Name: strings.TrimRight(d, `\/`), Path: d})
+		}
+		return json.Marshal(l)
+	}
+	if !filepath.IsAbs(path) {
+		return nil, &fileError{"bad_path", "give the full path of the folder"}
+	}
+	path = filepath.Clean(path)
+	l.Path = path
+	if parent := filepath.Dir(path); parent != path {
+		l.Parent = parent
+	}
+	entries, err := os.ReadDir(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, &fileError{"not_found", "folder not found"}
+	}
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range entries {
+		le := listEntry{Name: e.Name(), Dir: e.IsDir()}
+		info, err := e.Info()
+		if err == nil {
+			// Junctions and links to folders open like folders.
+			if info.Mode()&(fs.ModeSymlink|fs.ModeIrregular) != 0 {
+				if st, err := os.Stat(filepath.Join(path, e.Name())); err == nil {
+					info, le.Dir = st, st.IsDir()
+				}
+			}
+			le.Modified = info.ModTime().UTC().Truncate(time.Second)
+			if !le.Dir {
+				le.Size = info.Size()
+			}
+		}
+		l.Entries = append(l.Entries, le)
+	}
+	sort.Slice(l.Entries, func(i, j int) bool {
+		a, b := l.Entries[i], l.Entries[j]
+		if a.Dir != b.Dir {
+			return a.Dir
+		}
+		return strings.ToLower(a.Name) < strings.ToLower(b.Name)
+	})
+	if len(l.Entries) > maxListing {
+		l.Entries, l.Truncated = l.Entries[:maxListing], true
+	}
+	for {
+		b, err := json.Marshal(l)
+		if err != nil || len(b) <= screensession.FileChunk {
+			return b, err
+		}
+		l.Entries, l.Truncated = l.Entries[:len(l.Entries)*9/10], true
+	}
+}
+
+// drives returns the roots to browse from: the drive letters present on
+// Windows, / elsewhere.
+func drives() []string {
+	if runtime.GOOS != "windows" {
+		return []string{"/"}
+	}
+	var out []string
+	for c := 'A'; c <= 'Z'; c++ {
+		d := string(c) + `:\`
+		if _, err := os.Stat(d); err == nil {
+			out = append(out, d)
+		}
+	}
+	return out
 }

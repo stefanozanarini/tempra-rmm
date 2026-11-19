@@ -1,6 +1,8 @@
 :root { --fg:#1d2330; --muted:#667085; --bg:#f6f7f9; --card:#fff; --line:#e3e6eb; --accent:#2457c5; --warn:#fff6e0; --warn-accent:#c8860d; --danger:#b42318; --ok:#067647;
   --radius:10px; --radius-sm:6px; }
 * { box-sizing: border-box; }
+/* hidden always hides, even on elements whose class sets a display. */
+[hidden] { display:none !important; }
 body { margin:0; font:15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color:var(--fg); background:var(--bg); background-attachment:fixed; }
 /* Dark theme only: a faint diagonal weave, not a flat fill. */
 :root[data-theme=dark] body, :root[data-theme=dark] header {
@@ -173,6 +175,16 @@ header form.theme select, header form.lang select { padding:2px 4px; font-size:1
 .screen-remote { display:flex; gap:8px; align-items:center; margin:0 0 8px; font-size:13px; }
 .screen-remote label { font-weight:600; white-space:nowrap; }
 .screen-remote input { flex:1; min-width:0; font-family:ui-monospace, monospace; }
+#screen-remote-text { flex:0 1 320px; }
+.screen-browser { margin:4px 0 8px; }
+.screen-browser-list { max-height:40vh; overflow:auto; border:1px solid var(--line); border-radius:var(--radius); }
+.screen-browser-list table { margin:0; border:0; border-radius:0; font-size:13px; }
+.screen-browser-list thead th { position:sticky; top:0; background:var(--card); }
+.screen-browser-list td { padding:4px 10px; white-space:nowrap; }
+.screen-browser-list td:first-child { white-space:normal; overflow-wrap:anywhere; }
+.screen-browser-list a { cursor:pointer; text-decoration:none; }
+.screen-browser-list a:hover { text-decoration:underline; }
+#screen-browser-path { overflow-wrap:anywhere; }
 .screen-canvas { width:100%; max-height:80vh; background:#000; border:1px solid var(--line); cursor:default; }
 details.action { border:1px solid var(--line); border-radius:var(--radius); background:var(--card); margin:6px 0; }
 details.action > summary { cursor:pointer; padding:8px 12px; }

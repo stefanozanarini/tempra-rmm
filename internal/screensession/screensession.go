@@ -70,6 +70,10 @@
 // answers FileGetBegin (JSON {"name","size"}), FileGetData chunks and
 // FileGetEnd, or FileResult with the error. FileCancel (either way) drops
 // the transfer under way. FileResult is JSON {"op","ok","path","error"}.
+// From agent 1.2.6, FileList (JSON {"path"}) asks for the content of a
+// folder, or with an empty path for the places to start from (drives,
+// the signed-in user's Desktop, Documents, Downloads); the agent answers
+// FileListing (JSON, see the agent's screenFiles) or FileResult.
 //
 // The session's end is carried by ShellFrame.close itself, like the
 // shell: no close marker is needed in this protocol.
@@ -112,6 +116,8 @@ const (
 	FileGetEnd   = 7
 	FileResult   = 8
 	FileCancel   = 9
+	FileList     = 10
+	FileListing  = 11
 )
 
 // FileChunk is the most file data a File frame carries.

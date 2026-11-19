@@ -8,10 +8,12 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/stefanozanarini/tempra-rmm/internal/agent/usersession"
 	"github.com/stefanozanarini/tempra-rmm/internal/screensession"
 )
 
@@ -136,6 +138,53 @@ func TestScreenFileGet(t *testing.T) {
 	var r fileResult
 	_ = json.Unmarshal(h2.wait(t, screensession.FileResult).Data, &r)
 	if r.OK || r.Code != "not_found" {
+		t.Fatalf("result = %+v", r)
+	}
+}
+
+func TestScreenFileList(t *testing.T) {
+	dir := t.TempDir()
+	os.Mkdir(filepath.Join(dir, "zeta"), 0o755)
+	os.Mkdir(filepath.Join(dir, "Alfa"), 0o755)
+	os.WriteFile(filepath.Join(dir, "b.txt"), []byte("12345"), 0o600)
+	os.WriteFile(filepath.Join(dir, "A.log"), nil, 0o600)
+	h := &filesHarness{}
+	f := newFiles(dir, h)
+	f.places = func() []usersession.Place { return []usersession.Place{{Name: "Desktop", Path: dir}} }
+
+	req, _ := json.Marshal(map[string]string{"path": dir})
+	f.handle(context.Background(), fileFrame(screensession.FileList, req))
+	var l listing
+	if err := json.Unmarshal(h.wait(t, screensession.FileListing).Data, &l); err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, e := range l.Entries {
+		names = append(names, e.Name)
+	}
+	// Folders first, then files, by name whatever the case.
+	if strings.Join(names, ",") != "Alfa,zeta,A.log,b.txt" || !l.Entries[0].Dir || l.Entries[3].Size != 5 || l.Parent != filepath.Dir(dir) {
+		t.Fatalf("listing = %+v", l)
+	}
+
+	// No path: the places, then the drives.
+	h2 := &filesHarness{}
+	f2 := newFiles(dir, h2)
+	f2.places = f.places
+	f2.handle(context.Background(), fileFrame(screensession.FileList, []byte(`{"path":""}`)))
+	var root listing
+	json.Unmarshal(h2.wait(t, screensession.FileListing).Data, &root)
+	if len(root.Places) < 2 || root.Places[0].Name != "Desktop" {
+		t.Fatalf("places = %+v", root.Places)
+	}
+
+	h3 := &filesHarness{}
+	f3 := newFiles(dir, h3)
+	req, _ = json.Marshal(map[string]string{"path": filepath.Join(dir, "missing")})
+	f3.handle(context.Background(), fileFrame(screensession.FileList, req))
+	var r fileResult
+	json.Unmarshal(h3.wait(t, screensession.FileResult).Data, &r)
+	if r.OK || r.Op != "list" || r.Code != "not_found" {
 		t.Fatalf("result = %+v", r)
 	}
 }
