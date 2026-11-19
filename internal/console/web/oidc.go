@@ -207,11 +207,17 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) completeLogin(w http.ResponseWriter, r *http.Request, old *session, c *authn.Claims) {
-	tenants := s.verifier.Tenants(c)
+	op := &Operator{ObjectID: c.ObjectID, TenantID: c.TenantID, Name: c.Name, Username: c.Username,
+		Roles: c.Roles, Groups: c.Groups}
+	tenants, err := s.operatorTenants(r.Context(), op)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	op.Tenants = tenants
 	s.destroy(r.Context(), w, old)
 	sess := s.newSession()
-	sess.data.Operator = &Operator{ObjectID: c.ObjectID, TenantID: c.TenantID, Name: c.Name, Username: c.Username,
-		Roles: c.Roles, Groups: c.Groups, Tenants: tenants}
+	sess.data.Operator = op
 	if len(tenants) > 0 {
 		sess.data.Tenant = tenants[0]
 	}

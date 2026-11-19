@@ -552,7 +552,7 @@ func (s *Server) SignBaseline(_ context.Context, req *openrmmv1.SignBaselineRequ
 func (s *Server) ownTenant(tenant string) bool {
 	for _, ts := range s.verifiers[0].Config().TenantMap {
 		for _, t := range ts {
-			if t == tenant {
+			if t == tenant || t == authn.AllTenants {
 				return true
 			}
 		}

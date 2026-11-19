@@ -556,6 +556,16 @@ func (s *Server) auth(h ctxHandler) http.Handler {
 				return
 			}
 		}
+		// A directory mapped to every tenant sees customers created since
+		// sign-in at once.
+		if op := sess.data.Operator; !op.Federated && s.verifier != nil && slices.Contains(s.verifier.Config().TenantMap[op.TenantID], authn.AllTenants) {
+			ts, err := s.operatorTenants(r.Context(), op)
+			if err != nil {
+				s.fail(w, r, err)
+				return
+			}
+			op.Tenants = ts
+		}
 		// A role withdrawn since sign-in takes effect at once; changing
 		// tenant and signing out still work.
 		if s.access(r.Context(), sess).Role() == "" && r.URL.Path != "/tenant" && r.URL.Path != "/federation/tenant" && r.URL.Path != "/logout" {

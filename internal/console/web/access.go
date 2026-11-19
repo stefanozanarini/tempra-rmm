@@ -40,6 +40,29 @@ func (s *Server) verifierOf(op *Operator) *authn.Verifier {
 	return s.verifier
 }
 
+// operatorTenants returns the tenants an operator may manage: those mapped
+// to the operator's directory, or every tenant of the console when it is
+// mapped to all of them (customers created later included).
+func (s *Server) operatorTenants(ctx context.Context, op *Operator) ([]string, error) {
+	v := s.verifierOf(op)
+	if v == nil {
+		return nil, nil
+	}
+	ts := v.Config().TenantMap[op.TenantID]
+	if !slices.Contains(ts, authn.AllTenants) {
+		return ts, nil
+	}
+	all, err := s.store.ListTenants(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(all))
+	for _, t := range all {
+		out = append(out, t.ID)
+	}
+	return out, nil
+}
+
 // accessOf returns an operator's role on tenant: from the app roles of the
 // sign-in, with the scopes of the operator and of the operator's groups.
 func (s *Server) accessOf(ctx context.Context, op *Operator, tenant string) (Access, error) {
@@ -47,7 +70,7 @@ func (s *Server) accessOf(ctx context.Context, op *Operator, tenant string) (Acc
 		return Access{}, nil
 	}
 	v := s.verifierOf(op)
-	if v == nil || !slices.Contains(v.Config().TenantMap[op.TenantID], tenant) {
+	if v == nil || !v.Allows(op.TenantID, tenant) {
 		return Access{}, nil
 	}
 	a := Access{Access: v.AccessOf(op.Roles)}

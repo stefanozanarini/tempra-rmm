@@ -69,7 +69,7 @@ OPENRMM_MFA_CLAIM=amr              # none, amr or acrs:c1: see step 6
 OPENRMM_TENANT_MAP=<Directory ID>=<Tempra RMM tenant ID>
 ```
 
-The Tempra RMM tenant ID is printed by `openrmm-admin tenant create` ([INSTALL.md](INSTALL.md) §4), or by creating the tenant from the console's **Clienti** page once a console administrator turns MSP mode on in **Configurazione** — no CLI needed, though the operator still needs the new tenant added here to manage or switch to it. Several Tempra RMM tenants for the same operators: `<Directory ID>=<tenant1>|<tenant2>`.
+The Tempra RMM tenant ID is printed by `openrmm-admin tenant create` ([INSTALL.md](INSTALL.md) §4), or by creating the tenant from the console's **Clienti** page once a console administrator turns MSP mode on in **Configurazione** — no CLI needed, though the operator still needs the new tenant added here to manage or switch to it. Several Tempra RMM tenants for the same operators: `<Directory ID>=<tenant1>|<tenant2>`. An MSP whose operators manage every customer of the console can write `<Directory ID>=*` instead: customers created on the **Clienti** page are then available at once, without editing `.env` or restarting. The map still decides which directories may sign in and approve commands, so the web console cannot add one; with `*` the signer no longer tells that directory's tenants apart, and limiting an operator to some customers is left to the console's roles and scopes. `*` is not accepted in `OPENRMM_FEDERATION_TENANT_MAP`.
 
 ## 5. Who can sign in
 

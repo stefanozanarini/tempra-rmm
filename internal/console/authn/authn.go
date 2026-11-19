@@ -52,6 +52,7 @@ type Config struct {
 //	OPENRMM_OIDC_CLIENT_ID  application (client) ID
 //	OPENRMM_MFA_CLAIM       "amr" (default), "acrs:<context id>" or "none"
 //	OPENRMM_TENANT_MAP      <entra tid>=<Tempra RMM tenant>[|<tenant>...][,...]
+//	                        (<entra tid>=* for every tenant of the console)
 func FromEnv() (Config, error) {
 	c := Config{
 		Issuer:     os.Getenv("OPENRMM_OIDC_ISSUER"),
@@ -103,6 +104,12 @@ func FederationFromEnv() (c Config, ok bool, err error) {
 	if c.TenantMap, err = ParseTenantMap(os.Getenv("OPENRMM_FEDERATION_TENANT_MAP")); err != nil {
 		return c, false, fmt.Errorf("federation: %w", err)
 	}
+	// A central console's operators get named tenants only.
+	for _, ts := range c.TenantMap {
+		if slices.Contains(ts, AllTenants) {
+			return c, false, fmt.Errorf("federation: OPENRMM_FEDERATION_TENANT_MAP cannot use %s", AllTenants)
+		}
+	}
 	if err := c.Validate(); err != nil {
 		return c, false, fmt.Errorf("federation: %w", err)
 	}
@@ -129,7 +136,12 @@ func IssuerOf(rawIDToken string) string {
 	return c.Issuer
 }
 
-// ParseTenantMap parses "tid=t1|t2,tid2=t3".
+// AllTenants, alone in a directory's list, maps it to every tenant of the
+// console, those created later included.
+const AllTenants = "*"
+
+// ParseTenantMap parses "tid=t1|t2,tid2=t3"; "tid=*" maps a directory to
+// every tenant of the console.
 func ParseTenantMap(s string) (map[string][]string, error) {
 	out := map[string][]string{}
 	for _, entry := range strings.Split(s, ",") {
@@ -141,8 +153,15 @@ func ParseTenantMap(s string) (map[string][]string, error) {
 		if !ok || !ids.IsUUID(tid) {
 			return nil, fmt.Errorf("tenant map: invalid entry %q", entry)
 		}
+		if tenants == AllTenants {
+			if len(out[tid]) > 0 {
+				return nil, fmt.Errorf("tenant map: %s cannot be combined with other tenants for %s", AllTenants, tid)
+			}
+			out[tid] = []string{AllTenants}
+			continue
+		}
 		for _, t := range strings.Split(tenants, "|") {
-			if !ids.IsUUID(t) {
+			if !ids.IsUUID(t) || slices.Contains(out[tid], AllTenants) {
 				return nil, fmt.Errorf("tenant map: invalid tenant %q", t)
 			}
 			out[tid] = append(out[tid], t)
@@ -285,12 +304,20 @@ func (v *Verifier) CheckFresh(c *Claims, now time.Time) error {
 	return nil
 }
 
-// Tenants returns the Tempra RMM tenants the operator may manage.
+// Tenants returns the Tempra RMM tenants the operator may manage, or
+// [AllTenants] for every tenant of the console.
 func (v *Verifier) Tenants(c *Claims) []string { return v.cfg.TenantMap[c.TenantID] }
 
 // MayManage reports whether the operator may act on tenantID.
-func (v *Verifier) MayManage(c *Claims, tenantID string) bool {
-	return slices.Contains(v.cfg.TenantMap[c.TenantID], tenantID)
+func (v *Verifier) MayManage(c *Claims, tenantID string) bool { return v.Allows(c.TenantID, tenantID) }
+
+// Allows reports whether the operators of directory tid may act on tenantID.
+func (v *Verifier) Allows(tid, tenantID string) bool { return v.cfg.Allows(tid, tenantID) }
+
+// Allows reports whether the map lets directory tid act on tenantID.
+func (c Config) Allows(tid, tenantID string) bool {
+	ts := c.TenantMap[tid]
+	return tenantID != "" && (slices.Contains(ts, AllTenants) || slices.Contains(ts, tenantID))
 }
 
 // Config returns the configuration.

@@ -164,6 +164,13 @@ type consoleOpt func(cfg *web.Config, sg *signer.Server, tenant string)
 
 func startConsole(t *testing.T, opts ...consoleOpt) *consoleEnv {
 	t.Helper()
+	return startConsoleMapped(t, false, opts...)
+}
+
+// startConsoleMapped starts a console whose directory is mapped to every
+// tenant (OPENRMM_TENANT_MAP=<tid>=*) when all is set.
+func startConsoleMapped(t *testing.T, all bool, opts ...consoleOpt) *consoleEnv {
+	t.Helper()
 	ctx := context.Background()
 	tid, clientID := ids.NewUUID(), "console-app"
 	idp := newIdP(t, tid, clientID)
@@ -172,6 +179,9 @@ func startConsole(t *testing.T, opts ...consoleOpt) *consoleEnv {
 	st.CreateTenant(ctx, store.Tenant{ID: tenant, Name: "Cliente"})
 	cfg := authn.Config{Issuer: idp.srv.URL, ClientID: clientID, MFAClaim: "amr",
 		TenantMap: map[string][]string{tid: {tenant}}, MaxAuthAge: 10 * time.Minute}
+	if all {
+		cfg.TenantMap = map[string][]string{tid: {authn.AllTenants}}
+	}
 	v, err := authn.NewVerifier(ctx, cfg)
 	if err != nil {
 		t.Fatal(err)

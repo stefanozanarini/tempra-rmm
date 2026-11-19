@@ -29,8 +29,9 @@ type Tenant struct {
 type ConsoleSettings struct {
 	// MSPMode unlocks the "Clienti" page, where a console administrator
 	// creates the tenants of an MSP's customers from the web console
-	// instead of the offline openrmm-admin CLI. An operator still needs a
-	// tenant in OPENRMM_TENANT_MAP to manage or switch to it.
+	// instead of the offline openrmm-admin CLI. An operator still needs the
+	// tenant in OPENRMM_TENANT_MAP, or a directory mapped to * there, to
+	// manage or switch to it.
 	MSPMode bool
 	// BitlockerPublicKeyPEM is the public half of the builder's BitLocker
 	// recovery-key encryption pair (never the private half), cached here so

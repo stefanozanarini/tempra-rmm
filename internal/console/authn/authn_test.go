@@ -101,3 +101,26 @@ func TestCheckMFA(t *testing.T) {
 		}
 	}
 }
+
+func TestTenantMapAll(t *testing.T) {
+	const tid, t1 = "6f1c2b1e-3d4a-4b5c-8d9e-0f1a2b3c4d5e", "7a1c2b1e-3d4a-4b5c-8d9e-0f1a2b3c4d5e"
+	m, err := ParseTenantMap(tid + "=*")
+	if err != nil || len(m[tid]) != 1 || m[tid][0] != AllTenants {
+		t.Fatalf("map = %v %v", m, err)
+	}
+	c := Config{TenantMap: m}
+	if !c.Allows(tid, t1) || c.Allows(t1, t1) || c.Allows(tid, "") {
+		t.Fatal("Allows")
+	}
+	for _, bad := range []string{tid + "=*|" + t1, tid + "=" + t1 + "|*", tid + "=" + t1 + "," + tid + "=*", tid + "=*," + tid + "=" + t1} {
+		if _, err := ParseTenantMap(bad); err == nil {
+			t.Errorf("%q accepted", bad)
+		}
+	}
+	t.Setenv("OPENRMM_FEDERATION_ISSUER", "https://login.microsoftonline.com/x/v2.0")
+	t.Setenv("OPENRMM_FEDERATION_CLIENT_ID", "app")
+	t.Setenv("OPENRMM_FEDERATION_TENANT_MAP", tid+"=*")
+	if _, _, err := FederationFromEnv(); err == nil {
+		t.Fatal("* accepted in the federation map")
+	}
+}

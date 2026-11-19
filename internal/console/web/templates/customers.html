@@ -1,6 +1,7 @@
 {{define "content"}}
 {{with .Data}}
-<p>{{t "Clienti (tenant) di questa console. Crearne uno non dà accesso a nessun operatore: aggiungi il nuovo tenant a OPENRMM_TENANT_MAP (o alla mappa della federazione) per quello."}}</p>
+{{if .AllTenants}}<p>{{t "Clienti (tenant) di questa console. Gli operatori della directory mappata su * in OPENRMM_TENANT_MAP li gestiscono tutti, compresi quelli creati qui, senza riavviare la console."}}</p>
+{{else}}<p>{{t "Clienti (tenant) di questa console. Crearne uno non dà accesso a nessun operatore: aggiungi il nuovo tenant a OPENRMM_TENANT_MAP (o alla mappa della federazione) per quello."}}</p>{{end}}
 <form method="post" action="/customers" class="inline">
   <input type="hidden" name="csrf" value="{{$.CSRF}}">
   <label>{{t "Nome"}} <input type="text" name="name" required maxlength="80"></label>
