@@ -13,7 +13,6 @@ import (
 	"github.com/stefanozanarini/tempra-rmm/internal/console/store"
 	"github.com/stefanozanarini/tempra-rmm/internal/ids"
 	"github.com/stefanozanarini/tempra-rmm/internal/modules"
-	"github.com/stefanozanarini/tempra-rmm/internal/updates"
 	"github.com/stefanozanarini/tempra-rmm/internal/workflow"
 )
 
@@ -56,14 +55,6 @@ type bulkData struct {
 	// joined by commas), which it refuses.
 	FeatureUpdate        *runnable
 	FeatureUpdateServers string
-}
-
-// featureUpdateSince is the first winupdate version with feature_update.
-const featureUpdateSince = "1.5.0"
-
-// clientOnly tells whether a module action is for Windows clients only.
-func clientOnly(module, action string) bool {
-	return module == updates.WindowsModule && action == updates.FeatureUpdateAction
 }
 
 // selectedAgents returns the active agents listed in the "agent" values.
@@ -186,6 +177,10 @@ func (s *Server) handleBulkForm(w http.ResponseWriter, r *http.Request) {
 		x := d.Commands[i]
 		d.FeatureUpdate, d.FeatureUpdateServers = &x, strings.Join(serverNames(agents), ", ")
 		d.Commands = slices.Delete(d.Commands, i, i+1)
+		if err := s.suggestReleases(r, t, d.FeatureUpdate, agents); err != nil {
+			s.fail(w, r, err)
+			return
+		}
 	}
 	if len(d.Scripts) > 0 {
 		d.Presets = scriptPresets

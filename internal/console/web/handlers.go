@@ -245,6 +245,13 @@ func (s *Server) agentDetails(r *http.Request, t, id string) (*agentData, error)
 		if d.Actions, err = s.runnableOn(r, a); err != nil {
 			return nil, err
 		}
+		for i := range d.Actions {
+			if x := &d.Actions[i]; clientOnly(x.Module, x.Action) {
+				if err := s.suggestReleases(r, t, x, []store.Agent{a}); err != nil {
+					return nil, err
+				}
+			}
+		}
 		for _, x := range d.Actions {
 			if x.AdHoc {
 				d.Scripts = append(d.Scripts, x)

@@ -376,7 +376,8 @@ func TestConsolePublishBundledModules(t *testing.T) {
 		  "feature_updates":[{"title":"Feature update to Windows 11, version 26H2","version":"26H2","optional":true}]}`)})
 	_, body = get(t, c, e.console.URL+"/agents/"+pc)
 	for _, want := range []string{"Versione di Windows: Windows 11 25H2 (build 26200.7171)", "disponibile la versione 26H2",
-		`href="/agents/` + pc + `#act-winupdate-feature_update"`, `id="act-winupdate-feature_update"`, `name="p.target"`} {
+		`href="/agents/` + pc + `#act-winupdate-feature_update"`, `id="act-winupdate-feature_update"`,
+		`name="p.target" value="26H2" required list="sug-target"`, `<option value="26H2" label="offerta a 1 PC su 1">`} {
 		if !strings.Contains(html.UnescapeString(body), want) {
 			t.Fatalf("agent page lacks %q", want)
 		}
@@ -402,6 +403,14 @@ func TestConsolePublishBundledModules(t *testing.T) {
 	if _, body := get(t, c, e.console.URL+"/agents/bulk?agent="+pc); !strings.Contains(body, `id="feature-update"`) ||
 		!strings.Contains(body, `value="winupdate|1.5.0|feature_update"`) {
 		t.Fatal("bulk feature update not offered")
+	}
+	// The releases offered across the selection, from the agents' scans.
+	pc2 := e.addWindowsAgent(t, "PC-NOSCAN")
+	if _, body := get(t, c, e.console.URL+"/agents/bulk?agent="+pc+"&agent="+pc2); !strings.Contains(body, `label="offerta a 1 PC su 2"`) {
+		t.Fatalf("bulk releases offered missing: %s", body)
+	}
+	if _, body := get(t, c, e.console.URL+"/agents/"+pc2+"?tab=commands"); !strings.Contains(html.UnescapeString(body), "Nessuna scansione di Windows Update ancora") {
+		t.Fatal("no-scan note missing")
 	}
 	_, body = get(t, c, e.console.URL+"/agents/bulk?agent="+pc+"&agent="+srv)
 	if !strings.Contains(html.UnescapeString(body), "togli i server dalla selezione (SRV-FU)") || strings.Contains(body, `value="winupdate|1.5.0|feature_update"`) {

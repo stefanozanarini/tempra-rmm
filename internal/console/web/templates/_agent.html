@@ -583,7 +583,9 @@
 {{else if eq .Type "multi"}}<fieldset><legend>{{.Text}}</legend>{{range .Options}}<label class="check"><input type="checkbox" name="p.{{$f.Prefix}}{{$f.Name}}" value="{{.Value}}"{{if .Checked}} checked{{end}}> {{.Label}}</label>{{end}}</fieldset>
 {{else if eq .Type "int"}}<label>{{.Text}} <input type="number" name="p.{{.Prefix}}{{.Name}}" value="{{.Value}}"{{with .MinS}} min="{{.}}"{{end}}{{with .MaxS}} max="{{.}}"{{end}}{{if .Required}} required{{end}}></label>
 {{else if or (eq .Type "list") (eq .Type "text")}}<label>{{.Text}} <textarea name="p.{{.Prefix}}{{.Name}}" rows="3" spellcheck="false"{{if .Required}} required{{end}}>{{.Value}}</textarea></label>
-{{else}}<label>{{.Text}} <input name="p.{{.Prefix}}{{.Name}}" value="{{.Value}}"{{if .Required}} required{{end}}></label>{{end}}
+{{else}}<label>{{.Text}} <input name="p.{{.Prefix}}{{.Name}}" value="{{.Value}}"{{if .Required}} required{{end}}{{if .Suggest}} list="sug-{{.Prefix}}{{.Name}}"{{end}}></label>
+{{with .Suggest}}<datalist id="sug-{{$f.Prefix}}{{$f.Name}}">{{range .}}<option value="{{.Value}}" label="{{.Label}}"></option>{{end}}</datalist>{{end}}{{end}}
+{{with .Note}}<p class="small">{{.}}{{range $i, $o := $f.Suggest}}{{if $i}},{{end}} <strong>{{$o.Value}}</strong> <span class="muted">({{$o.Label}})</span>{{end}}</p>{{end}}
 {{with .Help}}<p class="muted small">{{.}}</p>{{end}}
 {{end}}
 {{end}}

@@ -23,6 +23,10 @@ type paramField struct {
 	Text, Help, Value string
 	MinS, MaxS        string // bounds of an int, "" when unbounded
 	Options           []paramOption
+	// Suggest: values proposed for a string field (a datalist, the field
+	// stays free), introduced by Note; Note alone says why there are none.
+	Suggest []paramOption
+	Note    string
 }
 
 type paramOption struct {
