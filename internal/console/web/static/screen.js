@@ -17,6 +17,7 @@
   var pasteText = document.getElementById("screen-paste-text");
   var remoteBox = document.getElementById("screen-remote-box");
   var remoteText = document.getElementById("screen-remote-text");
+  var remoteFull = ""; // the whole text: the box shows its first line
   // shared: the agent shares the clipboard (its 'P' frame said so, and the
   // console marked the agent version as able to): only then are pasted
   // texts sent, as older helpers cannot decode them.
@@ -93,6 +94,14 @@
         buf = buf.slice(2);
         continue;
       }
+      if (kind === 0x5a /* 'Z' */) {
+        if (buf.length < 5) return;
+        var zn = new DataView(buf.buffer, buf.byteOffset + 1, 4).getUint32(0, false);
+        if (buf.length < 5 + zn) return;
+        if (zn > 0) fileFrame(buf[5], buf.slice(6, 5 + zn));
+        buf = buf.slice(5 + zn);
+        continue;
+      }
       if (kind === 0x44 /* 'D' */) {
         if (buf.length < 2) return;
         desk.textContent = desk.dataset["d" + buf[1]] || "";
@@ -116,7 +125,10 @@
   // clipboard where the browser allows it, otherwise shown to copy by hand.
   function remoteCopied(text) {
     var shown = function () {
-      remoteText.value = text;
+      remoteFull = text;
+      var lines = text.split(/\r?\n/);
+      remoteText.value = lines[0] + (lines.length > 1 ? " …" : "");
+      remoteText.title = text.length > 2000 ? text.slice(0, 2000) + " …" : text;
       remoteBox.hidden = false;
     };
     if (!navigator.clipboard || !navigator.clipboard.writeText) {
@@ -244,6 +256,17 @@
   // and pastes whatever the remote clipboard holds.
   var pending = null; // the Ctrl+V awaiting its paste event
   var swallowV = false; // the V's keyup, already sent with the paste
+  // From agent 1.2.5 the characters typed go as characters, not keys: the
+  // remote computer types what the operator's keyboard produced, whatever
+  // the two layouts (accented letters, AltGr symbols, a Mac keyboard).
+  // Shortcuts (with Ctrl, Alt or Cmd) and the other keys still go as keys.
+  var typed = {}; // keys whose keydown went as a character: no keyup
+  function typedChar(e) {
+    if (!canvas.dataset.v3 || e.isComposing || Array.from(e.key).length !== 1) return "";
+    var altGr = e.getModifierState && e.getModifierState("AltGraph");
+    if (!altGr && (e.ctrlKey || e.altKey || e.metaKey)) return "";
+    return e.key;
+  }
   canvas.addEventListener("keydown", function (e) {
     if (shared && e.keyCode === 86 && (e.ctrlKey || e.metaKey) && !e.altKey) {
       if (pending) return;
@@ -258,6 +281,17 @@
       return;
     }
     e.preventDefault();
+    var ch = typedChar(e);
+    if (ch) {
+      // AltGr arrives as Ctrl+Alt, already pressed remotely: released
+      // first, or the character would turn into a shortcut.
+      if (e.ctrlKey) send({ t: "key", key: 17, down: false });
+      if (e.altKey) send({ t: "key", key: 18, down: false });
+      typed[e.code] = true;
+      send({ t: "char", char: ch });
+      return;
+    }
+    if (e.key === "Dead") return; // the accent comes with the next key
     send({ t: "key", key: e.keyCode, down: true });
   });
   canvas.addEventListener("keyup", function (e) {
@@ -266,6 +300,11 @@
       swallowV = false;
       return;
     }
+    if (typed[e.code]) {
+      delete typed[e.code];
+      return;
+    }
+    if (e.key === "Dead") return;
     send({ t: "key", key: e.keyCode, down: false });
   });
   document.addEventListener("paste", function (e) {
@@ -296,13 +335,29 @@
     pasteBox.hidden = true;
     canvas.focus();
   });
+  // Without the Clipboard API, the whole text is copied from a scratch
+  // field: the box shows only its first line.
+  function copyByHand(text) {
+    var t = document.createElement("textarea");
+    t.value = text;
+    t.setAttribute("readonly", "");
+    t.style.position = "fixed";
+    t.style.opacity = "0";
+    document.body.appendChild(t);
+    t.select();
+    document.execCommand("copy");
+    document.body.removeChild(t);
+  }
   document.getElementById("screen-remote-copy").addEventListener("click", function () {
-    remoteText.select();
-    var done = function () { clip.textContent = clip.dataset.copied; };
+    var done = function () {
+      clip.textContent = clip.dataset.copied;
+      remoteBox.hidden = true;
+      canvas.focus();
+    };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(remoteText.value).then(done, function () { document.execCommand("copy"); done(); });
+      navigator.clipboard.writeText(remoteFull).then(done, function () { copyByHand(remoteFull); done(); });
     } else {
-      document.execCommand("copy");
+      copyByHand(remoteFull);
       done();
     }
   });
@@ -315,5 +370,208 @@
     canvas.focus();
   });
   document.getElementById("screen-sas").addEventListener("click", function () { send({ t: "sas" }); canvas.focus(); });
-  document.getElementById("screen-close").addEventListener("click", function () { send({ t: "close" }); });
+  // Closing the session also closes the tab. Browsers let a page close
+  // only a tab a script opened, so otherwise it goes back to the agent.
+  document.getElementById("screen-close").addEventListener("click", function () {
+    send({ t: "close" });
+    var left = false;
+    var leave = function () {
+      if (left) return;
+      left = true;
+      window.close();
+      setTimeout(function () { location.href = document.getElementById("screen-back").href; }, 300);
+    };
+    if (ws.readyState !== WebSocket.OPEN) {
+      leave();
+      return;
+    }
+    // Leave once the server has closed the session, or soon anyway.
+    ws.addEventListener("close", leave);
+    setTimeout(leave, 2000);
+  });
+  // Shortcuts the browser or the operator's own system would take.
+  var keysSel = document.getElementById("screen-keys");
+  keysSel.addEventListener("change", function () {
+    var keys = keysSel.value ? keysSel.value.split(",").map(Number) : [];
+    keys.forEach(function (k) { send({ t: "key", key: k, down: true }); });
+    keys.slice().reverse().forEach(function (k) { send({ t: "key", key: k, down: false }); });
+    keysSel.value = "";
+    canvas.focus();
+  });
+
+  // Full screen. Where the browser allows it (Chrome, Edge), the keyboard
+  // is locked too: Win, Alt+Tab and the like go to the remote computer, and
+  // Esc must be held to leave.
+  var wrap = document.getElementById("screen-wrap");
+  var fullBtn = document.getElementById("screen-full");
+  fullBtn.addEventListener("click", function () {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+      return;
+    }
+    wrap.requestFullscreen().then(function () {
+      if (navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock().catch(function () {});
+      canvas.focus();
+    }, function () {});
+  });
+  document.addEventListener("fullscreenchange", function () {
+    var on = document.fullscreenElement === wrap;
+    fullBtn.textContent = on ? fullBtn.dataset.off : fullBtn.dataset.on;
+    if (!on && navigator.keyboard && navigator.keyboard.unlock) navigator.keyboard.unlock();
+  });
+
+  // File transfers (agent 1.2.5): one at a time each way, through the
+  // session itself. Files sent land on the Desktop of the user signed in
+  // at the console; files fetched are downloaded by the browser.
+  var filesBox = document.getElementById("screen-files-box");
+  var fileStatus = document.getElementById("screen-file-status");
+  var fileCancel = document.getElementById("screen-file-cancel");
+  var putting = null; // { name, cancelled }: null again once answered or cancelled
+  var getting = null; // { name, size, got, parts, cancelled }
+  function fmt(key, a, b) {
+    var t = fileStatus.dataset[key] || key;
+    return t.replace("%s", a === undefined ? "" : a).replace("%d", b === undefined ? "" : b).replace("%%", "%");
+  }
+  function fileSay(text) {
+    filesBox.hidden = false;
+    fileStatus.textContent = text;
+    fileCancel.hidden = !putting && !getting;
+  }
+  function failText(r) {
+    if (r.code && fileStatus.dataset[r.code]) return fileStatus.dataset[r.code];
+    return fmt("failed", r.error || "");
+  }
+  function toBase64(bytes) {
+    var s = "";
+    for (var i = 0; i < bytes.length; i += 8192) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+    return btoa(s);
+  }
+  function sendFile(file) {
+    if (!canvas.dataset.v3 || ws.readyState !== WebSocket.OPEN) return;
+    if (putting) {
+      fileSay(fmt("busy"));
+      return;
+    }
+    var p = { name: file.name, cancelled: false };
+    putting = p;
+    send({ t: "fileput", name: file.name, size: file.size });
+    var chunk = 48 * 1024, off = 0;
+    var next = function () {
+      // Stopped by Cancel or by the agent's answer (an error).
+      if (putting !== p || ws.readyState !== WebSocket.OPEN) return;
+      // Not faster than the connection: the screen shares it.
+      if (ws.bufferedAmount > 1024 * 1024) {
+        setTimeout(next, 50);
+        return;
+      }
+      if (off >= file.size) {
+        send({ t: "fileend" });
+        return;
+      }
+      file.slice(off, off + chunk).arrayBuffer().then(function (ab) {
+        if (putting !== p) return;
+        send({ t: "filedata", data: toBase64(new Uint8Array(ab)) });
+        off += ab.byteLength;
+        fileSay(fmt("sending", p.name, Math.floor((100 * off) / Math.max(file.size, 1))));
+        next();
+      }, function () {
+        if (putting !== p) return;
+        putting = null;
+        send({ t: "filecancel" });
+        fileSay(fmt("failed", file.name));
+      });
+    };
+    fileSay(fmt("sending", p.name, 0));
+    next();
+  }
+  function fileFrame(op, data) {
+    var json = function () {
+      try { return JSON.parse(new TextDecoder().decode(data)); } catch (e) { return {}; }
+    };
+    if (op === 8 /* FileResult */) {
+      var r = json();
+      if (r.op === "put" && putting) {
+        var cancelled = putting.cancelled;
+        putting = null;
+        if (!cancelled) fileSay(r.ok ? fmt("sent", r.path) : failText(r));
+      } else if (r.op === "get" && getting) {
+        var gc = getting.cancelled;
+        getting = null;
+        if (!gc) fileSay(failText(r));
+      }
+      return;
+    }
+    if (!getting || getting.cancelled) return;
+    if (op === 5 /* FileGetBegin */) {
+      var h = json();
+      getting.name = h.name || "file";
+      getting.size = h.size || 0;
+      fileSay(fmt("receiving", getting.name, 0));
+    } else if (op === 6 /* FileGetData */) {
+      getting.parts.push(data);
+      getting.got += data.length;
+      fileSay(fmt("receiving", getting.name, Math.floor((100 * getting.got) / Math.max(getting.size, 1))));
+    } else if (op === 7 /* FileGetEnd */) {
+      var g = getting;
+      getting = null;
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob(g.parts));
+      a.download = g.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 60000);
+      fileSay(fmt("received", g.name));
+    }
+  }
+  if (filesBox) {
+    var pick = document.getElementById("screen-file-pick");
+    var pathIn = document.getElementById("screen-file-path");
+    document.getElementById("screen-files").addEventListener("click", function () {
+      filesBox.hidden = !filesBox.hidden;
+    });
+    document.getElementById("screen-files-hide").addEventListener("click", function () {
+      filesBox.hidden = true;
+      canvas.focus();
+    });
+    document.getElementById("screen-file-send").addEventListener("click", function () { pick.click(); });
+    pick.addEventListener("change", function () {
+      if (pick.files.length) sendFile(pick.files[0]);
+      pick.value = "";
+    });
+    var fetchFile = function () {
+      var path = pathIn.value.trim();
+      if (!path || ws.readyState !== WebSocket.OPEN) return;
+      if (getting) {
+        fileSay(fmt("busy"));
+        return;
+      }
+      getting = { name: path, size: 0, got: 0, parts: [], cancelled: false };
+      send({ t: "fileget", path: path });
+      fileSay(fmt("receiving", path, 0));
+    };
+    document.getElementById("screen-file-get").addEventListener("click", fetchFile);
+    pathIn.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") fetchFile();
+    });
+    fileCancel.addEventListener("click", function () {
+      if (putting) putting.cancelled = true;
+      if (getting) getting.cancelled = true;
+      putting = null;
+      getting = null;
+      send({ t: "filecancel" });
+      fileSay(fmt("cancelled"));
+    });
+    canvas.addEventListener("dragover", function (e) {
+      if (!e.dataTransfer || Array.prototype.indexOf.call(e.dataTransfer.types, "Files") < 0) return;
+      e.preventDefault();
+      canvas.classList.add("dropping");
+    });
+    canvas.addEventListener("dragleave", function () { canvas.classList.remove("dropping"); });
+    canvas.addEventListener("drop", function (e) {
+      e.preventDefault();
+      canvas.classList.remove("dropping");
+      if (e.dataTransfer && e.dataTransfer.files.length) sendFile(e.dataTransfer.files[0]);
+    });
+  }
 })();

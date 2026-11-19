@@ -136,3 +136,74 @@ func TestMonitorAndTileFrames(t *testing.T) {
 		t.Fatal("too many monitors accepted")
 	}
 }
+
+func TestFramerCutsAtFrameBoundaries(t *testing.T) {
+	var whole []byte
+	for _, m := range [][]byte{
+		EncodePolicy(true),
+		EncodeMonitors([]Rect{{0, 0, 1920, 1080}, {1920, 0, 1280, 1024}}),
+		EncodeSize(1920, 1080),
+		EncodeTile(64, 128, bytes.Repeat([]byte{7}, 300)),
+		EncodeClipboard([]byte("ciao")),
+		EncodeDesktop(DesktopWinlogon),
+		EncodeImage([]byte{1, 2, 3}),
+	} {
+		whole = append(whole, m...)
+	}
+	cut := EncodeTile(0, 0, bytes.Repeat([]byte{9}, 100))
+	stream := append(append([]byte(nil), whole...), cut[:40]...)
+
+	for _, chunk := range []int{1, 3, 7, 64, len(stream)} {
+		var f Framer
+		var got []byte
+		for i := 0; i < len(stream); i += chunk {
+			out, err := f.Complete(stream[i:min(i+chunk, len(stream))])
+			if err != nil {
+				t.Fatalf("chunk %d: %v", chunk, err)
+			}
+			got = append(got, out...)
+		}
+		if !bytes.Equal(got, whole) {
+			t.Fatalf("chunk %d: got %d bytes, want the %d of the whole frames", chunk, len(got), len(whole))
+		}
+		// A new helper's stream follows: the partial frame is dropped.
+		f.Reset()
+		out, err := f.Complete(EncodeSize(800, 600))
+		if err != nil || !bytes.Equal(out, EncodeSize(800, 600)) {
+			t.Fatalf("chunk %d: after reset got %x, %v", chunk, out, err)
+		}
+	}
+}
+
+func TestFramerRejectsGarbage(t *testing.T) {
+	var f Framer
+	if _, err := f.Complete([]byte{'?', 1, 2}); err == nil {
+		t.Fatal("unknown kind accepted")
+	}
+	f = Framer{}
+	if _, err := f.Complete([]byte{Tile, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff}); err == nil {
+		t.Fatal("oversized tile accepted")
+	}
+}
+
+func TestUnicodeAndFileFrames(t *testing.T) {
+	wire := append(EncodeUnicode('è'), EncodeFile(FilePutData, []byte("abc"))...)
+	wire = append(wire, EncodeFile(FilePutEnd, nil)...)
+	frames := feedByte(t, wire)
+	if len(frames) != 3 || frames[0].Kind != Unicode || frames[0].Rune != 'è' {
+		t.Fatalf("frames = %+v", frames)
+	}
+	if frames[1].Kind != File || frames[1].Op != FilePutData || string(frames[1].Data) != "abc" {
+		t.Fatalf("file frame = %+v", frames[1])
+	}
+	if frames[2].Op != FilePutEnd || len(frames[2].Data) != 0 {
+		t.Fatalf("end frame = %+v", frames[2])
+	}
+	if parts := Split(wire); len(parts) != 3 || !bytes.Equal(parts[0], EncodeUnicode('è')) {
+		t.Fatalf("split = %x", parts)
+	}
+	var dec Decoder
+	if _, err := dec.Feed([]byte{File, 0, 0, 0, 0}); err == nil {
+		t.Fatal("empty file frame accepted")
+	}
+}

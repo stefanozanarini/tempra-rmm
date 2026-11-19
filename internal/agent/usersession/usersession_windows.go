@@ -25,7 +25,15 @@ type Process struct {
 	in, out, errOut *os.File
 	process         windows.Handle
 	job             windows.Handle
+	session         uint32
 	once            sync.Once
+}
+
+// ConsoleSession returns the session attached to the console, and false
+// while none is (briefly, while sessions are being switched).
+func ConsoleSession() (uint32, bool) {
+	id := windows.WTSGetActiveConsoleSessionId()
+	return id, id != 0xFFFFFFFF
 }
 
 // Start runs argv inside the desktop session of the user logged on at the
@@ -49,7 +57,7 @@ func Start(argv, env []string, dir string) (*Process, error) {
 		return nil, fmt.Errorf("duplicate user token: %w", err)
 	}
 	defer token.Close()
-	return startWithToken(token, argv, env, dir)
+	return startWithToken(token, sessionID, argv, env, dir)
 }
 
 // StartSystem runs argv as LocalSystem, like the agent, but inside the
@@ -78,10 +86,10 @@ func StartSystem(argv, env []string, dir string) (*Process, error) {
 	if err := windows.SetTokenInformation(token, windows.TokenSessionId, (*byte)(unsafe.Pointer(&sessionID)), uint32(unsafe.Sizeof(sessionID))); err != nil { // #nosec G103 -- Win32 API call
 		return nil, fmt.Errorf("move token to session %d: %w", sessionID, err)
 	}
-	return startWithToken(token, argv, env, dir)
+	return startWithToken(token, sessionID, argv, env, dir)
 }
 
-func startWithToken(token windows.Token, argv, env []string, dir string) (*Process, error) {
+func startWithToken(token windows.Token, sessionID uint32, argv, env []string, dir string) (*Process, error) {
 	if env == nil {
 		var err error
 		if env, err = userEnvironment(token); err != nil {
@@ -119,7 +127,7 @@ func startWithToken(token windows.Token, argv, env []string, dir string) (*Proce
 	}
 
 	p := &Process{in: os.NewFile(uintptr(inW), "usersession-in"), out: os.NewFile(uintptr(outR), "usersession-out"),
-		errOut: os.NewFile(uintptr(errR), "usersession-err")}
+		errOut: os.NewFile(uintptr(errR), "usersession-err"), session: sessionID}
 	if err := p.start(token, argv, env, dir, inR, outW, errW); err != nil {
 		windows.CloseHandle(inR)
 		windows.CloseHandle(outW)
@@ -235,6 +243,20 @@ func newJob() (windows.Handle, error) {
 
 func (p *Process) Read(b []byte) (int, error)  { return p.out.Read(b) }
 func (p *Process) Write(b []byte) (int, error) { return p.in.Write(b) }
+
+// DesktopFolder returns the Desktop folder of the user signed in to
+// session (where it really is: OneDrive may have moved it).
+func DesktopFolder(session uint32) (string, error) {
+	var token windows.Token
+	if err := windows.WTSQueryUserToken(session, &token); err != nil {
+		return "", fmt.Errorf("%w: %v", ErrNoUser, err)
+	}
+	defer token.Close()
+	return token.KnownFolderPath(windows.FOLDERID_Desktop, 0)
+}
+
+// Session returns the session the process runs in.
+func (p *Process) Session() uint32 { return p.session }
 
 // Stderr returns the process's standard error, kept separate from the
 // protocol carried on stdout.

@@ -26,6 +26,11 @@ const (
 	// anything, so an idle session is probably an abandoned tab).
 	screenIdle  = 20 * time.Minute
 	screenChunk = 64 << 10
+	// screenRestarts bounds how many times a session follows the console
+	// to another session, and screenSwitchWait how long it waits for the
+	// console to be attached to one once the helper is gone.
+	screenRestarts   = 5
+	screenSwitchWait = 20 * time.Second
 )
 
 // runScreen serves a remote-control session for a signed job: the
@@ -36,10 +41,18 @@ const (
 // is idle. The agent pumps the bytes unchanged between the process and the
 // stream (internal/screensession is spoken by the helper and the console
 // web handler); it only watches the console's input for Ctrl+Alt+Del,
-// which a service alone may press.
+// which a service alone may press, and for the monitor shown.
+//
+// Signing in at the console can attach it to another session (on a server,
+// the user's disconnected one) and end the session the helper ran in.
+// The agent then starts a helper in the new console session and goes on
+// with the same stream: it forwards whole frames only, so the new helper's
+// stream follows cleanly however the old one was cut, and the new helper
+// sends the screen anew.
 func (e *Executor) runScreen(job *openrmmv1.Job, send func(*openrmmv1.JobUpdate), log *slog.Logger) *openrmmv1.JobUpdate {
 	var p struct {
-		Minutes int `json:"minutes"`
+		Minutes  int   `json:"minutes"`
+		MaxBytes int64 `json:"max_bytes"`
 	}
 	_ = json.Unmarshal(job.GetParamsJson(), &p)
 	limit := screenDefault
@@ -70,7 +83,22 @@ func (e *Executor) runScreen(job *openrmmv1.Job, send func(*openrmmv1.JobUpdate)
 	if err != nil {
 		return fail(job, "start remote control: %v", err)
 	}
-	defer proc.Close()
+	// The helper serving the session, replaced when the console moves to
+	// another session.
+	var procMu sync.Mutex
+	procDone := false
+	current := func() *usersession.Process {
+		procMu.Lock()
+		defer procMu.Unlock()
+		return proc
+	}
+	closeProc := func() {
+		procMu.Lock()
+		defer procMu.Unlock()
+		procDone = true
+		proc.Close()
+	}
+	defer closeProc()
 
 	ctx, cancel := context.WithTimeout(e.ctx, limit)
 	defer cancel()
@@ -92,12 +120,13 @@ func (e *Executor) runScreen(job *openrmmv1.Job, send func(*openrmmv1.JobUpdate)
 	log.Info("remote control open", "limit", limit)
 
 	// The helper's own diagnostics, kept off the stdout protocol stream.
-	go func() {
-		sc := bufio.NewScanner(proc.Stderr())
+	logStderr := func(p *usersession.Process) {
+		sc := bufio.NewScanner(p.Stderr())
 		for sc.Scan() {
 			log.Warn("screenhelper", "msg", sc.Text())
 		}
-	}()
+	}
+	go logStderr(proc)
 
 	var bytesIn, bytesOut atomic.Int64
 	ended := "timeout"
@@ -110,28 +139,81 @@ func (e *Executor) runScreen(job *openrmmv1.Job, send func(*openrmmv1.JobUpdate)
 		endMu.Unlock()
 		cancel()
 	}
+	// The last monitor choice, given again to a new helper.
+	var view atomic.Pointer[[]byte]
+	files := &screenFiles{maxBytes: screenFileMax, log: log,
+		desktop: func() (string, error) { return usersession.DesktopFolder(current().Session()) },
+		send:    func(b []byte) error { return sendFrame(&openrmmv1.ShellFrame{Data: b}) },
+		notify: func(msg string) {
+			send(&openrmmv1.JobUpdate{JobId: job.GetJobId(), State: openrmmv1.JobUpdate_STATE_RUNNING, Message: msg})
+		}}
+	if p.MaxBytes > 0 {
+		files.maxBytes = p.MaxBytes
+	}
+	defer files.close()
 	// Screen frames to the console.
 	go func() {
+		var framer screensession.Framer
 		buf := make([]byte, screenChunk)
-		for {
-			n, err := proc.Read(buf)
+		p := proc
+		for restarts := 0; ; {
+			n, err := p.Read(buf)
 			if n > 0 {
 				bytesOut.Add(int64(n))
-				if sendFrame(&openrmmv1.ShellFrame{Data: append([]byte(nil), buf[:n]...)}) != nil {
+				data, ferr := framer.Complete(buf[:n])
+				if ferr != nil {
+					log.Warn("remote control", "error", ferr)
+					end("exited")
+					return
+				}
+				if len(data) > 0 && sendFrame(&openrmmv1.ShellFrame{Data: data}) != nil {
 					end("disconnected")
 					return
 				}
 			}
-			if err != nil {
+			if err == nil {
+				continue
+			}
+			if ctx.Err() != nil {
+				return
+			}
+			sid, ok := waitConsoleChange(ctx, p.Session())
+			if !ok || restarts == screenRestarts {
 				end("exited")
 				return
 			}
+			next, err := usersession.StartSystem(args, nil, workDir)
+			if err != nil {
+				log.Warn("remote control: restart in the new console session", "session", sid, "error", err)
+				end("exited")
+				return
+			}
+			restarts++
+			framer.Reset()
+			procMu.Lock()
+			if procDone {
+				procMu.Unlock()
+				next.Close()
+				return
+			}
+			proc = next
+			procMu.Unlock()
+			p.Close()
+			p = next
+			go logStderr(p)
+			if v := view.Load(); v != nil {
+				_, _ = p.Write(*v)
+			}
+			log.Info("remote control: console moved to another session, helper restarted", "session", sid)
+			send(&openrmmv1.JobUpdate{JobId: job.GetJobId(), State: openrmmv1.JobUpdate_STATE_RUNNING, Message: "console session changed: remote control resumed"})
 		}
 	}()
 	idle := time.AfterFunc(screenIdle, func() { end("idle") })
 	defer idle.Stop()
-	// Input events from the console.
+	// Input events from the console, cut at frame boundaries: file
+	// transfer frames are the agent's, the rest goes to the helper.
 	go func() {
+		var framer screensession.Framer
 		var dec screensession.Decoder
 		for {
 			f, err := stream.Recv()
@@ -143,31 +225,52 @@ func (e *Executor) runScreen(job *openrmmv1.Job, send func(*openrmmv1.JobUpdate)
 				end("closed")
 				return
 			}
-			if d := f.GetData(); len(d) > 0 {
-				idle.Reset(screenIdle)
-				bytesIn.Add(int64(len(d)))
-				if frames, err := dec.Feed(d); err == nil {
-					for _, fr := range frames {
-						if fr.Kind != screensession.SAS {
-							continue
-						}
-						msg := "Ctrl+Alt+Del sent"
-						if err := sendSAS(); err != nil {
-							msg = "Ctrl+Alt+Del: " + err.Error()
-						}
-						log.Info("remote control", "sas", msg)
-						send(&openrmmv1.JobUpdate{JobId: job.GetJobId(), State: openrmmv1.JobUpdate_STATE_RUNNING, Message: msg})
+			d := f.GetData()
+			if len(d) == 0 {
+				continue
+			}
+			idle.Reset(screenIdle)
+			bytesIn.Add(int64(len(d)))
+			whole, err := framer.Complete(d)
+			if err != nil {
+				log.Warn("remote control", "error", err)
+				end("protocol error")
+				return
+			}
+			frames, err := dec.Feed(whole)
+			parts := screensession.Split(whole)
+			if err != nil || len(frames) != len(parts) {
+				end("protocol error")
+				return
+			}
+			var fwd []byte
+			for i, fr := range frames {
+				switch fr.Kind {
+				case screensession.File:
+					files.handle(ctx, fr)
+					continue
+				case screensession.View:
+					v := screensession.EncodeView(fr.Monitor)
+					view.Store(&v)
+				case screensession.SAS:
+					msg := "Ctrl+Alt+Del sent"
+					if err := sendSAS(); err != nil {
+						msg = "Ctrl+Alt+Del: " + err.Error()
 					}
+					log.Info("remote control", "sas", msg)
+					send(&openrmmv1.JobUpdate{JobId: job.GetJobId(), State: openrmmv1.JobUpdate_STATE_RUNNING, Message: msg})
 				}
-				if _, err := proc.Write(d); err != nil {
-					end("exited")
-					return
-				}
+				fwd = append(fwd, parts[i]...)
+			}
+			// Input written while a helper is being replaced is lost:
+			// the screen output decides whether the session goes on.
+			if len(fwd) > 0 {
+				_, _ = current().Write(fwd)
 			}
 		}
 	}()
 	<-ctx.Done()
-	proc.Close()
+	closeProc()
 	endMu.Lock()
 	why := ended
 	endMu.Unlock()
@@ -180,4 +283,24 @@ func (e *Executor) runScreen(job *openrmmv1.Job, send func(*openrmmv1.JobUpdate)
 	res, _ := json.Marshal(map[string]any{"ended": why, "duration_seconds": int(time.Since(started).Seconds()),
 		"bytes_in": bytesIn.Load(), "bytes_out": bytesOut.Load()})
 	return &openrmmv1.JobUpdate{JobId: job.GetJobId(), State: openrmmv1.JobUpdate_STATE_SUCCEEDED, ResultJson: res, ProgressPercent: 100}
+}
+
+// waitConsoleChange waits for the console to be attached to a session
+// other than old, and returns it; false when it stays on old (the helper
+// ended for another reason) or the session ends first.
+func waitConsoleChange(ctx context.Context, old uint32) (uint32, bool) {
+	deadline := time.Now().Add(screenSwitchWait)
+	for {
+		if id, ok := usersession.ConsoleSession(); ok && id != old {
+			return id, true
+		}
+		if time.Now().After(deadline) {
+			return 0, false
+		}
+		select {
+		case <-ctx.Done():
+			return 0, false
+		case <-time.After(250 * time.Millisecond):
+		}
+	}
 }

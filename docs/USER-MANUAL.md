@@ -179,6 +179,15 @@ Shows the user's screen and lets you move mouse and keyboard. It opens in a new 
 
 With agent 1.2.4, on a computer with several monitors a menu shows one of them or all together, and only the parts of the screen that change are sent, nothing while it stays still: sessions are much lighter on slow links. The clipboard is also shared (text only): **Ctrl+V** in the session pastes your own clipboard on the remote computer, and **Paste text…** sends text typed in a box; text copied on the remote computer during the session lands in your clipboard, or in a box to copy from when the browser does not allow it. What was on the remote clipboard before the session is never sent. Each paste is in the activity log with its length, never its content. The local policy AllowRemoteClipboard turns it off.
 
+Signing in during a session can move the console to another Windows session (on a server, the user's disconnected one): with agent 1.2.5 the session follows it after a moment, with older agents it ends and must be opened again.
+
+More with agent 1.2.5:
+
+- **Typing**: characters go as characters, not keys, so the remote computer types what your keyboard produced whatever the two layouts (accented letters, AltGr symbols, a Mac keyboard). Shortcuts with Ctrl, Alt or Cmd and the other keys still go as keys.
+- **Keys…**: shortcuts the browser or your own system would take — Win, Win+R, Win+E, Win+D, Win+X, Win+L, Win+Shift+S, Alt+Tab, Alt+F4, Ctrl+Esc, Ctrl+Shift+Esc, Esc, Print Screen (this menu works with every agent).
+- **Full screen**: in Chrome and Edge the keyboard is captured too, so Win, Alt+Tab and the like go to the remote computer; hold Esc to leave.
+- **Files…**: send a file (button, or drop it on the screen): it lands on the Desktop of the user signed in at the console, next to any file of the same name ("report (2).pdf"). Fetch one by its full path: the browser downloads it. One transfer at a time each way, within the per-file limit of Settings. The remote-control approval covers them; each is in the activity log (`screen.file_sent` with the name and size, `screen.file_fetched` with the path) and in the job's history.
+
 ### File management
 
 - **Browse** picks the computer whose folders you see; **Apply to** chooses the computers to upload to, or download from as one zip with a folder per computer.

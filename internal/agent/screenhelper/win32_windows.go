@@ -16,6 +16,8 @@ import (
 	"image"
 	"sort"
 	"sync"
+	"unicode"
+	"unicode/utf16"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -29,6 +31,7 @@ var (
 	procGetDC                         = user32.NewProc("GetDC")
 	procReleaseDC                     = user32.NewProc("ReleaseDC")
 	procSendInput                     = user32.NewProc("SendInput")
+	procMapVirtualKeyW                = user32.NewProc("MapVirtualKeyW")
 	procSetProcessDpiAwarenessContext = user32.NewProc("SetProcessDpiAwarenessContext")
 
 	procCreateCompatibleDC     = gdi32.NewProc("CreateCompatibleDC")
@@ -177,8 +180,24 @@ const (
 	mouseAbsolute    = 0x8000
 	mouseVirtualDesk = 0x4000
 
-	keyUp = 0x0002
+	keyExtended = 0x0001
+	keyUp       = 0x0002
+	keyUnicode  = 0x0004
+
+	mapVKToVSC = 0
 )
+
+// extendedKeys are the virtual keys whose scan code has the E0 prefix:
+// without the extended flag Windows takes the arrows, Insert, Delete,
+// Home, End and Page Up/Down for the numeric keypad ones.
+var extendedKeys = map[uint32]bool{
+	0x21: true, 0x22: true, 0x23: true, 0x24: true, // Page Up/Down, End, Home
+	0x25: true, 0x26: true, 0x27: true, 0x28: true, // arrows
+	0x2C: true, 0x2D: true, 0x2E: true, // Print Screen, Insert, Delete
+	0x5B: true, 0x5C: true, 0x5D: true, // Windows keys, Menu
+	0x6F: true, 0x90: true, // keypad /, Num Lock
+	0xA3: true, 0xA5: true, // right Ctrl, right Alt
+}
 
 func sendInput(in *input) error {
 	r, _, err := procSendInput.Call(1, uintptr(unsafe.Pointer(in)), unsafe.Sizeof(*in)) // #nosec G103 -- Win32 API call
@@ -237,10 +256,38 @@ func keyInput(vk uint32, down bool) error {
 	in.typ = inputKeyboard
 	ki := (*keybdInput)(unsafe.Pointer(&in.mi)) // #nosec G103 -- overlays the same union storage SendInput reads
 	ki.vk = uint16(vk)                          // #nosec G115 -- checked above
+	// The scan code too: some programs (and remote sessions opened from
+	// this desktop) read it rather than the virtual key.
+	scan, _, _ := procMapVirtualKeyW.Call(uintptr(vk), mapVKToVSC)
+	ki.scan = uint16(scan) // #nosec G115 -- a scan code
+	if extendedKeys[vk] {
+		ki.flags |= keyExtended
+	}
 	if !down {
-		ki.flags = keyUp
+		ki.flags |= keyUp
 	}
 	return sendInput(&in)
+}
+
+// unicodeInput types r as itself, whatever the keyboard layout: one
+// press and release per UTF-16 unit (two for a character outside the
+// Basic Multilingual Plane).
+func unicodeInput(r rune) error {
+	if r <= 0 || r > unicode.MaxRune || (r >= 0xD800 && r <= 0xDFFF) {
+		return fmt.Errorf("invalid character %d", r)
+	}
+	for _, u := range utf16.Encode([]rune{r}) {
+		for _, flags := range []uint32{keyUnicode, keyUnicode | keyUp} {
+			var in input
+			in.typ = inputKeyboard
+			ki := (*keybdInput)(unsafe.Pointer(&in.mi)) // #nosec G103 -- overlays the same union storage SendInput reads
+			ki.scan, ki.flags = u, flags
+			if err := sendInput(&in); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 var (

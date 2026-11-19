@@ -164,6 +164,8 @@ func injectInput(f screensession.Frame) {
 		err = mouseWheelInput(f.Wheel)
 	case screensession.Key:
 		err = keyInput(f.Key, f.Down)
+	case screensession.Unicode:
+		err = unicodeInput(f.Rune)
 	}
 	if err != nil {
 		log.Printf("screenhelper: input: %v", err)

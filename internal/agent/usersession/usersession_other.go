@@ -22,6 +22,13 @@ func Start(argv, env []string, dir string) (*Process, error) { return nil, ErrUn
 // StartSystem always fails, like Start.
 func StartSystem(argv, env []string, dir string) (*Process, error) { return nil, ErrUnsupported }
 
+// DesktopFolder always fails, like Start.
+func DesktopFolder(session uint32) (string, error) { return "", ErrUnsupported }
+
+// ConsoleSession reports no console session.
+func ConsoleSession() (uint32, bool) { return 0, false }
+
+func (p *Process) Session() uint32             { return 0 }
 func (p *Process) Read(b []byte) (int, error)  { return 0, ErrUnsupported }
 func (p *Process) Write(b []byte) (int, error) { return 0, ErrUnsupported }
 func (p *Process) Wait() error                 { return ErrUnsupported }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -69,6 +70,31 @@ func (s *fakeStream) CloseSend() error { return nil }
 // The frames of the second protocol version (pasted text, monitor choice,
 // refresh) reach only agents that can decode them, and the audit log
 // records the length of pasted text only.
+// openScreen opens a remote-control session on a new agent of the given
+// version and joins its WebSocket; it returns the page too.
+func openScreen(t *testing.T, e *consoleEnv, c *http.Client, csrf, version string) (*websocket.Conn, string, string) {
+	t.Helper()
+	id := ids.NewUUID()
+	e.store.CreateAgent(context.Background(), store.Agent{TenantID: e.tenant, ID: id, Status: store.AgentActive, CertFingerprint: id,
+		Host:         store.HostInfo{Hostname: "PC-" + version, OS: "windows", Arch: "amd64", OSFamily: "client", AgentVersion: version},
+		CertNotAfter: time.Now().Add(time.Hour)})
+	code, body, final := post(t, c, e.console.URL+"/agents/"+id+"/screen", url.Values{"csrf": {csrf}, "minutes": {"15"}})
+	if code != 200 || !strings.HasPrefix(final.Path, "/screen/") {
+		t.Fatalf("open screen: %d at %s: %s", code, final, body)
+	}
+	u, _ := url.Parse(e.console.URL)
+	wcfg, _ := websocket.NewConfig("wss://"+u.Host+final.Path+"/ws", e.console.URL)
+	wcfg.TlsConfig = &tls.Config{RootCAs: e.console.Client().Transport.(*http.Transport).TLSClientConfig.RootCAs}
+	for _, ck := range c.Jar.Cookies(u) {
+		wcfg.Header.Add("Cookie", ck.Name+"="+ck.Value)
+	}
+	ws, err := websocket.DialConfig(wcfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ws, strings.TrimPrefix(final.Path, "/screen/"), body
+}
+
 func TestScreenProtocolV2(t *testing.T) {
 	broker := &fakeBroker{recv: make(chan *openrmmv1.ShellFrame, 4)}
 	e := startConsole(t, func(cfg *web.Config, _ *signer.Server, _ string) { cfg.Shell = broker })
@@ -77,28 +103,11 @@ func TestScreenProtocolV2(t *testing.T) {
 	c, csrf := e.login(t, admin)
 
 	session := func(version string) (*websocket.Conn, string) {
-		id := ids.NewUUID()
-		e.store.CreateAgent(ctx, store.Agent{TenantID: e.tenant, ID: id, Status: store.AgentActive, CertFingerprint: id,
-			Host:         store.HostInfo{Hostname: "PC-" + version, OS: "windows", Arch: "amd64", OSFamily: "client", AgentVersion: version},
-			CertNotAfter: time.Now().Add(time.Hour)})
-		code, body, final := post(t, c, e.console.URL+"/agents/"+id+"/screen", url.Values{"csrf": {csrf}, "minutes": {"15"}})
-		if code != 200 || !strings.HasPrefix(final.Path, "/screen/") {
-			t.Fatalf("open screen: %d at %s: %s", code, final, body)
-		}
+		ws, jobID, body := openScreen(t, e, c, csrf, version)
 		if strings.Contains(body, `data-v2="1"`) != (version == "1.2.4") {
 			t.Fatalf("protocol marker for %s: %s", version, body)
 		}
-		u, _ := url.Parse(e.console.URL)
-		wcfg, _ := websocket.NewConfig("wss://"+u.Host+final.Path+"/ws", e.console.URL)
-		wcfg.TlsConfig = &tls.Config{RootCAs: e.console.Client().Transport.(*http.Transport).TLSClientConfig.RootCAs}
-		for _, ck := range c.Jar.Cookies(u) {
-			wcfg.Header.Add("Cookie", ck.Name+"="+ck.Value)
-		}
-		ws, err := websocket.DialConfig(wcfg)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return ws, strings.TrimPrefix(final.Path, "/screen/")
+		return ws, jobID
 	}
 
 	// An agent too old to decode them never gets the pasted text, a
@@ -158,5 +167,67 @@ func TestScreenProtocolV2(t *testing.T) {
 			}
 		}
 		return n == 1
+	})
+}
+
+func TestScreenProtocolV3(t *testing.T) {
+	broker := &fakeBroker{recv: make(chan *openrmmv1.ShellFrame, 4)}
+	e := startConsole(t, func(cfg *web.Config, _ *signer.Server, _ string) { cfg.Shell = broker })
+	ctx := context.Background()
+	publishTo(t, e.store, filepath.Join(repoRoot(t), "modules", "screen"))
+	c, csrf := e.login(t, admin)
+
+	// 1.2.4 gets neither characters nor file transfers.
+	ws, _, body := openScreen(t, e, c, csrf, "1.2.4")
+	if strings.Contains(body, `data-v3="1"`) || strings.Contains(body, `id="screen-files"`) {
+		t.Fatal("file transfer offered to agent 1.2.4")
+	}
+	websocket.Message.Send(ws, `{"t":"char","char":"è"}`)
+	websocket.Message.Send(ws, `{"t":"fileput","name":"a.txt","size":1}`)
+	websocket.Message.Send(ws, `{"t":"key","key":13,"down":true}`)
+	key := screensession.EncodeKey(13, true)
+	waitFor(t, func() bool { return bytes.Contains(broker.data(), key) })
+	if d := broker.data(); bytes.Contains(d, []byte{screensession.Unicode}) || bytes.Contains(d, []byte{screensession.File}) {
+		t.Fatalf("v3 frames sent to agent 1.2.4: %q", d)
+	}
+	ws.Close()
+
+	ws, jobID, body := openScreen(t, e, c, csrf, "1.2.5")
+	defer ws.Close()
+	if !strings.Contains(body, `data-v3="1"`) || !strings.Contains(body, `id="screen-files"`) {
+		t.Fatal("no file transfer for agent 1.2.5")
+	}
+	websocket.Message.Send(ws, `{"t":"char","char":"è"}`)
+	websocket.Message.Send(ws, `{"t":"char","char":"ab"}`) // not one character: dropped
+	websocket.Message.Send(ws, `{"t":"fileput","name":"report.pdf","size":3}`)
+	websocket.Message.Send(ws, `{"t":"filedata","data":"YWJj"}`)
+	websocket.Message.Send(ws, `{"t":"fileend"}`)
+	websocket.Message.Send(ws, `{"t":"fileget","path":"C:\\Windows\\win.ini"}`)
+	head, _ := json.Marshal(map[string]any{"name": "report.pdf", "size": 3})
+	get, _ := json.Marshal(map[string]string{"path": `C:\Windows\win.ini`})
+	want := [][]byte{screensession.EncodeUnicode('è'), screensession.EncodeFile(screensession.FilePut, head),
+		screensession.EncodeFile(screensession.FilePutData, []byte("abc")), screensession.EncodeFile(screensession.FilePutEnd, nil),
+		screensession.EncodeFile(screensession.FileGet, get)}
+	waitFor(t, func() bool { return bytes.Contains(broker.data(), want[len(want)-1]) })
+	d := broker.data()
+	for _, w := range want {
+		if !bytes.Contains(d, w) {
+			t.Fatalf("missing %q in %q", w, d)
+		}
+	}
+	if bytes.Contains(d, screensession.EncodeUnicode('a')) {
+		t.Fatal("a two-character message went through")
+	}
+	waitFor(t, func() bool {
+		events, _ := e.store.ListAudit(ctx, e.tenant)
+		sent, fetched := false, false
+		for _, ev := range events {
+			if ev.Target != jobID {
+				continue
+			}
+			sent = sent || ev.Action == "screen.file_sent" && ev.Details["name"] == "report.pdf"
+			fetched = fetched || ev.Action == "screen.file_fetched" && ev.Details["path"] == `C:\Windows\win.ini`
+		}
+		return sent && fetched
 	})
 }

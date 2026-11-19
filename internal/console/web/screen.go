@@ -59,6 +59,18 @@ func screenV2Agent(version string) bool {
 	return version != "" && vuln.CompareVersions(version, minScreenV2Agent) >= 0
 }
 
+// minScreenV3Agent is the first agent version that types characters
+// whatever the remote keyboard layout (Unicode frames) and transfers
+// files within the session (File frames); older helpers would end the
+// session on either.
+const minScreenV3Agent = "1.2.5"
+
+// screenV3Agent tells whether an agent version speaks the third version
+// of the protocol.
+func screenV3Agent(version string) bool {
+	return version != "" && vuln.CompareVersions(version, minScreenV3Agent) >= 0
+}
+
 // Remote-control sessions: one MFA approval opens a view of one agent's
 // screen, with mouse/keyboard control, for a limited time. Served the
 // same way as the interactive shell (same Shell stream, same gateway). The
@@ -127,7 +139,14 @@ func (s *Server) handleOpenScreen(w http.ResponseWriter, r *http.Request) {
 	if err != nil || minutes < 5 || minutes > 60 {
 		minutes = 30
 	}
-	params, _ := json.Marshal(map[string]int{"minutes": minutes})
+	set, err := s.store.GetSettings(r.Context(), t)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	// max_bytes bounds the files transferred within the session, as in
+	// file sessions.
+	params, _ := json.Marshal(map[string]int64{"minutes": int64(minutes), "max_bytes": fileMaxBytes(set)})
 	req := &openrmmv1.JobRequest{TenantId: t, AgentId: id, Module: mod.ID, ModuleVersion: mod.Version, ModuleSha256: mod.ManifestSHA256,
 		Action: "open", ParamsJson: params, TtlSeconds: int64(screenPickup / time.Second), RequestNonce: jobreq.NewRequestNonce()}
 	if err := jobreq.Validate(req); err != nil {
@@ -189,7 +208,7 @@ func (s *Server) handleScreenPage(w http.ResponseWriter, r *http.Request) {
 // screenMsg is the browser's input events; the server turns them into the
 // internal/screensession wire format the agent's screenhelper speaks.
 type screenMsg struct {
-	T       string `json:"t"` // move, button, wheel, key, sas, clip, monitor, close
+	T       string `json:"t"` // move, button, wheel, key, char, sas, clip, monitor, fileput, filedata, fileend, fileget, filecancel, close
 	X       int32  `json:"x,omitempty"`
 	Y       int32  `json:"y,omitempty"`
 	Button  byte   `json:"button,omitempty"`
@@ -198,6 +217,11 @@ type screenMsg struct {
 	Key     uint32 `json:"key,omitempty"`
 	Text    string `json:"text,omitempty"` // clip
 	Monitor int    `json:"monitor"`        // monitor: index, or -1 for all
+	Char    string `json:"char,omitempty"` // char: one character
+	Name    string `json:"name,omitempty"` // fileput
+	Size    int64  `json:"size,omitempty"` // fileput
+	Data    []byte `json:"data,omitempty"` // filedata (base64 in JSON)
+	Path    string `json:"path,omitempty"` // fileget
 }
 
 // handleScreenSocket joins the browser's canvas to the session.
@@ -240,6 +264,7 @@ func (s *Server) serveScreen(ws *websocket.Conn, r *http.Request, j store.Job, a
 	}
 	s.audit(r.Context(), j.TenantID, op, "screen.attached", j.ID, map[string]any{"agent": a.ID, "hostname": a.Host.Hostname})
 	v2 := screenV2Agent(a.Host.AgentVersion)
+	v3 := screenV3Agent(a.Host.AgentVersion)
 	if v2 {
 		// The helper sends only what changes: a browser joining (or
 		// rejoining after a reload) needs the whole screen first.
@@ -276,6 +301,12 @@ func (s *Server) serveScreen(ws *websocket.Conn, r *http.Request, j store.Job, a
 				f.Data = screensession.EncodeWheel(m.Delta)
 			case "key":
 				f.Data = screensession.EncodeKey(m.Key, m.Down)
+			case "char":
+				rs := []rune(m.Char)
+				if !v3 || len(rs) != 1 || rs[0] < ' ' || rs[0] == utf8.RuneError {
+					continue
+				}
+				f.Data = screensession.EncodeUnicode(rs[0])
 			case "sas":
 				f.Data = screensession.EncodeSAS()
 			case "clip":
@@ -297,6 +328,37 @@ func (s *Server) serveScreen(ws *websocket.Conn, r *http.Request, j store.Job, a
 					view = byte(m.Monitor)
 				}
 				f.Data = screensession.EncodeView(view)
+			case "fileput":
+				if !v3 || m.Size < 0 || len(m.Name) > 255 {
+					continue
+				}
+				head, _ := json.Marshal(map[string]any{"name": m.Name, "size": m.Size})
+				f.Data = screensession.EncodeFile(screensession.FilePut, head)
+				s.audit(context.WithoutCancel(r.Context()), j.TenantID, op, "screen.file_sent", j.ID,
+					map[string]any{"agent": a.ID, "name": m.Name, "bytes": m.Size})
+			case "filedata":
+				if !v3 || len(m.Data) > screensession.FileChunk {
+					continue
+				}
+				f.Data = screensession.EncodeFile(screensession.FilePutData, m.Data)
+			case "fileend":
+				if !v3 {
+					continue
+				}
+				f.Data = screensession.EncodeFile(screensession.FilePutEnd, nil)
+			case "fileget":
+				if !v3 || m.Path == "" || len(m.Path) > 1024 {
+					continue
+				}
+				req, _ := json.Marshal(map[string]string{"path": m.Path})
+				f.Data = screensession.EncodeFile(screensession.FileGet, req)
+				s.audit(context.WithoutCancel(r.Context()), j.TenantID, op, "screen.file_fetched", j.ID,
+					map[string]any{"agent": a.ID, "path": m.Path})
+			case "filecancel":
+				if !v3 {
+					continue
+				}
+				f.Data = screensession.EncodeFile(screensession.FileCancel, nil)
 			case "close":
 				f.Close = true
 			default:
