@@ -94,6 +94,15 @@
     <button>{{t "Cerca"}}</button>
   </form>
 </div>
+{{if .Sites}}<nav class="tabs sub filters" aria-label="{{t "Filtra per sede"}}">
+  <a href="/agents{{qs "family" .Family "q" .Query "ou" .OU "group" .Group "show" .Show}}"{{if not .Site}} class="current"{{end}}>{{t "Tutte le sedi"}}</a>
+  {{range .Sites}}<a href="/agents{{qs "site" .ID "family" $.Data.Family "q" $.Data.Query "ou" $.Data.OU "group" $.Data.Group "show" $.Data.Show}}"{{if eq $.Data.Site .ID}} class="current"{{end}}>{{.Name}} <span class="muted">{{.Count}}</span></a>{{end}}
+  {{if .NoSite}}<a href="/agents{{qs "site" "none" "family" .Family "q" .Query "ou" .OU "group" .Group "show" .Show}}"{{if eq .Site "none"}} class="current"{{end}}>{{t "Senza sede"}} <span class="muted">{{.NoSite}}</span></a>{{end}}
+</nav>{{end}}
+{{if .Groups}}<nav class="tabs sub filters" aria-label="{{t "Filtra per gruppo"}}">
+  <a href="/agents{{qs "family" .Family "q" .Query "site" .Site "ou" .OU "show" .Show}}"{{if not .Group}} class="current"{{end}}>{{t "Tutti i gruppi"}}</a>
+  {{range .Groups}}<a href="/agents{{qs "group" .ID "family" $.Data.Family "q" $.Data.Query "site" $.Data.Site "ou" $.Data.OU "show" $.Data.Show}}"{{if eq $.Data.Group .ID}} class="current"{{end}}>{{if eq .Kind "user"}}👤 {{end}}{{.Name}} <span class="muted">{{.Computers}}</span></a>{{end}}
+</nav>{{end}}
 <nav class="tabs sub filters" aria-label="{{t "Filtra per stato"}}">
   <a href="/agents{{qs "family" .Family "site" .Site "q" .Query "ou" .OU "group" .Group}}"{{if not .Show}} class="current"{{end}}>{{t "Tutti"}}</a>
   {{range .Filters}}<a href="/agents{{qs "family" $.Data.Family "site" $.Data.Site "q" $.Data.Query "ou" $.Data.OU "group" $.Data.Group "show" .Key}}"{{if eq $.Data.Show .Key}} class="current"{{end}}>{{.Label}} <span class="muted">{{.Count}}</span></a>{{end}}
