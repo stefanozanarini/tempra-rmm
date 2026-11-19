@@ -141,7 +141,8 @@ func TestConsoleShowsInventoryAndFamilies(t *testing.T) {
 		t.Fatal("search by Supremo id failed")
 	}
 	_, body := get(t, c, base+"/"+srv)
-	for _, want := range []string{"ThinkPad T14 Gen 3", "123456789", "XTS-AES-256", "Google Chrome", "Firefox 131", "software installato"} {
+	for _, want := range []string{"ThinkPad T14 Gen 3", "123456789", "XTS-AES-256", "Google Chrome", "Firefox 131", "software installato",
+		"Entra ID e Microsoft 365", "ibrido (Active Directory e Entra ID)", "Intune", "Monthly Enterprise", "john@outlook.com", "Documents"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("agent page lacks %q", want)
 		}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -263,6 +264,66 @@ var queryFields = []queryField{
 	{"supremo", "ID Supremo", kindText, func(c *queryCtx) []string { return one(c.inv.RemoteAccess.SupremoID) }},
 	{"anydesk", "ID AnyDesk", kindText, func(c *queryCtx) []string { return one(c.inv.RemoteAccess.AnyDeskID) }},
 	{"teamviewer", "ID TeamViewer", kindText, func(c *queryCtx) []string { return one(c.inv.RemoteAccess.TeamViewerID) }},
+
+	{"entra_join", "Join (entra, hybrid, domain, workgroup)", kindText, func(c *queryCtx) []string { return one(c.inv.Identity.JoinType) }},
+	{"entra_tenant", "Tenant Entra ID (nome o ID)", kindText, func(c *queryCtx) []string {
+		return append(one(c.inv.Identity.TenantName), one(c.inv.Identity.TenantID)...)
+	}},
+	{"entra_device_id", "ID dispositivo Entra", kindText, func(c *queryCtx) []string { return one(c.inv.Identity.DeviceID) }},
+	{"intune", "Iscritto a Intune", kindBool, func(c *queryCtx) []string { return boolValue(c.inv.Identity.Intune()) }},
+	{"mdm", "Server MDM", kindText, func(c *queryCtx) []string { return one(c.inv.Identity.MDMServer) }},
+	{"autopilot", "Registrato in Autopilot", kindBool, func(c *queryCtx) []string { return boolValue(c.inv.Identity.Autopilot) }},
+	{"mde", "Defender for Endpoint attivo", kindBool, func(c *queryCtx) []string { return boolValue(c.inv.Identity.MDEOnboarded) }},
+	{"office_version", "Versione di Microsoft 365 Apps", kindText, func(c *queryCtx) []string { return one(c.inv.Office.Version) }},
+	{"office_channel", "Canale di Microsoft 365 Apps", kindText, func(c *queryCtx) []string { return one(c.inv.Office.Channel) }},
+	{"office_license", "Licenza di Office (subscription, perpetual)", kindText, func(c *queryCtx) []string { return one(c.inv.Office.License) }},
+	{"office_product", "Prodotto Office (es. O365BusinessRetail)", kindText, func(c *queryCtx) []string { return c.inv.Office.Products }},
+	{"office_updates", "Aggiornamenti di Office attivi", kindBool, func(c *queryCtx) []string {
+		if c.inv.Office.Version == "" {
+			return nil
+		}
+		return boolValue(!c.inv.Office.UpdatesDisabled)
+	}},
+	{"cloud_account", "Account collegato a Office o OneDrive", kindText, func(c *queryCtx) []string {
+		var out []string
+		for _, a := range c.inv.CloudAccounts {
+			for _, o := range a.Office {
+				out = append(out, o.Account)
+			}
+			for _, o := range a.OneDrive {
+				out = append(out, o.Account)
+			}
+		}
+		return out
+	}},
+	{"personal_account", "Account personale (Microsoft) in Office o OneDrive", kindBool, func(c *queryCtx) []string {
+		for _, a := range c.inv.CloudAccounts {
+			for _, o := range a.Office {
+				if o.Kind == "personal" {
+					return boolValue(true)
+				}
+			}
+			for _, o := range a.OneDrive {
+				if o.Kind == "personal" {
+					return boolValue(true)
+				}
+			}
+		}
+		return boolValue(false)
+	}},
+	{"onedrive_backup", "Desktop e Documenti in OneDrive aziendale (tutti gli utenti con Office o OneDrive)", kindBool, func(c *queryCtx) []string {
+		if len(c.inv.CloudAccounts) == 0 {
+			return nil
+		}
+		for _, a := range c.inv.CloudAccounts {
+			if !slices.ContainsFunc(a.OneDrive, func(o inventory.OneDriveAccount) bool {
+				return o.Kind == "work" && slices.Contains(o.KnownFolders, "Desktop") && slices.Contains(o.KnownFolders, "Documents")
+			}) {
+				return boolValue(false)
+			}
+		}
+		return boolValue(true)
+	}},
 }
 
 // freeTextFields are searched by a word without a field.

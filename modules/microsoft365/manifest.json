@@ -1,0 +1,16 @@
+{
+  "id": "microsoft365",
+  "version": "1.0.0",
+  "description": "Microsoft 365 Apps and OneDrive: checks (Office updates, update channel, supported Office version, OneDrive known folders, personal accounts) and actions (update Office now, change the update channel, repair).",
+  "protocol_version": 1,
+  "entrypoints": {
+    "windows/amd64": { "type": "powershell", "path": "Main.ps1" },
+    "windows/arm64": { "type": "powershell", "path": "Main.ps1" }
+  },
+  "actions": {
+    "status": { "description": "Microsoft 365 Apps and OneDrive checks", "timeout_seconds": 120 },
+    "update": { "description": "Update Microsoft 365 Apps now", "timeout_seconds": 3600 },
+    "set-channel": { "description": "Move Microsoft 365 Apps to another update channel and update", "timeout_seconds": 3600 },
+    "repair": { "description": "Repair Microsoft 365 Apps (quick, offline; or online, reinstalling)", "timeout_seconds": 7200 }
+  }
+}

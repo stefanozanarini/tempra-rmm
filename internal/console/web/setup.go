@@ -58,6 +58,7 @@ var recommended = []struct {
 	{"winget", "scan", "24h", nil},
 	{"firmware", "scan", "24h", nil},
 	{"protection-status", "status", "1h", nil},
+	{"microsoft365", "status", "6h", nil},
 	{accesslog.ModuleID, accesslog.Action, "5m", nil},
 	{"trendmicro", "status", "15m", &policy.Condition{Any: []policy.Condition{
 		{ServiceExists: "ntrtscan"}, {ServiceExists: "ds_agent"}, {ServiceExists: "EndpointBasecamp"}}}},

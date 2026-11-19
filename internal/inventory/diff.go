@@ -16,6 +16,7 @@ const (
 	ChangeDiskHealth      = "disk.health"
 	ChangeEncryption      = "encryption"
 	ChangeRemoteAccess    = "remote_access"
+	ChangeIdentity        = "identity"
 )
 
 // Change is one difference between two inventories.
@@ -99,6 +100,19 @@ func Diff(old, cur *Inventory) []Change {
 	str(ChangeRemoteAccess, "ID Supremo", old.RemoteAccess.SupremoID, cur.RemoteAccess.SupremoID)
 	str(ChangeRemoteAccess, "ID AnyDesk", old.RemoteAccess.AnyDeskID, cur.RemoteAccess.AnyDeskID)
 	str(ChangeRemoteAccess, "ID TeamViewer", old.RemoteAccess.TeamViewerID, cur.RemoteAccess.TeamViewerID)
+
+	// Entra ID and Microsoft 365, once both inventories have them (module
+	// 1.4.0): the first one would report every computer as changed. Office
+	// versions change with the software.
+	if old.Identity.JoinType != "" && cur.Identity.JoinType != "" {
+		str(ChangeIdentity, "join a Entra ID", old.Identity.JoinType, cur.Identity.JoinType)
+		str(ChangeIdentity, "tenant Entra ID", old.Identity.TenantName, cur.Identity.TenantName)
+		str(ChangeIdentity, "server MDM", old.Identity.MDMServer, cur.Identity.MDMServer)
+		if old.Identity.MDEOnboarded != cur.Identity.MDEOnboarded {
+			add(ChangeIdentity, "Defender for Endpoint: %s → %s", onOff(old.Identity.MDEOnboarded), onOff(cur.Identity.MDEOnboarded))
+		}
+		str(ChangeIdentity, "canale di Microsoft 365 Apps", old.Office.Channel, cur.Office.Channel)
+	}
 
 	// Software, keyed by name, scope and architecture; versions compared.
 	swKey := func(s Software) string { return strings.ToLower(s.Name) + "|" + s.Scope + "|" + s.Arch }

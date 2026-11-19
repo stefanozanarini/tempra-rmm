@@ -741,12 +741,14 @@ type actionLink struct{ URL, Label string }
 
 // checkActions: the tab and section of the agent where a check is acted on.
 var checkActions = map[string]struct{ tab, hash, label string }{
-	"winupdate/updates": {"patches", "patches", "Installa gli aggiornamenti"},
-	"winupdate/reboot":  {"commands", "act-reboot-reboot", "Riavvia…"},
-	"osupdate/updates":  {"patches", "patches", "Installa gli aggiornamenti"},
-	"osupdate/reboot":   {"commands", "act-reboot-reboot", "Riavvia…"},
-	"winget/thirdparty": {"patches", "apps", "Aggiorna le applicazioni"},
-	"firmware/firmware": {"firmware", "firmware", "Aggiorna BIOS, firmware e driver"},
+	"winupdate/updates":           {"patches", "patches", "Installa gli aggiornamenti"},
+	"winupdate/reboot":            {"commands", "act-reboot-reboot", "Riavvia…"},
+	"osupdate/updates":            {"patches", "patches", "Installa gli aggiornamenti"},
+	"osupdate/reboot":             {"commands", "act-reboot-reboot", "Riavvia…"},
+	"winget/thirdparty":           {"patches", "apps", "Aggiorna le applicazioni"},
+	"firmware/firmware":           {"firmware", "firmware", "Aggiorna BIOS, firmware e driver"},
+	"microsoft365/office-updates": {"commands", "act-microsoft365-update", "Aggiorna Office…"},
+	"microsoft365/office-channel": {"commands", "act-microsoft365-set-channel", "Cambia canale…"},
 }
 
 func checkAction(lang, agentID string, panel bool, checkID string) *actionLink {

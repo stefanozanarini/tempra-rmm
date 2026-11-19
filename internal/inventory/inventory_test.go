@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 const sample = `{"schema":1,"collected_at":"2026-10-19T10:00:00Z",
@@ -68,12 +69,13 @@ func TestDiff(t *testing.T) {
 	b.Disks = []Disk{{Model: "PM9A1", Serial: "S1", Health: "Warning"}}
 	b.Volumes = []Volume{{Mount: "C:", BitLocker: "off"}}
 	b.RemoteAccess.SupremoID = ""
+	a.Identity.JoinType, b.Identity.JoinType = "hybrid", "entra"
 	kinds := map[string]int{}
 	for _, c := range Diff(a, b) {
 		kinds[c.Kind]++
 	}
 	for _, k := range []string{ChangeSoftwareAdded, ChangeSoftwareRemoved, ChangeSoftwareUpdated, ChangeHardware,
-		ChangeDiskHealth, ChangeEncryption, ChangeRemoteAccess} {
+		ChangeDiskHealth, ChangeEncryption, ChangeRemoteAccess, ChangeIdentity} {
 		if kinds[k] != 1 {
 			t.Errorf("%s: %d changes", k, kinds[k])
 		}
@@ -100,7 +102,40 @@ func TestParseWindowsModuleOutput(t *testing.T) {
 	if inv.System.Model != "ThinkPad T14 Gen 3" || inv.OS.Family != "client" || inv.Memory.TotalBytes != 16<<30 ||
 		len(inv.Volumes) != 1 || inv.Volumes[0].BitLocker != "on" || inv.Firmware.SecureBoot == nil || !*inv.Firmware.SecureBoot ||
 		inv.RemoteAccess.SupremoID != "123456789" || len(inv.Software) != 3 || inv.Batteries[0].HealthPercent != 85 ||
-		inv.OS.LastBoot == nil {
+		inv.OS.LastBoot == nil || !inv.Identity.Entra() || !inv.Identity.Intune() || !inv.Identity.MDEOnboarded ||
+		inv.Office.Channel != "Monthly Enterprise" || inv.Office.License != "subscription" ||
+		len(inv.CloudAccounts) != 1 || len(inv.CloudAccounts[0].Office) != 2 || inv.CloudAccounts[0].OneDrive[0].KnownFolders[1] != "Documents" {
 		t.Fatalf("parsed = %+v", inv)
 	}
 }
+
+func TestCarryOver(t *testing.T) {
+	t0 := time.Date(2026, 11, 1, 9, 0, 0, 0, time.UTC)
+	old := &Inventory{CollectedAt: t0,
+		NetworkShares: []NetworkShare{{User: `CORP\anna`, Drive: "S:"}, {User: `CORP\bob`, Drive: "T:"}},
+		CloudAccounts: []CloudAccount{{User: `CORP\anna`}, {User: `CORP\carl`, SeenAt: ptr(t0.Add(-100 * 24 * time.Hour))}}}
+	cur := &Inventory{CollectedAt: t0.Add(24 * time.Hour), LoadedUsers: []string{`corp\BOB`},
+		CloudAccounts: []CloudAccount{{User: `CORP\bob`, SeenAt: ptr(t0)}}}
+	CarryOver(old, cur)
+	// anna is carried with the old collection time; bob is logged on and
+	// has no share now; carl was last seen too long ago.
+	if len(cur.NetworkShares) != 1 || cur.NetworkShares[0].Drive != "S:" || !cur.NetworkShares[0].SeenAt.Equal(t0) {
+		t.Fatalf("shares = %+v", cur.NetworkShares)
+	}
+	if len(cur.CloudAccounts) != 2 || cur.CloudAccounts[0].SeenAt != nil || cur.CloudAccounts[1].User != `CORP\anna` {
+		t.Fatalf("accounts = %+v", cur.CloudAccounts)
+	}
+	// Carried again, the first time it was seen is kept.
+	next := &Inventory{CollectedAt: t0.Add(48 * time.Hour), LoadedUsers: []string{}}
+	CarryOver(cur, next)
+	if len(next.NetworkShares) != 1 || !next.NetworkShares[0].SeenAt.Equal(t0) || len(next.CloudAccounts) != 2 {
+		t.Fatalf("second carry = %+v %+v", next.NetworkShares, next.CloudAccounts)
+	}
+	// Without the list of loaded users nothing is carried.
+	none := &Inventory{CollectedAt: t0.Add(48 * time.Hour)}
+	if CarryOver(cur, none); len(none.NetworkShares) != 0 {
+		t.Fatal("carried without loaded users")
+	}
+}
+
+func ptr[T any](v T) *T { return &v }

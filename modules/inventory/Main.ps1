@@ -322,6 +322,23 @@ function Get-SoftwareInfo {
     }
 }
 
+# Get-SidUser: DOMAIN\name of a user SID, or the SID when it cannot be
+# translated (deleted account, domain unreachable).
+function Get-SidUser([string]$Sid) {
+    try { return (New-Object System.Security.Principal.SecurityIdentifier($Sid)).Translate([System.Security.Principal.NTAccount]).Value }
+    catch { return $Sid }
+}
+
+# Get-LoadedUsers: the users whose profile (registry hive) is loaded, so
+# whose mapped drives and cloud accounts were read. The console keeps the
+# last ones seen of every other user.
+function Get-LoadedUsers {
+    $users = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::Users, [Microsoft.Win32.RegistryView]::Registry64)
+    foreach ($sid in $users.GetSubKeyNames()) {
+        if ($sid -match '^S-1-5-21-[\d-]+$') { Get-SidUser $sid }
+    }
+}
+
 # Get-MappedShares: network drives currently connected in the session of
 # each user whose profile is loaded. The agent runs as SYSTEM, which has
 # none of its own; HKEY_USERS\<SID>\Network\<letter> exists only while that
@@ -334,8 +351,7 @@ function Get-MappedShares {
         $net = $users.OpenSubKey("$sid\Network")
         if ($null -eq $net) { continue }
         try {
-            $user = $sid
-            try { $user = (New-Object System.Security.Principal.SecurityIdentifier($sid)).Translate([System.Security.Principal.NTAccount]).Value } catch { }
+            $user = Get-SidUser $sid
             foreach ($letter in $net.GetSubKeyNames()) {
                 $d = $net.OpenSubKey($letter)
                 if ($null -eq $d) { continue }
@@ -353,6 +369,185 @@ function Get-MappedShares {
             }
         }
         finally { $net.Close() }
+    }
+}
+
+# Get-IdentityInfo: how the computer is joined to Entra ID, Intune and
+# Defender for Endpoint, read locally (no Graph, no credentials). dsregcmd
+# prints "Name : VALUE" lines with English names in every language; the
+# Entra device id is the key that links this computer to Entra and Intune.
+function Get-IdentityInfo {
+    $ds = @{}
+    $exe = Join-Path $env:SystemRoot 'System32\dsregcmd.exe'
+    if (Test-Path -LiteralPath $exe) {
+        foreach ($line in @(& $exe /status)) {
+            if ($line -match '^\s*(\w+)\s*:\s*(.*?)\s*$' -and -not $ds.ContainsKey($Matches[1])) { $ds[$Matches[1]] = $Matches[2] }
+        }
+    }
+    $entra = $ds['AzureAdJoined'] -eq 'YES'
+    $domain = $ds['DomainJoined'] -eq 'YES'
+    if (-not $ds.Count) { $domain = [bool](Get-CimInstance Win32_ComputerSystem).PartOfDomain }
+    $join = if ($entra -and $domain) { 'hybrid' } elseif ($entra) { 'entra' } elseif ($domain) { 'domain' } else { 'workgroup' }
+    $hklm = Open-HKLM
+    # MDM enrollments (Intune and others): the active one has
+    # EnrollmentState 1 and a discovery URL; manage.microsoft.com is Intune.
+    $mdm = ''; $mdmUpn = ''
+    $enr = $hklm.OpenSubKey('SOFTWARE\Microsoft\Enrollments')
+    if ($null -ne $enr) {
+        try {
+            foreach ($id in $enr.GetSubKeyNames()) {
+                $e = $enr.OpenSubKey($id)
+                if ($null -eq $e) { continue }
+                try {
+                    $url = Get-Str $e.GetValue('DiscoveryServiceFullURL')
+                    if ([int]$e.GetValue('EnrollmentState', 0) -ne 1 -or -not $url) { continue }
+                    try { $mdm = ([uri]$url).Host } catch { $mdm = $url }
+                    $mdmUpn = Get-Str $e.GetValue('UPN')
+                    break
+                }
+                finally { $e.Close() }
+            }
+        }
+        finally { $enr.Close() }
+    }
+    if (-not $mdm) { $mdm = (Get-Str $ds['MdmUrl']) -replace '^https?://([^/]+).*$', '$1' }
+    @{
+        join_type        = $join
+        tenant_id        = Get-Str $ds['TenantId']
+        tenant_name      = Get-Str $ds['TenantName']
+        device_id        = Get-Str $ds['DeviceId']
+        mdm_server       = $mdm
+        mdm_upn          = $mdmUpn
+        autopilot        = [bool](Get-Str (Get-RegValue $hklm 'SOFTWARE\Microsoft\Provisioning\Diagnostics\Autopilot' 'CloudAssignedTenantId'))
+        mde_onboarded    = [int](Get-RegValue $hklm 'SOFTWARE\Microsoft\Windows Advanced Threat Protection\Status' 'OnboardingState') -eq 1
+    }
+}
+
+# Update channels of Microsoft 365 Apps, by the GUID at the end of the
+# CDN URL (https://officecdn.microsoft.com/pr/<guid>).
+$officeChannels = @{
+    '492350f6-3a01-4f97-b9c0-c7c6ddf67d60' = 'Current'
+    '64256afe-f5d9-4f86-8936-8840a6a4f5be' = 'Current Preview'
+    '5440fd1f-7ecb-4221-8110-145efaa6372f' = 'Beta'
+    '55336b82-a18d-4dd6-b5f6-9e5095c314a6' = 'Monthly Enterprise'
+    '7ffbc6bf-bc32-4f92-8982-f9dd17fd3114' = 'Semi-Annual Enterprise'
+    'b8f9b850-328d-4355-9145-c59439a0c4cf' = 'Semi-Annual Enterprise Preview'
+    'f2e724c1-748f-4b47-8fb8-8e0d210e9208' = 'LTSC 2019'
+    '5030841d-c919-4594-8d2d-84ae4f96e58e' = 'LTSC 2021'
+    '7983bac0-e531-40cf-be00-fd24fe66619c' = 'LTSC 2024'
+}
+
+# Get-OfficeInfo: Microsoft 365 Apps or Office installed with Click-to-Run.
+# MSI Office (2016 and older) shows only in the software list. UpdateChannel
+# (set by policy or the Office deployment tool) wins over CDNBaseUrl.
+function Get-OfficeInfo {
+    $hklm = Open-HKLM
+    $k = $hklm.OpenSubKey('SOFTWARE\Microsoft\Office\ClickToRun\Configuration')
+    if ($null -eq $k) { return @{} }
+    try {
+        $version = Get-Str $k.GetValue('VersionToReport')
+        if (-not $version) { return @{} }
+        $url = Get-Str $k.GetValue('UpdateChannel')
+        if (-not $url) { $url = Get-Str $k.GetValue('CDNBaseUrl') }
+        $channel = ''
+        if ($url -match '([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\s*$') {
+            $channel = $officeChannels[$Matches[1].ToLowerInvariant()]
+            if (-not $channel) { $channel = $Matches[1] }
+        }
+        $products = @((Get-Str $k.GetValue('ProductReleaseIds')) -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+        $license = 'perpetual'
+        if (@($products | Where-Object { $_ -match '^O365' }).Count) { $license = 'subscription' }
+        $updates = Get-Str $k.GetValue('UpdatesEnabled')
+        @{
+            version          = $version
+            channel          = $channel
+            platform         = Get-Str $k.GetValue('Platform')
+            products         = $products
+            license          = $license
+            updates_disabled = $updates -ieq 'False'
+            shared_computer  = (Get-Str $k.GetValue('SharedComputerLicensing')) -eq '1'
+        }
+    }
+    finally { $k.Close() }
+}
+
+# Get-CloudAccounts: for each user whose profile is loaded, the work and
+# personal accounts signed in to Office and the OneDrive accounts, with the
+# known folders (Desktop, Documents, Pictures) moved into OneDrive. Read from
+# the user's own hive, like Get-MappedShares.
+function Get-CloudAccounts {
+    $users = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::Users, [Microsoft.Win32.RegistryView]::Registry64)
+    $hklm = Open-HKLM
+    foreach ($sid in $users.GetSubKeyNames()) {
+        if ($sid -notmatch '^S-1-5-21-[\d-]+$') { continue }
+        $user = Get-SidUser $sid
+        $office = @()
+        $ids = $users.OpenSubKey("$sid\Software\Microsoft\Office\16.0\Common\Identity\Identities")
+        if ($null -ne $ids) {
+            try {
+                foreach ($n in $ids.GetSubKeyNames()) {
+                    $i = $ids.OpenSubKey($n)
+                    if ($null -eq $i) { continue }
+                    try {
+                        $mail = Get-Str $i.GetValue('EmailAddress')
+                        if (-not $mail) { $mail = Get-Str $i.GetValue('SignInName') }
+                        if (-not $mail -or @($office | Where-Object { $_.account -ieq $mail }).Count) { continue }
+                        $kind = 'personal'
+                        if ((Get-Str $i.GetValue('ProviderId')) -ieq 'AD') { $kind = 'work' }
+                        $office += @{ account = $mail; kind = $kind }
+                    }
+                    finally { $i.Close() }
+                }
+            }
+            finally { $ids.Close() }
+        }
+        # Known folders: User Shell Folders holds %USERPROFILE%-relative paths.
+        $profilePath = Get-Str (Get-RegValue $hklm "SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$sid" 'ProfileImagePath')
+        $folders = @{}
+        $usf = $users.OpenSubKey("$sid\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders")
+        if ($null -ne $usf) {
+            try {
+                foreach ($f in @(@('Desktop', 'Desktop'), @('Personal', 'Documents'), @('My Pictures', 'Pictures'))) {
+                    $p = Get-Str $usf.GetValue($f[0], '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+                    $folders[$f[1]] = $p -ireplace '^%USERPROFILE%', $profilePath.Replace('$', '$$')
+                }
+            }
+            finally { $usf.Close() }
+        }
+        $onedrive = @()
+        $acc = $users.OpenSubKey("$sid\Software\Microsoft\OneDrive\Accounts")
+        if ($null -ne $acc) {
+            try {
+                foreach ($n in $acc.GetSubKeyNames()) {
+                    if ($n -notmatch '^(Business\d+|Personal)$') { continue }
+                    $a = $acc.OpenSubKey($n)
+                    if ($null -eq $a) { continue }
+                    try {
+                        $root = (Get-Str $a.GetValue('UserFolder')).TrimEnd('\')
+                        if (-not $root) { continue }
+                        $kind = 'work'
+                        if ($n -eq 'Personal') { $kind = 'personal' }
+                        $moved = @($folders.Keys | Where-Object { $folders[$_] -and $folders[$_].StartsWith("$root\", [StringComparison]::OrdinalIgnoreCase) } | Sort-Object)
+                        $onedrive += @{
+                            account       = Get-Str $a.GetValue('UserEmail')
+                            kind          = $kind
+                            tenant_id     = Get-Str $a.GetValue('ConfiguredTenantId')
+                            folder        = $root
+                            known_folders = $moved
+                        }
+                    }
+                    finally { $a.Close() }
+                }
+            }
+            finally { $acc.Close() }
+        }
+        if (-not $office.Count -and -not $onedrive.Count) { continue }
+        @{
+            user             = $user
+            office           = $office
+            onedrive         = $onedrive
+            onedrive_version = Get-Str (Get-RegValue $users "$sid\Software\Microsoft\OneDrive" 'Version')
+        }
     }
 }
 
@@ -522,7 +717,12 @@ Invoke-RmmModule @{
         $inv.remote_access = Get-Section 'remote_access' { Get-RemoteAccessInfo } @{}
         $inv.pending_updates = @(Get-Section 'pending_updates' { Get-PendingBrowserUpdates } @())
         $inv.local_admins = @(Get-Section 'local_admins' { Get-LocalAdmins } @())
+        $inv.loaded_users = @(Get-Section 'loaded_users' { Get-LoadedUsers } @())
         $inv.network_shares = @(Get-Section 'network_shares' { Get-MappedShares } @())
+        Send-RmmProgress 80 'identity'
+        $inv.identity = Get-Section 'identity' { Get-IdentityInfo } @{}
+        $inv.office = Get-Section 'office' { Get-OfficeInfo } @{}
+        $inv.cloud_accounts = @(Get-Section 'cloud_accounts' { Get-CloudAccounts } @())
         $checks = @()
         $groups = @(Get-Section 'privileged_groups' { Get-PrivilegedGroups } @())
         if ($groups.Count) {

@@ -1,0 +1,105 @@
+{
+  "status": [
+    {
+      "name": "max_update_age_days",
+      "type": "int",
+      "label": {
+        "it": "Segnala Office non aggiornato da più di (giorni)",
+        "en": "Flag Office not updated for more than (days)"
+      },
+      "default": 45,
+      "min": 7,
+      "max": 365
+    },
+    {
+      "name": "channels",
+      "type": "multi",
+      "label": {
+        "it": "Canali di aggiornamento ammessi",
+        "en": "Allowed update channels"
+      },
+      "options": [
+        { "value": "Current", "label": { "it": "Current", "en": "Current" } },
+        { "value": "Monthly Enterprise", "label": { "it": "Monthly Enterprise", "en": "Monthly Enterprise" } },
+        { "value": "Semi-Annual Enterprise", "label": { "it": "Semi-Annual Enterprise", "en": "Semi-Annual Enterprise" } },
+        { "value": "Current Preview", "label": { "it": "Current Preview", "en": "Current Preview" } },
+        { "value": "Semi-Annual Enterprise Preview", "label": { "it": "Semi-Annual Enterprise Preview", "en": "Semi-Annual Enterprise Preview" } },
+        { "value": "Beta", "label": { "it": "Beta", "en": "Beta" } }
+      ],
+      "default": [
+        "Current",
+        "Monthly Enterprise",
+        "Semi-Annual Enterprise"
+      ]
+    },
+    {
+      "name": "onedrive_backup",
+      "type": "bool",
+      "label": {
+        "it": "Segnala gli utenti senza Desktop e Documenti in OneDrive aziendale",
+        "en": "Flag users without Desktop and Documents in work OneDrive"
+      },
+      "default": true
+    },
+    {
+      "name": "personal_accounts",
+      "type": "bool",
+      "label": {
+        "it": "Segnala gli account Microsoft personali in Office e OneDrive",
+        "en": "Flag personal Microsoft accounts in Office and OneDrive"
+      },
+      "default": true
+    }
+  ],
+  "update": [
+    {
+      "name": "force_close",
+      "type": "bool",
+      "label": {
+        "it": "Chiudi le app di Office aperte (gli utenti possono perdere il lavoro non salvato)",
+        "en": "Close open Office apps (users may lose unsaved work)"
+      },
+      "default": false
+    }
+  ],
+  "set-channel": [
+    {
+      "name": "channel",
+      "type": "enum",
+      "label": {
+        "it": "Canale",
+        "en": "Channel"
+      },
+      "options": [
+        { "value": "MonthlyEnterprise", "label": { "it": "Monthly Enterprise (consigliato)", "en": "Monthly Enterprise (recommended)" } },
+        { "value": "Current", "label": { "it": "Current", "en": "Current" } },
+        { "value": "SemiAnnual", "label": { "it": "Semi-Annual Enterprise", "en": "Semi-Annual Enterprise" } }
+      ],
+      "default": "MonthlyEnterprise"
+    },
+    {
+      "name": "force_close",
+      "type": "bool",
+      "label": {
+        "it": "Chiudi le app di Office aperte (gli utenti possono perdere il lavoro non salvato)",
+        "en": "Close open Office apps (users may lose unsaved work)"
+      },
+      "default": false
+    }
+  ],
+  "repair": [
+    {
+      "name": "type",
+      "type": "enum",
+      "label": {
+        "it": "Tipo di ripristino",
+        "en": "Repair type"
+      },
+      "options": [
+        { "value": "quick", "label": { "it": "Rapido (offline, pochi minuti)", "en": "Quick (offline, a few minutes)" } },
+        { "value": "full", "label": { "it": "Online (scarica e reinstalla Office)", "en": "Online (downloads and reinstalls Office)" } }
+      ],
+      "default": "quick"
+    }
+  ]
+}

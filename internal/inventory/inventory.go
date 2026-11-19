@@ -65,6 +65,74 @@ type Inventory struct {
 	// (HKEY_USERS\<SID>\Network), the same way per-user software is (see
 	// Get-SoftwareInfo in the module), not from the agent's own session.
 	NetworkShares []NetworkShare `json:"network_shares,omitempty"`
+	// LoadedUsers: the users whose profile was loaded at collection, so
+	// whose network shares and cloud accounts were read (inventory 1.4.0).
+	// Nil when unknown (Linux, older modules). See CarryOver.
+	LoadedUsers []string `json:"loaded_users,omitempty"`
+	// Identity, Office and CloudAccounts: Entra ID join, Intune, Microsoft
+	// 365 Apps and the accounts signed in to Office and OneDrive, read on
+	// the computer without Graph (inventory 1.4.0).
+	Identity      Identity       `json:"identity"`
+	Office        Office         `json:"office"`
+	CloudAccounts []CloudAccount `json:"cloud_accounts,omitempty"`
+}
+
+// Identity tells how the computer is joined to Entra ID and managed.
+// DeviceID is the Entra device id, the key of the computer in Entra and
+// Intune.
+type Identity struct {
+	JoinType     string `json:"join_type,omitempty"` // entra | hybrid | domain | workgroup
+	TenantID     string `json:"tenant_id,omitempty"`
+	TenantName   string `json:"tenant_name,omitempty"`
+	DeviceID     string `json:"device_id,omitempty"`
+	MDMServer    string `json:"mdm_server,omitempty"` // host of the MDM enrollment; Intune: *.manage.microsoft.com
+	MDMUPN       string `json:"mdm_upn,omitempty"`
+	Autopilot    bool   `json:"autopilot,omitempty"`
+	MDEOnboarded bool   `json:"mde_onboarded,omitempty"`
+}
+
+// Entra reports a join to Entra ID (joined or hybrid joined).
+func (i Identity) Entra() bool { return i.JoinType == "entra" || i.JoinType == "hybrid" }
+
+// Intune reports an enrollment in Microsoft Intune.
+func (i Identity) Intune() bool { return strings.HasSuffix(i.MDMServer, ".manage.microsoft.com") }
+
+// Office is Microsoft 365 Apps (or Office LTSC) installed with Click-to-Run;
+// empty when absent.
+type Office struct {
+	Version         string   `json:"version,omitempty"`
+	Channel         string   `json:"channel,omitempty"`  // Current, Monthly Enterprise, ...; a GUID when unknown
+	Platform        string   `json:"platform,omitempty"` // x64 | x86
+	Products        []string `json:"products,omitempty"` // release ids, e.g. O365BusinessRetail
+	License         string   `json:"license,omitempty"`  // subscription | perpetual
+	UpdatesDisabled bool     `json:"updates_disabled,omitempty"`
+	SharedComputer  bool     `json:"shared_computer,omitempty"`
+}
+
+// CloudAccount is a user of the computer, with the accounts signed in to
+// Office and OneDrive.
+type CloudAccount struct {
+	User            string            `json:"user"` // DOMAIN\name, AzureAD\name or a SID
+	Office          []OfficeAccount   `json:"office,omitempty"`
+	OneDrive        []OneDriveAccount `json:"onedrive,omitempty"`
+	OneDriveVersion string            `json:"onedrive_version,omitempty"`
+	// SeenAt: as for NetworkShare.
+	SeenAt *time.Time `json:"seen_at,omitempty"`
+}
+
+type OfficeAccount struct {
+	Account string `json:"account"`
+	Kind    string `json:"kind,omitempty"` // work | personal
+}
+
+// OneDriveAccount is a OneDrive account; KnownFolders are the folders
+// (Desktop, Documents, Pictures) moved into it, so backed up.
+type OneDriveAccount struct {
+	Account      string   `json:"account,omitempty"`
+	Kind         string   `json:"kind,omitempty"` // work | personal
+	TenantID     string   `json:"tenant_id,omitempty"`
+	Folder       string   `json:"folder,omitempty"`
+	KnownFolders []string `json:"known_folders,omitempty"`
 }
 
 // NetworkShare is a mapped network drive connected in a user's session.
@@ -73,6 +141,10 @@ type NetworkShare struct {
 	Drive      string `json:"drive"`
 	RemotePath string `json:"remote_path"`
 	Provider   string `json:"provider,omitempty"`
+	// SeenAt: when the share was last seen, for a user not logged on at
+	// this collection (set by the console, see CarryOver); nil when seen
+	// now.
+	SeenAt *time.Time `json:"seen_at,omitempty"`
 }
 
 // PendingUpdate is an application update waiting for a restart of the
@@ -427,6 +499,83 @@ func (inv *Inventory) normalize() {
 	for i := range inv.NetworkShares {
 		s := &inv.NetworkShares[i]
 		s.User, s.Drive, s.RemotePath, s.Provider = clip(s.User), clip(s.Drive), clip(s.RemotePath), clip(s.Provider)
+	}
+	if inv.LoadedUsers != nil {
+		inv.LoadedUsers = append([]string{}, clipAll(inv.LoadedUsers, maxItems)...)
+	}
+	id := &inv.Identity
+	id.JoinType, id.TenantID, id.TenantName, id.DeviceID = clip(id.JoinType), clip(id.TenantID), clip(id.TenantName), clip(id.DeviceID)
+	id.MDMServer, id.MDMUPN = strings.ToLower(clip(id.MDMServer)), clip(id.MDMUPN)
+	of := &inv.Office
+	of.Version, of.Channel, of.Platform, of.License = clip(of.Version), clip(of.Channel), clip(of.Platform), clip(of.License)
+	of.Products = clipAll(of.Products, 32)
+	inv.CloudAccounts = bound(inv.CloudAccounts, maxItems)
+	for i := range inv.CloudAccounts {
+		c := &inv.CloudAccounts[i]
+		c.User, c.OneDriveVersion = clip(c.User), clip(c.OneDriveVersion)
+		c.Office, c.OneDrive = bound(c.Office, 32), bound(c.OneDrive, 32)
+		for j := range c.Office {
+			c.Office[j].Account, c.Office[j].Kind = clip(c.Office[j].Account), clip(c.Office[j].Kind)
+		}
+		for j := range c.OneDrive {
+			o := &c.OneDrive[j]
+			o.Account, o.Kind, o.TenantID, o.Folder = clip(o.Account), clip(o.Kind), clip(o.TenantID), clip(o.Folder)
+			o.KnownFolders = clipAll(o.KnownFolders, 8)
+		}
+	}
+}
+
+// KeepAbsent is how long the network shares and cloud accounts of a user
+// not logged on are kept after they were last seen.
+const KeepAbsent = 90 * 24 * time.Hour
+
+// CarryOver keeps in cur, from the previous inventory old, the network
+// shares and cloud accounts of the users whose profile was not loaded at
+// cur's collection: they are read only from a loaded profile, so a user who
+// logged off would otherwise vanish. Each carried entry has SeenAt, the
+// last collection that saw it, and is dropped KeepAbsent after it. The
+// current data of a loaded user replace the old ones. SeenAt coming from
+// the agent is discarded. cur without LoadedUsers carries nothing.
+func CarryOver(old, cur *Inventory) {
+	for i := range cur.NetworkShares {
+		cur.NetworkShares[i].SeenAt = nil
+	}
+	for i := range cur.CloudAccounts {
+		cur.CloudAccounts[i].SeenAt = nil
+	}
+	if old == nil || cur.LoadedUsers == nil {
+		return
+	}
+	present := map[string]bool{}
+	for _, u := range cur.LoadedUsers {
+		present[strings.ToLower(u)] = true
+	}
+	for _, s := range cur.NetworkShares {
+		present[strings.ToLower(s.User)] = true
+	}
+	for _, a := range cur.CloudAccounts {
+		present[strings.ToLower(a.User)] = true
+	}
+	// seen returns when an old entry was last seen, or nil when too old.
+	seen := func(at *time.Time) *time.Time {
+		t := old.CollectedAt
+		if at != nil && at.Before(t) {
+			t = *at
+		}
+		if cur.CollectedAt.Sub(t) > KeepAbsent {
+			return nil
+		}
+		return &t
+	}
+	for _, s := range old.NetworkShares {
+		if s.SeenAt = seen(s.SeenAt); s.SeenAt != nil && !present[strings.ToLower(s.User)] && len(cur.NetworkShares) < maxItems {
+			cur.NetworkShares = append(cur.NetworkShares, s)
+		}
+	}
+	for _, a := range old.CloudAccounts {
+		if a.SeenAt = seen(a.SeenAt); a.SeenAt != nil && !present[strings.ToLower(a.User)] && len(cur.CloudAccounts) < maxItems {
+			cur.CloudAccounts = append(cur.CloudAccounts, a)
+		}
 	}
 }
 

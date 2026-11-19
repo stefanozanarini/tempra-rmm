@@ -34,6 +34,7 @@ var BaselineRules = []BaselineRule{
 	{"winget", "scan", 24 * time.Hour, nil},
 	{"firmware", "scan", 24 * time.Hour, nil},
 	{"protection-status", "status", time.Hour, nil},
+	{"microsoft365", "status", 6 * time.Hour, nil},
 	{"accesslog", "collect", 5 * time.Minute, nil},
 	{"trendmicro", "status", 15 * time.Minute, &Condition{Any: []Condition{
 		{ServiceExists: "ntrtscan"}, {ServiceExists: "ds_agent"}, {ServiceExists: "EndpointBasecamp"}}}},

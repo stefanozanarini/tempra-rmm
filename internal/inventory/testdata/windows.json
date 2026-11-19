@@ -145,5 +145,54 @@
    "name": "5B10W51867",
    "design_capacity": 57000
   }
+ ],
+ "identity": {
+  "join_type": "hybrid",
+  "tenant_id": "11111111-2222-3333-4444-555555555555",
+  "tenant_name": "Contoso",
+  "device_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+  "mdm_server": "EnrollmentServer.Manage.Microsoft.com",
+  "mdm_upn": "jdoe@contoso.com",
+  "autopilot": false,
+  "mde_onboarded": true
+ },
+ "office": {
+  "version": "16.0.18129.20158",
+  "channel": "Monthly Enterprise",
+  "platform": "x64",
+  "products": [
+   "O365BusinessRetail"
+  ],
+  "license": "subscription",
+  "updates_disabled": false,
+  "shared_computer": false
+ },
+ "cloud_accounts": [
+  {
+   "user": "CONTOSO\\jdoe",
+   "office": [
+    {
+     "account": "jdoe@contoso.com",
+     "kind": "work"
+    },
+    {
+     "account": "john@outlook.com",
+     "kind": "personal"
+    }
+   ],
+   "onedrive": [
+    {
+     "account": "jdoe@contoso.com",
+     "kind": "work",
+     "tenant_id": "11111111-2222-3333-4444-555555555555",
+     "folder": "C:\\Users\\jdoe\\OneDrive - Contoso",
+     "known_folders": [
+      "Desktop",
+      "Documents"
+     ]
+    }
+   ],
+   "onedrive_version": "24.211.1020.0002"
+  }
  ]
 }

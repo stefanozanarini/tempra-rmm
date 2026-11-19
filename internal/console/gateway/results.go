@@ -104,6 +104,7 @@ func (s *Server) ingestInventory(ctx context.Context, a store.Agent, raw []byte)
 		s.log.Error("load inventory", "agent", a.ID, "err", err)
 		return
 	}
+	inventory.CarryOver(old, inv)
 	data, err := json.Marshal(inv)
 	if err != nil {
 		s.log.Error("encode inventory", "err", err)

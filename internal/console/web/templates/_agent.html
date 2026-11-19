@@ -352,9 +352,40 @@
 {{if .NetworkShares}}
 <h3>{{t "Share di rete montate"}}{{help "section:network_shares"}}</h3>
 <table>
-<thead><tr><th>{{t "Unità"}}</th><th>{{t "Percorso"}}</th><th>{{t "Utente"}}</th><th>{{t "Provider"}}</th></tr></thead>
-<tbody>{{range .NetworkShares}}<tr><td>{{.Drive}}</td><td><code>{{.RemotePath}}</code></td><td>{{.User}}</td><td>{{.Provider}}</td></tr>{{end}}</tbody>
+<thead><tr><th>{{t "Unità"}}</th><th>{{t "Percorso"}}</th><th>{{t "Utente"}}</th><th>{{t "Provider"}}</th><th>{{t "Rilevata"}}</th></tr></thead>
+<tbody>{{range .NetworkShares}}<tr{{if .SeenAt}} class="muted"{{end}}><td>{{.Drive}}</td><td><code>{{.RemotePath}}</code></td><td>{{.User}}</td><td>{{.Provider}}</td><td>{{with .SeenAt}}{{tf "visto il %s" (fmtTime .)}}{{else}}{{t "all'ultimo inventario"}}{{end}}</td></tr>{{end}}</tbody>
 </table>
+{{end}}
+
+{{if or .Identity.JoinType .Office.Version .CloudAccounts}}
+<h3>{{t "Entra ID e Microsoft 365"}}{{help "section:m365"}}</h3>
+<div class="grid2">
+<dl class="facts">
+  <dt>{{t "Join"}}</dt><dd>{{with .Identity.JoinType}}{{label (print "join." .)}}{{else}}-{{end}}</dd>
+  {{if .Identity.TenantID}}<dt>{{t "Tenant"}}</dt><dd>{{.Identity.TenantName}} <code>{{.Identity.TenantID}}</code></dd>{{end}}
+  {{with .Identity.DeviceID}}<dt>{{t "ID dispositivo Entra"}}</dt><dd><code>{{.}}</code></dd>{{end}}
+  <dt>MDM</dt><dd>{{if $.Data.Inv.Identity.Intune}}Intune{{else}}{{or .Identity.MDMServer (t "non iscritto")}}{{end}}{{with .Identity.MDMUPN}} <span class="muted">{{.}}</span>{{end}}{{if .Identity.Autopilot}} <span class="badge">Autopilot</span>{{end}}</dd>
+  <dt>Defender for Endpoint</dt><dd>{{if .Identity.MDEOnboarded}}<span class="badge chk-ok">{{t "attivo"}}</span>{{else}}{{t "non attivo"}}{{end}}</dd>
+</dl>
+<dl class="facts">
+  <dt>Microsoft 365 Apps</dt><dd>{{with .Office.Version}}{{.}}{{with $.Data.Inv.Office.Platform}} <span class="muted">{{.}}</span>{{end}}{{else}}{{t "non installato (Click-to-Run)"}}{{end}}</dd>
+  {{if .Office.Version}}
+  <dt>{{t "Canale"}}</dt><dd>{{or .Office.Channel "-"}}{{if .Office.UpdatesDisabled}} <span class="badge chk-warning">{{t "aggiornamenti disattivati"}}</span>{{end}}</dd>
+  <dt>{{t "Licenza"}}</dt><dd>{{with .Office.License}}{{label (print "office." .)}}{{end}}{{if .Office.SharedComputer}} <span class="badge">{{t "attivazione su computer condiviso"}}</span>{{end}}</dd>
+  <dt>{{t "Prodotti"}}</dt><dd>{{range $i, $p := .Office.Products}}{{if $i}}, {{end}}<code>{{$p}}</code>{{else}}-{{end}}</dd>
+  {{end}}
+</dl>
+</div>
+{{if .CloudAccounts}}
+<table>
+<thead><tr><th>{{t "Utente"}}</th><th>{{t "Account Office"}}</th><th>OneDrive</th><th>{{t "Cartelle in OneDrive"}}</th><th>{{t "Rilevata"}}</th></tr></thead>
+<tbody>{{range .CloudAccounts}}<tr{{if .SeenAt}} class="muted"{{end}}><td>{{.User}}</td>
+<td>{{range .Office}}{{.Account}}{{if eq .Kind "personal"}} <span class="badge chk-warning">{{label "account.personal"}}</span>{{end}}<br>{{else}}-{{end}}</td>
+<td>{{range .OneDrive}}{{or .Account .Folder}}{{if eq .Kind "personal"}} <span class="badge chk-warning">{{label "account.personal"}}</span>{{end}}<br>{{else}}-{{end}}{{with .OneDriveVersion}}<span class="muted">{{.}}</span>{{end}}</td>
+<td>{{range .OneDrive}}{{range $i, $f := .KnownFolders}}{{if $i}}, {{end}}{{$f}}{{else}}<span class="muted">{{t "nessuna"}}</span>{{end}}<br>{{else}}-{{end}}</td>
+<td>{{with .SeenAt}}{{tf "visto il %s" (fmtTime .)}}{{else}}{{t "all'ultimo inventario"}}{{end}}</td></tr>{{end}}</tbody>
+</table>
+{{end}}
 {{end}}
 
 {{if .Monitors}}

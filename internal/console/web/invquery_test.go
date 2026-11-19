@@ -26,6 +26,13 @@ func TestInventoryQuery(t *testing.T) {
 			{Name: "Google Chrome", Version: "141.0.7390.55", Publisher: "Google LLC"},
 		},
 		Batteries: []inventory.Battery{{HealthPercent: 65}},
+		Identity:  inventory.Identity{JoinType: "hybrid", TenantName: "Contoso", MDMServer: "enrollment.manage.microsoft.com"},
+		Office:    inventory.Office{Version: "16.0.18129.20158", Channel: "Monthly Enterprise", Products: []string{"O365BusinessRetail"}, License: "subscription"},
+		CloudAccounts: []inventory.CloudAccount{
+			{User: `CONTOSO\jdoe`, Office: []inventory.OfficeAccount{{Account: "jdoe@contoso.com", Kind: "work"}},
+				OneDrive: []inventory.OneDriveAccount{{Account: "jdoe@contoso.com", Kind: "work", KnownFolders: []string{"Desktop", "Documents"}}}},
+			{User: `CONTOSO\guest`, Office: []inventory.OfficeAccount{{Account: "me@outlook.com", Kind: "personal"}}},
+		},
 	}
 	a := store.Agent{ID: "a1", Status: store.AgentActive, LastSeenAt: &seen}
 	a.Host.Hostname, a.Host.AgentVersion = "VWUKE135L", "1.1.2"
@@ -76,6 +83,14 @@ func TestInventoryQuery(t *testing.T) {
 		`mac:aa:bb`:                                      true,
 		`"latitude 5440"`:                                true,
 		`"model:latitude"`:                               false,
+		`entra_join:hybrid intune:yes mde:no`:            true,
+		`entra_tenant:contoso`:                           true,
+		`office_channel:"monthly*" office_license:subscription office_updates:yes`: true,
+		`office_version<16.0.17000`:      false,
+		`office_product:O365Business*`:   true,
+		`cloud_account:jdoe@contoso.com`: true,
+		`personal_account:yes`:           true,
+		`onedrive_backup:yes`:            false,
 	} {
 		n, err := parseQuery(q, now)
 		if err != nil {
