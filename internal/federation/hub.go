@@ -151,12 +151,43 @@ func (h *Hub) add(ctx context.Context, link store.FederationLink, c net.Conn) {
 	h.live[link.ID]++
 	h.mu.Unlock()
 	lc.watch()
-	select {
-	case pool <- lc:
-		_ = h.Store.TouchLink(ctx, link.ID, h.now(), nil)
-		h.Log.Info("federation tunnel accepted", "link", link.ID, "name", link.Name)
-	default:
-		_ = lc.Close()
+	for try := 0; try < 2; try++ {
+		select {
+		case pool <- lc:
+			_ = h.Store.TouchLink(ctx, link.ID, h.now(), nil)
+			h.Log.Info("federation tunnel accepted", "link", link.ID, "name", link.Name)
+			return
+		default:
+			// Full: the tunnels of a customer console that restarted stay
+			// in the pool, dead, until a request claims them. Without
+			// them out, every new tunnel would be closed at once.
+			prune(pool)
+		}
+	}
+	h.Log.Warn("federation tunnel refused: pool full", "link", link.ID, "name", link.Name)
+	_ = lc.Close()
+}
+
+// prune drops the dead tunnels waiting in a pool.
+func prune(pool chan net.Conn) {
+	var keep []net.Conn
+	for drained := false; !drained; {
+		select {
+		case c := <-pool:
+			if lc, ok := c.(*linkConn); ok && lc.dead.get() {
+				continue
+			}
+			keep = append(keep, c)
+		default:
+			drained = true
+		}
+	}
+	for _, c := range keep {
+		select {
+		case pool <- c:
+		default:
+			_ = c.Close()
+		}
 	}
 }
 

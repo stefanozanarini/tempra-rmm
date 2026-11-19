@@ -165,3 +165,39 @@ func TestOperatorHeader(t *testing.T) {
 		t.Fatal("short session accepted")
 	}
 }
+
+// A customer console that restarts leaves its old tunnels dead in the
+// pool; the new ones must still get in.
+func TestRestartedCustomerGetsBackIn(t *testing.T) {
+	e := start(t)
+	ctx := context.Background()
+	link, bundle := e.newLink(t, "Cliente B")
+	up, err := Join(ctx, bundle, "admin", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.customer.PutUplink(ctx, up)
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "ok") })
+	for round := 0; round < 3; round++ {
+		u := &Uplink{Store: e.customer, Handler: handler, Log: e.hub.Log, Poll: 50 * time.Millisecond}
+		uctx, ucancel := context.WithCancel(ctx)
+		go u.Run(uctx)
+		waitFor(t, func() bool { return u.Up() == defaultTunnelsPerLink })
+		ucancel() // the customer console stops: its tunnels die in the pool
+		waitFor(t, func() bool { return e.hub.Connected(link.ID) == 0 })
+	}
+	u := &Uplink{Store: e.customer, Handler: handler, Log: e.hub.Log, Poll: 50 * time.Millisecond}
+	uctx, ucancel := context.WithCancel(ctx)
+	defer ucancel()
+	go u.Run(uctx)
+	waitFor(t, func() bool { return e.hub.Connected(link.ID) == defaultTunnelsPerLink })
+	resp, err := e.hub.Client(link.ID).Get(URL + "/agents")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if string(body) != "ok" {
+		t.Fatalf("body = %q", body)
+	}
+}

@@ -209,7 +209,6 @@ func (d *Dialer) keep(ctx context.Context, slot int) {
 			backoff = min(backoff*2, time.Minute)
 			continue
 		}
-		backoff = time.Second
 		d.up.Add(1)
 		closed := make(chan struct{})
 		tc := &notifyConn{Conn: c, closed: closed}
@@ -220,6 +219,7 @@ func (d *Dialer) keep(ctx context.Context, slot int) {
 			return
 		}
 		d.Log.Info("tunnel open", "peer", d.Peer, "slot", slot, "addr", d.Target)
+		opened := time.Now()
 		select {
 		case <-closed:
 			d.up.Add(-1)
@@ -229,8 +229,25 @@ func (d *Dialer) keep(ctx context.Context, slot int) {
 			_ = c.Close()
 			return
 		}
+		// A tunnel the other side closes right away (it refuses it, or is
+		// not ready) is reopened with the same backoff as a failed dial,
+		// not in a tight loop.
+		if time.Since(opened) < shortTunnel {
+			wait := backoff/2 + rand.N(backoff/2+1) // #nosec G404 -- jitter, not a secret
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(wait):
+			}
+			backoff = min(backoff*2, time.Minute)
+		} else {
+			backoff = time.Second
+		}
 	}
 }
+
+// shortTunnel is how long a tunnel must stay open to count as working.
+const shortTunnel = 10 * time.Second
 
 type notifyConn struct {
 	net.Conn
