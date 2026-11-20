@@ -122,7 +122,7 @@ The agent list is the home page: every computer, its status at a glance, and the
 - **Click** a computer to open the bottom panel; **right-click** for the quick menu (commands, shell, remote control, files, workflows).
 - **Tick several computers** to run one action on all of them with a single MFA approval (Admin, see section 5). **Shift+click** a box to tick (or clear) every box between it and the one clicked before, as in a file manager.
 - **Summary cards** above the list (total agents, online now, serious issues, missing patches) open the list already filtered; **chips** above the table filter by site or group, and **☰** hides the left column when the table needs the width.
-- The panel of the selected computer opens as a floating window over the list; **close** brings the list back.
+- The panel of the selected computer opens as a floating window over the list; its header (name, **open the page**, **close**) stays visible while you scroll it. **Reduce** shrinks it to a bar, bottom left, so you can work on the list behind it. You can reduce several computers: each keeps its bar there while the list reloads and you open others (in the same browser tab). A click on a bar opens that computer again (the one in front is reduced to its bar), its **×** removes the bar; **Show** or a click on the name brings back the reduced panel. **Close** brings the list back.
 
 ### The agent panel and page
 

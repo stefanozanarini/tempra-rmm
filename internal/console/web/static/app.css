@@ -140,6 +140,26 @@ a.open { text-decoration:none; color:var(--muted); font-size:12px; }
 body.panel-open .panel { position:fixed; top:6vh; left:50%; transform:translateX(-50%); z-index:41;
   width:min(960px, 94vw); max-height:88vh; overflow:auto; margin-top:0; box-shadow:0 12px 40px rgba(0,0,0,.45); }
 .panel header a.panel-close { font-weight:600; }
+/* The floating panel keeps its header (name, open, reduce, close) in view
+   while its content scrolls, and can be reduced to that header, bottom
+   left (the job dock is bottom right), to work on the list behind it. */
+body.panel-open .panel { padding-top:0; }
+body.panel-open .panel > header { position:sticky; top:0; z-index:2; background:var(--card); margin:0 -16px 12px; padding:4px 16px 0; border-bottom:1px solid var(--line); }
+body.panel-open .panel > header button.panel-min { margin:0; font:inherit; color:var(--accent); text-decoration:underline; cursor:pointer; }
+body.panel-small .panel-backdrop { display:none; }
+body.panel-small .panel { position:static; transform:none; width:min(340px, calc(100vw - 32px)); overflow:hidden; padding-bottom:0; }
+/* The reduced agents: a row of bars, bottom left; the reduced panel is the last. */
+body.panel-open.dock-bars:not(.panel-small) .panel { top:3vh; max-height:calc(97vh - 80px); }
+.paneldock { position:fixed; left:16px; bottom:16px; z-index:42; display:flex; flex-wrap:wrap-reverse; align-items:flex-end; gap:8px; max-width:calc(100vw - 410px); }
+.dockbar { display:flex; align-items:center; gap:10px; max-width:240px; background:var(--card); border:1px solid var(--line); border-top:3px solid var(--accent);
+  border-radius:var(--radius); padding:8px 12px; box-shadow:0 6px 24px rgba(0,0,0,.25); }
+.dockbar a { font-weight:600; color:var(--fg); text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dockbar a:hover { color:var(--accent); }
+.dockbar button { font-size:16px; line-height:1; color:var(--muted); cursor:pointer; }
+@media (max-width: 760px) { .paneldock { max-width:calc(100vw - 32px); bottom:72px; } }
+body.panel-small .panel > header { margin-bottom:0; border-bottom:none; }
+body.panel-small .panel > header h2 { font-size:15px; margin:10px auto 10px 0; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+body.panel-small .panel > :not(header) { display:none; }
 .note { border-left:3px solid var(--line); padding:2px 12px; margin:8px 0; }
 .note p { margin:4px 0; white-space:pre-wrap; }
 @media (max-width: 900px) { .workspace { grid-template-columns:1fr; } .tree { position:static; } }

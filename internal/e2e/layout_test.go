@@ -72,7 +72,7 @@ func TestConsoleSitesPanelNotesAndTheme(t *testing.T) {
 
 	// Bottom panel with tabs, and a note added from it.
 	_, body = get(t, c, e.console.URL+"/agents?agent="+mi+"&tab=notes")
-	if !strings.Contains(body, `class="panel"`) || !strings.Contains(body, "Nuova nota") {
+	if !strings.Contains(body, `class="panel"`) || !strings.Contains(body, `data-hide="Riduci"`) || !strings.Contains(body, "Nuova nota") {
 		t.Fatal("notes tab not shown in the panel")
 	}
 	ret := "/agents?agent=" + mi + "&tab=notes"

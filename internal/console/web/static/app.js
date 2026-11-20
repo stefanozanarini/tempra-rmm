@@ -23,20 +23,101 @@
   // floats in front as a modal instead, so it stays visible regardless of
   // list length or scroll position. Closing it follows the panel's own
   // "chiudi" link, which keeps the list's filters/search.
+  //
+  // "Riduci" shrinks it to a bar, bottom left (the job dock is bottom
+  // right), to work on the list behind it. Reduced agents stay there as a
+  // row of bars, one per computer, while the list reloads and other agents
+  // are opened: a click on a bar opens that agent again, its "×" drops it.
+  // The row lives in the browser tab (sessionStorage).
   var panel = document.querySelector("section.panel");
-  if (panel) {
-    var closeLink = panel.querySelector("a.panel-close");
-    var backdrop = document.createElement("div");
-    backdrop.className = "panel-backdrop";
-    document.body.appendChild(backdrop);
-    document.body.classList.add("panel-open");
-    function closePanel() {
-      if (closeLink) location.href = closeLink.href;
+  var dock = document.getElementById("paneldock");
+  var docked = [];
+  function loadDock() {
+    try { docked = JSON.parse(sessionStorage.getItem("panel.docked") || "[]"); } catch (e) { docked = []; }
+    if (!Array.isArray(docked)) docked = [];
+  }
+  function saveDock() {
+    try { sessionStorage.setItem("panel.docked", JSON.stringify(docked.slice(-12))); } catch (e) { /* ignored */ }
+  }
+  function isDocked(id) { return docked.some(function (d) { return d.id === id; }); }
+  function undock(id) { docked = docked.filter(function (d) { return d.id !== id; }); saveDock(); }
+  function dockAgent(id, name) { if (!isDocked(id)) docked.push({ id: id, name: name }); saveDock(); }
+  function agentURL(id) {
+    var u = new URL(location.href);
+    u.searchParams.set("agent", id);
+    u.searchParams.delete("tab");
+    u.hash = "";
+    return u.pathname + u.search;
+  }
+  if (dock) {
+    loadDock();
+    var current = panel ? panel.dataset.agent : "";
+    var small = false;
+
+    // drawDock lays out the bars of the reduced agents other than the one
+    // in the panel; the panel itself, when reduced, is the last bar.
+    var drawDock = function () {
+      dock.querySelectorAll(".dockbar").forEach(function (b) { b.remove(); });
+      docked.forEach(function (d) {
+        if (d.id === current) return;
+        var bar = document.createElement("div");
+        bar.className = "dockbar";
+        var a = document.createElement("a");
+        a.href = agentURL(d.id);
+        a.textContent = d.name;
+        a.title = dock.dataset.show;
+        a.addEventListener("click", function () {
+          // Opening another agent reduces the one in front to its bar.
+          if (current && !small) dockAgent(current, panel.dataset.name);
+          undock(d.id);
+        });
+        var x = document.createElement("button");
+        x.type = "button";
+        x.className = "link";
+        x.textContent = "×";
+        x.title = dock.dataset.close;
+        x.addEventListener("click", function () { undock(d.id); drawDock(); });
+        bar.append(a, x);
+        if (panel) dock.insertBefore(bar, panel); else dock.appendChild(bar);
+      });
+      dock.hidden = !dock.children.length;
+      // Leave the bars uncovered by the panel in front.
+      document.body.classList.toggle("dock-bars", !!dock.querySelector(".dockbar"));
+    };
+
+    if (panel) {
+      dock.appendChild(panel);
+      var closeLink = panel.querySelector("a.panel-close");
+      var backdrop = document.createElement("div");
+      backdrop.className = "panel-backdrop";
+      document.body.appendChild(backdrop);
+      document.body.classList.add("panel-open");
+      var closePanel = function () {
+        undock(current);
+        if (closeLink) location.href = closeLink.href;
+      };
+      if (closeLink) closeLink.addEventListener("click", function () { undock(current); });
+      backdrop.addEventListener("click", closePanel);
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && !small) closePanel();
+      });
+
+      var toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "link panel-min";
+      var setSmall = function (on) {
+        small = on;
+        document.body.classList.toggle("panel-small", on);
+        toggle.textContent = on ? dock.dataset.show : dock.dataset.hide;
+        if (on) dockAgent(current, panel.dataset.name); else undock(current);
+      };
+      toggle.addEventListener("click", function () { setSmall(!small); });
+      var title = panel.querySelector("header h2");
+      if (title) title.addEventListener("click", function () { if (small) setSmall(false); });
+      if (closeLink) closeLink.before(toggle);
+      setSmall(isDocked(current));
     }
-    backdrop.addEventListener("click", closePanel);
-    document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") closePanel();
-    });
+    drawDock();
   }
 
   // Picking a script from the built-in library fills the textarea next to
