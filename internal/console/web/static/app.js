@@ -57,6 +57,33 @@
     });
   });
 
+  // Shift+click ticks (or clears) a whole range of boxes, as in a file
+  // manager: from the box clicked last to this one, among the boxes of the
+  // same name in the same form (agents in a list, for example).
+  var lastBox = null;
+  document.addEventListener("click", function (e) {
+    var box = e.target;
+    if (!(box instanceof HTMLInputElement) || box.type !== "checkbox" || !box.name || box.hasAttribute("data-check-all")) return;
+    if (e.shiftKey && lastBox && lastBox !== box && lastBox.name === box.name && lastBox.form === box.form && document.contains(lastBox)) {
+      var scope = box.form || document;
+      var boxes = Array.prototype.filter.call(scope.querySelectorAll('input[type=checkbox]'), function (c) {
+        return c.name === box.name && c.form === box.form && !c.disabled;
+      });
+      var a = boxes.indexOf(lastBox), b = boxes.indexOf(box);
+      if (a >= 0 && b >= 0) {
+        boxes.slice(Math.min(a, b), Math.max(a, b) + 1).forEach(function (c) {
+          if (c.checked !== box.checked) {
+            c.checked = box.checked;
+            c.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        });
+        // Shift+click also selects the text in between: not wanted here.
+        if (window.getSelection) window.getSelection().removeAllRanges();
+      }
+    }
+    lastBox = box;
+  });
+
   // Theme, style and language apply as soon as they are chosen; the Apply buttons
   // stay for browsers without scripts.
   document.querySelectorAll("header form.theme, header form.lang").forEach(function (f) {

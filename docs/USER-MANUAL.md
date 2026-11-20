@@ -120,7 +120,7 @@ The agent list is the home page: every computer, its status at a glance, and the
 - **Search** finds by name, IP, logged-on user, model, serial, agent version or remote-access ID (Supremo, AnyDesk, TeamViewer). Use `*` as a wildcard.
 - **Status icons** show online/offline, open alerts, failing checks, missing patches, pending reboot and outdated applications. Drag a column's header edge to resize it (double click resets); widths are remembered per browser.
 - **Click** a computer to open the bottom panel; **right-click** for the quick menu (commands, shell, remote control, files, workflows).
-- **Tick several computers** to run one action on all of them with a single MFA approval (Admin, see section 5).
+- **Tick several computers** to run one action on all of them with a single MFA approval (Admin, see section 5). **Shift+click** a box to tick (or clear) every box between it and the one clicked before, as in a file manager.
 - **Summary cards** above the list (total agents, online now, serious issues, missing patches) open the list already filtered; **chips** above the table filter by site or group, and **☰** hides the left column when the table needs the width.
 - The panel of the selected computer opens as a floating window over the list; **close** brings the list back.
 

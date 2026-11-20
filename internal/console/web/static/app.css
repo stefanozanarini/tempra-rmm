@@ -209,7 +209,9 @@ header img.brandmark.dark { display:none; }
   :root:not([data-theme=light]) header img.brandmark.light { display:none; }
   :root:not([data-theme=light]) header img.brandmark.dark { display:block; }
 }
-header img.logo { display:block; max-height:48px; max-width:160px; object-fit:contain; }
+/* The customer's logo, top right (before the operator's line, which wraps
+   below it when the header is full). */
+header img.logo { display:block; max-height:48px; max-width:160px; object-fit:contain; margin-left:auto; align-self:flex-start; }
 img.logo-preview { max-height:80px; max-width:320px; background:var(--card); padding:6px; border:1px solid var(--line); border-radius:var(--radius-sm); }
 .navicon { vertical-align:-3px; margin-right:5px; flex:none; }
 nav details.menu { position:relative; }

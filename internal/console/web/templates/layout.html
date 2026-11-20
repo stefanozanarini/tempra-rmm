@@ -12,7 +12,7 @@
 </head>
 <body>
 <header>
-  <a class="brand" href="/agents">{{if .HasLogo}}<img class="logo" src="/logo" alt="">{{end}}<img class="brandmark light" src="/static/logo-light.svg" alt="Tempra RMM"><img class="brandmark dark" src="/static/logo-dark.svg" alt="Tempra RMM"></a>
+  <a class="brand" href="/agents"><img class="brandmark light" src="/static/logo-light.svg" alt="Tempra RMM"><img class="brandmark dark" src="/static/logo-dark.svg" alt="Tempra RMM"></a>
   {{if .Operator}}
   <nav class="main">
     <details class="menu"><summary>{{navicon "monitor"}}{{t "Agenti"}}</summary><div>
@@ -54,6 +54,7 @@
     </div></details>{{end}}
     {{if or .ShowLinks .Federated}}<a href="/federation">{{navicon "link"}}{{t "Console collegate"}}</a>{{end}}
   </nav>
+  {{if .HasLogo}}<img class="logo" src="/logo" alt="">{{end}}
   <div class="who">
     {{if or (gt (len .Tenants) 1) .Links}}
     <form method="post" action="{{if .Links}}/federation/tenant{{else}}/tenant{{end}}" class="inline">
