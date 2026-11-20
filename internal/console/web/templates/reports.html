@@ -40,6 +40,7 @@
 {{if .Filtered}}<p class="filters">{{if .HasPub}}<a class="badge" href="{{.ClearURL "pub"}}" title="{{t "Togli il filtro"}}">{{t "Produttore"}}: {{or .Publisher "—"}} ✕</a> {{end}}{{if .HasTitle}}<a class="badge" href="{{.ClearURL "title"}}" title="{{t "Togli il filtro"}}">{{t "Applicazione"}}: {{.Title}} ✕</a> {{end}}{{if .HasVer}}<a class="badge" href="{{.ClearURL "ver"}}" title="{{t "Togli il filtro"}}">{{t "Versione"}}: {{or .Version "—"}} ✕</a>{{end}}</p>{{end}}
 <p>{{tf "%d righe, dall'ultimo inventario di %d computer." .Total .Computers}}{{if .Total}} <a href="{{.CSV}}">{{t "Esporta CSV"}}</a>{{end}}
   {{if gt .Total (add (len .Rows) (len .Installs))}}<span class="muted">{{tf "Mostrate le prime %d: affina la ricerca o esporta il CSV." (add (len .Rows) (len .Installs))}}</span>{{end}}</p>
+{{if and $.IsAdmin (or .Filtered .Query)}}{{template "bulk" .Bulk}}{{end}}
 {{if eq .View "installs"}}
 <table>
 <thead><tr><th><a class="sort" href="{{.SortURL "computer"}}">{{t "Computer"}}{{.SortMark "computer"}}</a></th><th><a class="sort" href="{{.SortURL "user"}}">{{t "Utente"}}{{.SortMark "user"}}</a></th>
@@ -143,6 +144,7 @@
 </form>
 {{if and .Searched (not .ExprError)}}
 <p>{{tf "%d computer." (len .Rows)}}{{if .Rows}} <a href="{{.CSVURL}}">{{t "Esporta CSV"}}</a>{{end}}</p>
+{{if $.IsAdmin}}{{template "bulk" .Bulk}}{{end}}
 {{if and $.CanRun .Upgrades}}<div class="stack">{{range .Upgrades}}<p><a class="button primary" href="{{.URL}}">↑ {{t "Aggiorna questa applicazione…"}}</a>
   {{.Name}} <code>{{.ID}}</code> → {{.Available}} · {{tf "aggiornabile con winget su %d dei computer trovati" .Count}}</p>{{end}}
   <p class="muted small">{{t "Apre l'azione già preparata: la controlli e la approvi con MFA una sola volta. Non sono inclusi i computer dove winget non vede l'applicazione (installata nel profilo dell'utente o winget assente)."}}</p></div>{{end}}

@@ -214,7 +214,7 @@ func TestBulkUninstall(t *testing.T) {
 	// The report offers the removal from the two computers where the
 	// application is installed for all users.
 	_, body := get(t, c, e.console.URL+"/reports?tab=computers&software=Notepad")
-	link := regexp.MustCompile(`href="(/agents/bulk\?[^"]+)"`).FindStringSubmatch(body)
+	link := regexp.MustCompile(`href="(/agents/bulk\?[^"]+#uninstall)"`).FindStringSubmatch(body)
 	if link == nil || !strings.Contains(body, "installata per tutti gli utenti su 2 dei computer trovati") {
 		t.Fatalf("report lacks the uninstall: %s", body)
 	}

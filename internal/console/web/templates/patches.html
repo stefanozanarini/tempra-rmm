@@ -21,6 +21,7 @@
 {{if .Show}}<p><a href="/patches{{qs "family" .Family}}">{{t "mostra tutti gli endpoint"}}</a></p>{{end}}
 
 <h2>{{t "Endpoint, dal più indietro"}}</h2>
+{{if and $.IsAdmin (or .Show .Family)}}{{template "bulk" .Bulk}}{{end}}
 {{if .Rows}}
 <table>
 <thead><tr><th>{{t "Nome"}}</th><th>{{t "Sicurezza mancanti"}}</th><th>{{t "Più vecchio"}}</th><th>{{t "Altri"}}</th><th>{{t "Riavvio"}}</th><th>{{t "App da aggiornare"}}</th><th>{{t "Firmware e driver"}}</th><th>{{t "Gestione"}}</th><th>{{t "Ultima verifica"}}</th></tr></thead>

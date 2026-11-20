@@ -48,8 +48,10 @@ type patchesData struct {
 	Family string
 	// Show filters the table: missing, behind, reboot, apps, firmware,
 	// stale (empty: every endpoint).
-	Show           string
-	Rows           []patchRow
+	Show string
+	Rows []patchRow
+	// Bulk: the bulk actions on the endpoints in Rows (active ones only).
+	Bulk           bulkLink
 	Apps           []appRow
 	Total          int
 	MissingSec     int
@@ -210,6 +212,11 @@ func (s *Server) handlePatches(w http.ResponseWriter, r *http.Request) {
 		}
 		return strings.ToLower(d.Rows[i].Agent.Host.Hostname) < strings.ToLower(d.Rows[j].Agent.Host.Hostname)
 	})
+	var listed []string
+	for _, row := range d.Rows {
+		listed = append(listed, row.Agent.ID)
+	}
+	d.Bulk = newBulkLink(listed)
 	for _, a := range apps {
 		d.Apps = append(d.Apps, *a)
 	}

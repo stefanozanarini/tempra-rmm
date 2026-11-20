@@ -304,6 +304,8 @@ type vulnData struct {
 	MaxFinding int
 	// How to fix the selected CVE: the bulk action form, prepared.
 	FixURL, FixLabel, FixNote string
+	// Bulk: the bulk actions on the active computers Selected affects.
+	Bulk bulkLink
 }
 
 const maxVulnRows = 300
@@ -386,6 +388,17 @@ func (s *Server) vulnReport(r *http.Request, tenant string) (*vulnData, error) {
 	d.Endpoints = len(affected)
 	if d.Selected != nil {
 		d.FixURL, d.FixLabel, d.FixNote = s.cveFix(ctx, s.lang(r), tenant, d.Selected)
+		active := map[string]bool{}
+		for _, a := range agents {
+			active[a.ID] = a.Status == store.AgentActive
+		}
+		var hit []string
+		for _, h := range d.Selected.Hits {
+			if active[h.AgentID] {
+				hit = append(hit, h.AgentID)
+			}
+		}
+		d.Bulk = newBulkLink(hit)
 	}
 	for _, f := range all {
 		if d.Exploited && !f.KEV && !f.Exploited {

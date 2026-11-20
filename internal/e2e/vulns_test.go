@@ -108,7 +108,7 @@ func TestConsoleVulnerabilities(t *testing.T) {
 	}
 	_, body = get(t, c, e.console.URL+"/security/vulnerabilities?id=CVE-2026-75874")
 	if body = html.UnescapeString(body); !strings.Contains(body, "PC-FIREFOX") || !strings.Contains(body, "about:profiles") ||
-		strings.Contains(body, "/agents/bulk?") {
+		regexp.MustCompile(`/agents/bulk\?[^"]*action=`).MatchString(body) {
 		t.Fatalf("user-scope Firefox: %s", body)
 	}
 	// Fixing: the bulk form, opened on the action with its parameters.

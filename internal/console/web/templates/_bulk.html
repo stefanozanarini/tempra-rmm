@@ -1,0 +1,4 @@
+{{/* The bulk actions on the approved computers a report lists (a bulkLink). */}}
+{{define "bulk"}}{{if .URL}}<p><a class="button" href="{{.URL}}">{{t "Azioni su questi computer…"}}</a>
+  <span class="muted small">{{tf "Apre le azioni massive (comandi, script, pacchetti, workflow, sede, gruppi) sui %d computer approvati trovati." .Count}}</span></p>
+{{else if gt .Count 0}}<p class="muted small">{{tf "Azioni massive non disponibili: %d computer approvati trovati, il massimo è %d. Restringi la ricerca." .Count .Max}}</p>{{end}}{{end}}

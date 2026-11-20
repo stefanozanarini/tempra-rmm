@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/stefanozanarini/tempra-rmm/internal/console/jobreq"
 	"github.com/stefanozanarini/tempra-rmm/internal/console/store"
 	"github.com/stefanozanarini/tempra-rmm/internal/console/vuln"
 	"github.com/stefanozanarini/tempra-rmm/internal/inventory"
@@ -59,6 +60,8 @@ type reportsData struct {
 	// Uninstalls: the applications found installed for all users on some
 	// Windows computers, with the bulk uninstall prepared for them.
 	Uninstalls []reportUninstall
+	// Bulk: the bulk actions on the active computers found.
+	Bulk bulkLink
 	// Operating systems.
 	OS []osGroup
 	// Logons.
@@ -369,6 +372,9 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 	if d.ShowSoftware && !csvOut {
 		d.Uninstalls = reportUninstalls(d.Rows)
 	}
+	if !csvOut {
+		d.Bulk = newBulkLink(reportBulk(d.Rows))
+	}
 	for l, n := range osCount {
 		d.OS = append(d.OS, osGroup{Label: l, Count: n})
 	}
@@ -430,6 +436,36 @@ func (s *Server) writeCSV(w http.ResponseWriter, name string, header []string, r
 		_ = cw.Write(cells)
 	})
 	cw.Flush()
+}
+
+// reportBulk lists the active computers found: the others cannot
+// receive commands.
+func reportBulk(rows []reportRow) []string {
+	var out []string
+	for _, row := range rows {
+		if row.Agent.Status == store.AgentActive {
+			out = append(out, row.Agent.ID)
+		}
+	}
+	return out
+}
+
+// bulkLink opens the bulk actions on the computers a report lists
+// (templates/_bulk.html).
+type bulkLink struct {
+	// URL is empty when there are none or more than a bulk action takes.
+	URL        string
+	Count, Max int
+}
+
+// newBulkLink prepares the bulk actions on the agents, which must be
+// active.
+func newBulkLink(agents []string) bulkLink {
+	b := bulkLink{Count: len(agents), Max: jobreq.MaxAgents}
+	if b.Count > 0 && b.Count <= b.Max {
+		b.URL = "/agents/bulk?" + url.Values{"agent": agents}.Encode()
+	}
+	return b
 }
 
 // maxReportUninstalls caps the applications offered for removal under a

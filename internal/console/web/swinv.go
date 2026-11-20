@@ -37,6 +37,8 @@ type swData struct {
 	Total                     int // rows before the limit
 	Computers                 int // computers with an inventory
 	CSV                       string
+	// Bulk: the bulk actions on the active computers found.
+	Bulk bulkLink
 }
 
 type swRow struct {
@@ -196,6 +198,7 @@ func (s *Server) softwareInventory(w http.ResponseWriter, r *http.Request, t str
 		}
 		return g
 	}
+	bulk, bulkIDs := map[string]bool{}, []string{}
 	for _, a := range agents {
 		if a.Status == store.AgentRevoked {
 			continue
@@ -227,6 +230,10 @@ func (s *Server) softwareInventory(w http.ResponseWriter, r *http.Request, t str
 			group(pubs, pub, swRow{Publisher: pub}).add(a.ID, user, title, ver)
 			group(titles, pub+"\x00"+title, swRow{Publisher: pub, Title: title}).add(a.ID, user, title, ver)
 			group(versions, pub+"\x00"+title+"\x00"+ver, swRow{Publisher: pub, Title: title, Version: ver}).add(a.ID, user, title, ver)
+			if a.Status == store.AgentActive && !bulk[a.ID] {
+				bulk[a.ID] = true
+				bulkIDs = append(bulkIDs, a.ID)
+			}
 			if d.View == "installs" {
 				d.Installs = append(d.Installs, swInstall{AgentID: a.ID, Hostname: a.Host.Hostname, User: user, Publisher: pub,
 					Title: title, Version: ver, Arch: sw.Arch, Scope: sw.Scope, InstallDate: sw.InstallDate})
@@ -297,6 +304,7 @@ func (s *Server) softwareInventory(w http.ResponseWriter, r *http.Request, t str
 		s.softwareCSV(w, d)
 		return nil, false
 	}
+	d.Bulk = newBulkLink(bulkIDs)
 	d.Total = len(d.Rows) + len(d.Installs)
 	if len(d.Rows) > maxSoftwareRows {
 		d.Rows = d.Rows[:maxSoftwareRows]
