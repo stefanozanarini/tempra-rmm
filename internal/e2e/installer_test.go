@@ -170,7 +170,7 @@ func TestConsoleInstallerWithDedicatedCA(t *testing.T) {
 	}
 	run, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
-	if !strings.HasPrefix(string(run), "#!/bin/sh") || !strings.Contains(resp.Header.Get("Content-Disposition"), "openrmm-agent-1.2.3-linux-amd64.run") {
+	if !strings.HasPrefix(string(run), "#!/bin/sh") || !strings.Contains(resp.Header.Get("Content-Disposition"), "temprarmm-agent-cliente-1.2.3-linux-amd64.run") {
 		t.Fatalf("linux download: %q %s", resp.Header.Get("Content-Disposition"), run[:40])
 	}
 	list = list[1:]
