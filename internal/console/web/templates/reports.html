@@ -184,6 +184,7 @@
   <input type="hidden" name="tab" value="logons">
   <label>{{t "Utente"}} <input name="logon_user" value="{{.LogonUser}}"></label>
   <label>{{t "Computer"}} <input name="logon_computer" value="{{.LogonComputer}}"></label>
+  <label title="{{t "L'indirizzo da cui arriva l'accesso o quello del computer su cui avviene; basta una parte (ad esempio 10.29.)."}}">{{t "Indirizzo IP"}} <input name="logon_ip" value="{{.LogonIP}}" size="15"></label>
   <label>{{t "Ultimi giorni"}} <input name="days" type="number" min="1" max="365" value="{{.Days}}"></label>
   <button class="primary">{{t "Cerca"}}</button>
 </form>
@@ -209,7 +210,7 @@
 <p class="muted small">{{t "Spesso in testa ci sono i domain controller, che registrano anche i tentativi falliti verso altri computer: non significa che siano loro il bersaglio."}}</p>
 {{end}}
 
-<p>{{tf "%d accessi." (len .Logons)}}{{if .Truncated}} {{tf "Mostrati i primi %d: restringi la ricerca." (len .Logons)}}{{end}}{{if .Logons}} <a href="{{.CSVURL}}">{{t "Esporta CSV"}}</a>{{end}}</p>
+<p>{{if .Truncated}}{{tf "Più di %d accessi: restringi la ricerca." .LogonTotal}}{{else}}{{tf "%d accessi." .LogonTotal}}{{end}}{{if lt (len .Logons) .LogonTotal}} {{tf "Mostrati gli ultimi %d: il CSV li contiene tutti." (len .Logons)}}{{end}}{{if .Logons}} <a href="{{.CSVURL}}">{{t "Esporta CSV"}}</a>{{end}}</p>
 {{if .Logons}}
 <table>
 <thead><tr><th>{{t "Quando"}}</th><th>{{t "Computer"}}</th><th>{{t "Utente"}}</th><th>{{t "Tipo"}}</th><th>{{t "Origine"}}</th><th>{{t "Esito"}}</th></tr></thead>

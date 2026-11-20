@@ -137,7 +137,6 @@
 {{template "agentrows" (rowsCtx . .Revoked false)}}
 {{end}}
 
-<div id="paneldock" class="paneldock" hidden data-hide="{{t "Riduci"}}" data-show="{{t "Mostra"}}" data-close="{{t "Chiudi"}}"></div>
 {{with .Selected}}
 <section class="panel" aria-label="{{t "Agente selezionato"}}" data-agent="{{.Agent.ID}}" data-name="{{.Agent.Host.Hostname}}">
   <header>

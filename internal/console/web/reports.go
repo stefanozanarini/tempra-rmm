@@ -23,6 +23,9 @@ import (
 
 const (
 	maxReportLogons = 2000
+	// shownLogons: the logons listed on the page, the most recent; the CSV
+	// has them all (up to maxReportLogons).
+	shownLogons     = 50
 	reportLogonDays = 30
 	// maxFailedRank bounds the failed-logon ranking (computers, users).
 	maxFailedRank = 15
@@ -65,11 +68,14 @@ type reportsData struct {
 	// Operating systems.
 	OS []osGroup
 	// Logons.
-	// LogonComputer: the computers whose name contains it.
-	LogonUser, LogonComputer string
-	Days                     int
-	Logons                   []logonRow
-	Truncated                bool
+	// LogonComputer: the computers whose name contains it. LogonIP: the
+	// source address or the computer's own address contains it.
+	LogonUser, LogonComputer, LogonIP string
+	Days                              int
+	// Logons: the most recent shownLogons of LogonTotal (the CSV has them all).
+	Logons     []logonRow
+	LogonTotal int
+	Truncated  bool
 	// FailedByAgent, FailedByUser: ranking of the most failed logons, the
 	// same window as Logons.
 	FailedByAgent, FailedByUser []failedRank
@@ -148,7 +154,7 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 	d := reportsData{Tab: q.Get("tab"), Software: strings.TrimSpace(q.Get("software")), Version: strings.TrimSpace(q.Get("version")),
 		OSFilter: strings.TrimSpace(q.Get("os")), User: strings.TrimSpace(q.Get("user")), Model: strings.TrimSpace(q.Get("model")),
 		Site: q.Get("site"), Group: q.Get("group"), Expr: strings.TrimSpace(q.Get("q")), LogonUser: strings.TrimSpace(q.Get("logon_user")),
-		LogonComputer: strings.TrimSpace(q.Get("logon_computer")), Days: reportLogonDays}
+		LogonComputer: strings.TrimSpace(q.Get("logon_computer")), LogonIP: strings.TrimSpace(q.Get("logon_ip")), Days: reportLogonDays}
 	if n, err := strconv.Atoi(q.Get("days")); err == nil && n > 0 && n <= 365 {
 		d.Days = n
 	}
@@ -231,17 +237,34 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		names := map[string]string{}
-		var only []string // nil: every computer
+		f := store.LogonFilter{User: d.LogonUser, IP: d.LogonIP}
 		if d.LogonComputer != "" {
-			only = []string{}
+			f.Agents = []string{} // nil: every computer
+		}
+		// The destination of a logon is its computer: its address is the
+		// one it last connected from or one in its inventory.
+		var invs map[string]store.Inventory
+		if d.LogonIP != "" {
+			list, err := s.store.ListInventories(ctx, t)
+			if err != nil {
+				s.fail(w, r, err)
+				return
+			}
+			invs = map[string]store.Inventory{}
+			for _, i := range list {
+				invs[i.AgentID] = i
+			}
 		}
 		for _, a := range agents {
 			names[a.ID] = a.Host.Hostname
 			if d.LogonComputer != "" && contains(a.Host.Hostname, d.LogonComputer) {
-				only = append(only, a.ID)
+				f.Agents = append(f.Agents, a.ID)
+			}
+			if d.LogonIP != "" && agentHasIP(a, invs[a.ID], d.LogonIP) {
+				f.IPAgents = append(f.IPAgents, a.ID)
 			}
 		}
-		evs, err := s.store.SearchLogons(ctx, t, d.LogonUser, only, s.now().AddDate(0, 0, -d.Days), maxReportLogons+1)
+		evs, err := s.store.SearchLogons(ctx, t, f, s.now().AddDate(0, 0, -d.Days), maxReportLogons+1)
 		if err != nil {
 			s.fail(w, r, err)
 			return
@@ -252,7 +275,7 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 		for _, e := range evs {
 			d.Logons = append(d.Logons, logonRow{AgentLogon: e, Hostname: names[e.AgentID]})
 		}
-		byAgent, byUser, err := s.store.TopFailedLogons(ctx, t, only, s.now().AddDate(0, 0, -d.Days), maxFailedRank)
+		byAgent, byUser, err := s.store.TopFailedLogons(ctx, t, f, s.now().AddDate(0, 0, -d.Days), maxFailedRank)
 		if err != nil {
 			s.fail(w, r, err)
 			return
@@ -275,6 +298,10 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 					}
 				})
 			return
+		}
+		d.LogonTotal = len(d.Logons)
+		if len(d.Logons) > shownLogons {
+			d.Logons = d.Logons[:shownLogons]
 		}
 		s.render(w, r, "reports", s.T(r, "Reporting"), d)
 		return
@@ -557,4 +584,25 @@ func (s *Server) reportUpgrades(r *http.Request, t, software string, rows []repo
 		return out[i].ID < out[j].ID
 	})
 	return out, nil
+}
+
+// agentHasIP reports whether one of a's addresses contains ip: the one it
+// last connected from, or one in its stored inventory.
+func agentHasIP(a store.Agent, stored store.Inventory, ip string) bool {
+	if a.LastSeenIP != nil && strings.Contains(a.LastSeenIP.String(), ip) {
+		return true
+	}
+	if stored.Data == nil {
+		return false
+	}
+	inv, err := inventory.Parse(stored.Data)
+	if err != nil {
+		return false
+	}
+	for _, v := range inv.IPv4() {
+		if strings.Contains(v, ip) {
+			return true
+		}
+	}
+	return false
 }

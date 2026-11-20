@@ -16,6 +16,80 @@
     }
     el.scrollIntoView({ block: "start" });
   }
+  // The full agent page is long: each section (an <h2> and what follows
+  // it, up to the next one) folds away. A section opens by itself when it
+  // reports a problem, which its title counts; otherwise it stays as the
+  // operator left it last time (remembered per section in this browser). A
+  // bar on top jumps to a section and expands or collapses them all.
+  var sections = document.querySelector("div.sections");
+  if (sections) {
+    var groups = [], cur = null;
+    Array.prototype.slice.call(sections.children).forEach(function (child) {
+      if (child.tagName === "H2") {
+        cur = document.createElement("details");
+        cur.className = "group section";
+        var sum = document.createElement("summary");
+        child.before(cur);
+        sum.appendChild(child);
+        cur.appendChild(sum);
+        groups.push(cur);
+      } else if (child.matches("details.group")) {
+        cur = null;
+        groups.push(child);
+      } else if (cur) {
+        cur.appendChild(child);
+      }
+    });
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem("agent.sections") || "{}") || {}; } catch (e) { saved = {}; }
+    var remember = function (key, open) {
+      saved[key] = open ? 1 : 0;
+      try { localStorage.setItem("agent.sections", JSON.stringify(saved)); } catch (e) { /* ignored */ }
+    };
+    var bar = document.createElement("nav");
+    bar.className = "tabs section-bar";
+    groups.forEach(function (d) {
+      var h2 = d.querySelector(":scope > summary h2");
+      if (!h2) return;
+      var name = (h2.firstChild && h2.firstChild.nodeType === 3 ? h2.firstChild.textContent : h2.textContent).trim();
+      var key = h2.id || d.id || name;
+      var bad = d.querySelectorAll(".badge.chk-failing, .badge.sev-critical").length;
+      var warn = d.querySelectorAll(".badge.chk-warning, .badge.sev-warning").length;
+      var link = document.createElement("a");
+      link.href = "#";
+      link.textContent = name;
+      [[bad, "chk-failing"], [warn, "chk-warning"]].forEach(function (c) {
+        if (!c[0]) return;
+        var b = document.createElement("span");
+        b.className = "badge " + c[1];
+        b.textContent = c[0];
+        h2.appendChild(b);
+        link.appendChild(b.cloneNode(true));
+      });
+      d.open = bad || warn ? true : saved[key] === 1;
+      d.querySelector(":scope > summary").addEventListener("click", function () { remember(key, !d.open); });
+      link.addEventListener("click", function (e) {
+        e.preventDefault();
+        d.open = true;
+        remember(key, true);
+        d.scrollIntoView({ block: "start" });
+      });
+      d.dataset.key = key;
+      bar.appendChild(link);
+    });
+    [[sections.dataset.expand, true], [sections.dataset.collapse, false]].forEach(function (b) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "link";
+      btn.textContent = b[0];
+      btn.addEventListener("click", function () {
+        groups.forEach(function (d) { d.open = b[1]; if (d.dataset.key) remember(d.dataset.key, b[1]); });
+      });
+      bar.appendChild(btn);
+    });
+    sections.before(bar);
+  }
+
   window.addEventListener("hashchange", openTarget);
   openTarget();
 
@@ -28,7 +102,9 @@
   // right), to work on the list behind it. Reduced agents stay there as a
   // row of bars, one per computer, while the list reloads and other agents
   // are opened: a click on a bar opens that agent again, its "×" drops it.
-  // The row lives in the browser tab (sessionStorage).
+  // The row lives in the browser tab (sessionStorage) and shows on every
+  // page, like the job dock; away from the list a bar goes back to the list
+  // the agent was reduced from.
   var panel = document.querySelector("section.panel");
   var dock = document.getElementById("paneldock");
   var docked = [];
@@ -41,7 +117,7 @@
   }
   function isDocked(id) { return docked.some(function (d) { return d.id === id; }); }
   function undock(id) { docked = docked.filter(function (d) { return d.id !== id; }); saveDock(); }
-  function dockAgent(id, name) { if (!isDocked(id)) docked.push({ id: id, name: name }); saveDock(); }
+  function dockAgent(id, name) { if (!isDocked(id)) docked.push({ id: id, name: name, url: agentURL(id) }); saveDock(); }
   function agentURL(id) {
     var u = new URL(location.href);
     u.searchParams.set("agent", id);
@@ -52,6 +128,7 @@
   if (dock) {
     loadDock();
     var current = panel ? panel.dataset.agent : "";
+    var onList = !!document.querySelector("table.agents");
     var small = false;
 
     // drawDock lays out the bars of the reduced agents other than the one
@@ -63,7 +140,7 @@
         var bar = document.createElement("div");
         bar.className = "dockbar";
         var a = document.createElement("a");
-        a.href = agentURL(d.id);
+        a.href = onList ? agentURL(d.id) : (d.url || "/agents?agent=" + encodeURIComponent(d.id));
         a.textContent = d.name;
         a.title = dock.dataset.show;
         a.addEventListener("click", function () {

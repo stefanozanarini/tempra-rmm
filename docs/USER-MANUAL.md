@@ -122,11 +122,11 @@ The agent list is the home page: every computer, its status at a glance, and the
 - **Click** a computer to open the bottom panel; **right-click** for the quick menu (commands, shell, remote control, files, workflows).
 - **Tick several computers** to run one action on all of them with a single MFA approval (Admin, see section 5). **Shift+click** a box to tick (or clear) every box between it and the one clicked before, as in a file manager.
 - **Summary cards** above the list (total agents, online now, serious issues, missing patches) open the list already filtered; **chips** above the table filter by site or group, and **☰** hides the left column when the table needs the width.
-- The panel of the selected computer opens as a floating window over the list; its header (name, **open the page**, **close**) stays visible while you scroll it. **Reduce** shrinks it to a bar, bottom left, so you can work on the list behind it. You can reduce several computers: each keeps its bar there while the list reloads and you open others (in the same browser tab). A click on a bar opens that computer again (the one in front is reduced to its bar), its **×** removes the bar; **Show** or a click on the name brings back the reduced panel. **Close** brings the list back.
+- The panel of the selected computer opens as a floating window over the list; its header (name, **open the page**, **close**) stays visible while you scroll it. **Reduce** shrinks it to a bar, bottom left, so you can work on the list behind it. You can reduce several computers: each keeps its bar there on every console page, like the job dock, while the list reloads and you open others (in the same browser tab); away from the list a bar takes you back to the list it was reduced from. A click on a bar opens that computer again (the one in front is reduced to its bar), its **×** removes the bar; **Show** or a click on the name brings back the reduced panel. **Close** brings the list back.
 
 ### The agent panel and page
 
-The bottom panel and the full agent page show the same tabs:
+The bottom panel and the full agent page show the same tabs (on the full page they are sections, see below):
 
 | Tab | What you find |
 | --- | --- |
@@ -140,6 +140,8 @@ The bottom panel and the full agent page show the same tabs:
 | History | Changes over time: software installed/removed/updated, memory, disks, BIOS, OS build, BitLocker |
 | Notes | Free notes, with author and date (audited) |
 | Commands | Run a command or script, open shell, remote control or file management |
+
+On the full agent page every section below the details folds away. A section reporting a problem opens by itself and its title counts the problems (red: failing or critical, yellow: warning); the others stay as you left them last time in this browser. The bar above the sections jumps to one (opening it) and has **Expand all** and **Collapse all**; it stays on top while you scroll.
 
 ### BitLocker recovery keys
 
@@ -381,7 +383,7 @@ The subnets RDP is allowed from are set by an Admin in **Settings**; without the
 | Software inventory | Every application with versions, number of computers and users; system components optional. **Update this application…** opens the winget upgrade already prepared. |
 | Computer inventory | Computers by installed software, OS, user, model or site; filters combine. Add extra columns from the inventory. |
 | Operating systems | Computers by OS, version and build. |
-| Logons | Local and remote desktop logons, most recent first, and failed attempts by source. |
+| Logons | Local and remote desktop logons, most recent first (the page lists the latest 50, the CSV all of them), and failed attempts by source. Filter by user, computer name, days and **IP address**: the address the logon comes from or the address of the computer it is on (part of it is enough, e.g. `10.29.`). |
 
 ### Advanced search
 

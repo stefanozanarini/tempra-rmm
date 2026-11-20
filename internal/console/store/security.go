@@ -149,10 +149,9 @@ type SecurityStore interface {
 	// acknowledged by by (the problem went away on its own).
 	ResolveAlert(ctx context.Context, tenantID, dedupeKey, by string, at time.Time) (bool, error)
 
-	// SearchLogons returns the logon events of every agent (of agents,
-	// when not nil) whose user name contains user (any user when empty),
-	// since the given time, most recent first.
-	SearchLogons(ctx context.Context, tenantID, user string, agents []string, since time.Time, limit int) ([]AgentLogon, error)
+	// SearchLogons returns the logon events that pass f since the given
+	// time, most recent first.
+	SearchLogons(ctx context.Context, tenantID string, f LogonFilter, since time.Time, limit int) ([]AgentLogon, error)
 	// AddLogonEvents stores events not stored yet and returns them, oldest
 	// first. Events older than LogonRetention are purged.
 	AddLogonEvents(ctx context.Context, tenantID, agentID string, events []LogonEvent, now time.Time) ([]LogonEvent, error)
@@ -162,9 +161,35 @@ type SecurityStore interface {
 	ListLogonEvents(ctx context.Context, tenantID, agentID string, limit int) ([]LogonEvent, error)
 	// TopFailedLogons ranks, since the given time, the computers and the
 	// user names with the most failed logons (accesslog.KindLogonFailed),
-	// each list sorted by count descending, at most limit entries. Like
-	// SearchLogons, agents (when not nil) limits them to those computers.
-	TopFailedLogons(ctx context.Context, tenantID string, agents []string, since time.Time, limit int) (byAgent, byUser []LogonRank, err error)
+	// each list sorted by count descending, at most limit entries, among
+	// the logons that pass f apart from its user name.
+	TopFailedLogons(ctx context.Context, tenantID string, f LogonFilter, since time.Time, limit int) (byAgent, byUser []LogonRank, err error)
+}
+
+// LogonFilter narrows SearchLogons and TopFailedLogons; the zero value
+// keeps every logon.
+type LogonFilter struct {
+	// User: the user name contains it (any user when empty).
+	User string
+	// Agents: only the logons on these computers (every one when nil).
+	Agents []string
+	// IP: the source address contains it, or the logon is on one of
+	// IPAgents, the computers whose own address contains it (the
+	// destination). No effect when empty.
+	IP       string
+	IPAgents []string
+}
+
+// keeps reports whether f lets agent's event e through, ignoring the user
+// name when anyUser.
+func (f LogonFilter) keeps(agent string, e LogonEvent, anyUser bool) bool {
+	if f.Agents != nil && !slices.Contains(f.Agents, agent) {
+		return false
+	}
+	if !anyUser && !strings.Contains(strings.ToLower(e.User), strings.ToLower(f.User)) {
+		return false
+	}
+	return f.IP == "" || strings.Contains(e.SourceIP, f.IP) || slices.Contains(f.IPAgents, agent)
 }
 
 // LogonRank is one row of a failed-logon ranking: an agent id or a user
@@ -417,17 +442,17 @@ func (m *Memory) ListLogonEvents(_ context.Context, tenantID, agentID string, li
 	return out, nil
 }
 
-func (m *Memory) SearchLogons(_ context.Context, tenantID, user string, agents []string, since time.Time, limit int) ([]AgentLogon, error) {
+func (m *Memory) SearchLogons(_ context.Context, tenantID string, f LogonFilter, since time.Time, limit int) ([]AgentLogon, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	var out []AgentLogon
 	for k, evs := range m.sec().logons {
 		agent, ok := strings.CutPrefix(k, tenantID+"/")
-		if !ok || (agents != nil && !slices.Contains(agents, agent)) {
+		if !ok {
 			continue
 		}
 		for _, e := range evs {
-			if !e.At.Before(since) && strings.Contains(strings.ToLower(e.User), strings.ToLower(user)) {
+			if !e.At.Before(since) && f.keeps(agent, e, false) {
 				out = append(out, AgentLogon{AgentID: agent, LogonEvent: e})
 			}
 		}
@@ -439,17 +464,17 @@ func (m *Memory) SearchLogons(_ context.Context, tenantID, user string, agents [
 	return out, nil
 }
 
-func (m *Memory) TopFailedLogons(_ context.Context, tenantID string, agents []string, since time.Time, limit int) ([]LogonRank, []LogonRank, error) {
+func (m *Memory) TopFailedLogons(_ context.Context, tenantID string, f LogonFilter, since time.Time, limit int) ([]LogonRank, []LogonRank, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	byAgent, byUser := map[string]int{}, map[string]int{}
 	for k, evs := range m.sec().logons {
 		agent, ok := strings.CutPrefix(k, tenantID+"/")
-		if !ok || (agents != nil && !slices.Contains(agents, agent)) {
+		if !ok {
 			continue
 		}
 		for _, e := range evs {
-			if e.Kind != "logon_failed" || e.At.Before(since) {
+			if e.Kind != "logon_failed" || e.At.Before(since) || !f.keeps(agent, e, true) {
 				continue
 			}
 			byAgent[agent]++
@@ -753,13 +778,14 @@ func (p *Postgres) LogonHistory(ctx context.Context, tenantID, agentID, user, ip
 	return *first, seen, err
 }
 
-func (p *Postgres) SearchLogons(ctx context.Context, tenantID, user string, agents []string, since time.Time, limit int) ([]AgentLogon, error) {
+func (p *Postgres) SearchLogons(ctx context.Context, tenantID string, f LogonFilter, since time.Time, limit int) ([]AgentLogon, error) {
 	var out []AgentLogon
 	err := p.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `SELECT agent_id::text, channel, record_id, at, event_id, kind, username, domain, logon_type,
 			source_ip, source_host, status FROM logon_events
 			WHERE at >= $1 AND strpos(lower(username), lower($2)) > 0 AND ($4::text[] IS NULL OR agent_id::text = ANY($4))
-			ORDER BY at DESC, record_id DESC LIMIT $3`, since, user, limit, agents)
+			AND ($5 = '' OR strpos(source_ip, $5) > 0 OR agent_id::text = ANY(coalesce($6::text[], '{}')))
+			ORDER BY at DESC, record_id DESC LIMIT $3`, since, f.User, limit, f.Agents, f.IP, f.IPAgents)
 		if err != nil {
 			return err
 		}
@@ -793,11 +819,11 @@ func (p *Postgres) ListLogonEvents(ctx context.Context, tenantID, agentID string
 	return out, err
 }
 
-func (p *Postgres) TopFailedLogons(ctx context.Context, tenantID string, agents []string, since time.Time, limit int) ([]LogonRank, []LogonRank, error) {
+func (p *Postgres) TopFailedLogons(ctx context.Context, tenantID string, f LogonFilter, since time.Time, limit int) ([]LogonRank, []LogonRank, error) {
 	var byAgent, byUser []LogonRank
 	err := p.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
 		rank := func(query string) ([]LogonRank, error) {
-			rows, err := tx.Query(ctx, query, since, limit, agents)
+			rows, err := tx.Query(ctx, query, since, limit, f.Agents, f.IP, f.IPAgents)
 			if err != nil {
 				return nil, err
 			}
@@ -814,11 +840,13 @@ func (p *Postgres) TopFailedLogons(ctx context.Context, tenantID string, agents 
 		}
 		var err error
 		if byAgent, err = rank(`SELECT agent_id::text, count(*) FROM logon_events WHERE kind = 'logon_failed' AND at >= $1
-			AND ($3::text[] IS NULL OR agent_id::text = ANY($3)) GROUP BY agent_id ORDER BY count(*) DESC, agent_id LIMIT $2`); err != nil {
+			AND ($3::text[] IS NULL OR agent_id::text = ANY($3))
+			AND ($4 = '' OR strpos(source_ip, $4) > 0 OR agent_id::text = ANY(coalesce($5::text[], '{}'))) GROUP BY agent_id ORDER BY count(*) DESC, agent_id LIMIT $2`); err != nil {
 			return err
 		}
 		byUser, err = rank(`SELECT username, count(*) FROM logon_events WHERE kind = 'logon_failed' AND at >= $1 AND username <> ''
-			AND ($3::text[] IS NULL OR agent_id::text = ANY($3)) GROUP BY username ORDER BY count(*) DESC, username LIMIT $2`)
+			AND ($3::text[] IS NULL OR agent_id::text = ANY($3))
+			AND ($4 = '' OR strpos(source_ip, $4) > 0 OR agent_id::text = ANY(coalesce($5::text[], '{}'))) GROUP BY username ORDER BY count(*) DESC, username LIMIT $2`)
 		return err
 	})
 	return byAgent, byUser, err

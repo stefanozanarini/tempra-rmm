@@ -563,7 +563,7 @@ func testSecurity(t *testing.T, s Store) {
 		{Channel: "security", RecordID: 1, At: now, EventID: 4625, Kind: "logon_failed", User: "x"},
 		{Channel: "security", RecordID: 2, At: now, EventID: 4624, Kind: "logon", User: "x"}, // a success, not counted
 	}, now)
-	byAgent, byUser, err := s.TopFailedLogons(ctx, tenant.ID, nil, now.Add(-7*24*time.Hour), 10)
+	byAgent, byUser, err := s.TopFailedLogons(ctx, tenant.ID, LogonFilter{}, now.Add(-7*24*time.Hour), 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -573,26 +573,36 @@ func testSecurity(t *testing.T, s Store) {
 	if len(byUser) != 2 || byUser[0].Key != "x" || byUser[0].Count != 3 || byUser[1].Key != "y" || byUser[1].Count != 1 {
 		t.Fatalf("byUser = %+v", byUser)
 	}
-	if byAgent, _, _ := s.TopFailedLogons(ctx, tenant.ID, nil, now.Add(-7*24*time.Hour), 1); len(byAgent) != 1 {
+	if byAgent, _, _ := s.TopFailedLogons(ctx, tenant.ID, LogonFilter{}, now.Add(-7*24*time.Hour), 1); len(byAgent) != 1 {
 		t.Fatalf("limit not applied: %+v", byAgent)
 	}
-	if byAgent, byUser, _ := s.TopFailedLogons(ctx, ids.NewUUID(), nil, now.Add(-7*24*time.Hour), 10); len(byAgent)+len(byUser) != 0 {
+	if byAgent, byUser, _ := s.TopFailedLogons(ctx, ids.NewUUID(), LogonFilter{}, now.Add(-7*24*time.Hour), 10); len(byAgent)+len(byUser) != 0 {
 		t.Fatal("failed logons visible from another tenant")
 	}
 	// Limited to some computers (none: nothing).
-	if byAgent, byUser, _ := s.TopFailedLogons(ctx, tenant.ID, []string{agent2.ID}, now.Add(-7*24*time.Hour), 10); len(byAgent) != 1 ||
+	if byAgent, byUser, _ := s.TopFailedLogons(ctx, tenant.ID, LogonFilter{Agents: []string{agent2.ID}}, now.Add(-7*24*time.Hour), 10); len(byAgent) != 1 ||
 		byAgent[0].Key != agent2.ID || len(byUser) != 1 || byUser[0].Count != 1 {
 		t.Fatalf("ranking of one computer = %+v %+v", byAgent, byUser)
 	}
 	since := now.Add(-7 * 24 * time.Hour)
-	if all, _ := s.SearchLogons(ctx, tenant.ID, "", nil, since, 100); len(all) < 3 {
+	if all, _ := s.SearchLogons(ctx, tenant.ID, LogonFilter{}, since, 100); len(all) < 3 {
 		t.Fatalf("search = %+v", all)
 	}
-	if one, _ := s.SearchLogons(ctx, tenant.ID, "", []string{agent2.ID}, since, 100); len(one) != 2 || one[0].AgentID != agent2.ID || one[1].AgentID != agent2.ID {
+	if one, _ := s.SearchLogons(ctx, tenant.ID, LogonFilter{Agents: []string{agent2.ID}}, since, 100); len(one) != 2 || one[0].AgentID != agent2.ID || one[1].AgentID != agent2.ID {
 		t.Fatalf("search of one computer = %+v", one)
 	}
-	if none, _ := s.SearchLogons(ctx, tenant.ID, "", []string{}, since, 100); len(none) != 0 {
+	if none, _ := s.SearchLogons(ctx, tenant.ID, LogonFilter{Agents: []string{}}, since, 100); len(none) != 0 {
 		t.Fatalf("search of no computer = %+v", none)
+	}
+	// By address: the source, or the computer's own address (IPAgents).
+	if src, _ := s.SearchLogons(ctx, tenant.ID, LogonFilter{IP: "10.0.0.5"}, since, 100); len(src) == 0 || src[0].SourceIP != "10.0.0.5" {
+		t.Fatalf("search by source address = %+v", src)
+	}
+	if dst, _ := s.SearchLogons(ctx, tenant.ID, LogonFilter{IP: "192.0.2.9", IPAgents: []string{agent2.ID}}, since, 100); len(dst) != 2 || dst[0].AgentID != agent2.ID {
+		t.Fatalf("search by computer address = %+v", dst)
+	}
+	if byAgent, _, _ := s.TopFailedLogons(ctx, tenant.ID, LogonFilter{IP: "192.0.2.9", IPAgents: []string{agent2.ID}}, since, 10); len(byAgent) != 1 || byAgent[0].Key != agent2.ID {
+		t.Fatalf("ranking by computer address = %+v", byAgent)
 	}
 }
 

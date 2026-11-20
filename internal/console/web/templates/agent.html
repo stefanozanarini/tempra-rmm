@@ -1,5 +1,6 @@
 {{define "content"}}
 {{template "agent-facts" .}}
+<div class="sections" data-expand="{{t "Espandi tutto"}}" data-collapse="{{t "Comprimi tutto"}}">
 {{template "agent-alerts" .}}
 {{template "agent-checks" .}}
 {{template "agent-updates" .}}
@@ -12,4 +13,5 @@
 {{template "agent-policies" .}}
 {{template "agent-notes" .}}
 {{template "agent-jobs" .}}
+</div>
 {{end}}

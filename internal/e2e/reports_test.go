@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"html"
+	"net/netip"
 	"net/url"
 	"strings"
 	"testing"
@@ -126,5 +127,34 @@ func TestFailedLogonRanking(t *testing.T) {
 	}
 	if _, body = get(t, c, e.console.URL+"/reports?tab=logons&logon_computer=DC&logon_user=guest&format=csv"); strings.Count(body, "DC-01") != 2 || strings.Contains(body, "mrossi") {
 		t.Fatalf("csv with both filters: %s", body)
+	}
+
+	// Filtered by address: the source, or the computer's own (the destination).
+	e.store.AddLogonEvents(ctx, e.tenant, pc1, []store.LogonEvent{
+		{Channel: "security", RecordID: 3, At: now, EventID: 4624, Kind: "logon", User: "remote", LogonType: 10, SourceIP: "192.168.50.7"},
+	}, now)
+	dcIP := netip.MustParseAddr("10.29.6.4")
+	e.store.UpdateAgentSeen(ctx, e.tenant, dc, nil, now, &dcIP)
+	_, body = get(t, c, e.console.URL+"/reports?tab=logons&logon_ip=192.168.50")
+	if body = html.UnescapeString(body); !strings.Contains(body, "1 accessi.") || !strings.Contains(body, "192.168.50.7") ||
+		!strings.Contains(body, `name="logon_ip" value="192.168.50"`) {
+		t.Fatalf("source address filter: %s", body)
+	}
+	if _, body = get(t, c, e.console.URL+"/reports?tab=logons&logon_ip=10.29.6"); !strings.Contains(body, "3 accessi.") || strings.Contains(body, "remote") {
+		t.Fatalf("computer address filter: %s", body)
+	}
+
+	// The page lists the latest 50; the CSV has them all.
+	var many []store.LogonEvent
+	for i := range 60 {
+		many = append(many, store.LogonEvent{Channel: "security", RecordID: int64(100 + i), At: now.Add(-time.Duration(i) * time.Minute), EventID: 4624, Kind: "logon", User: "bulk"})
+	}
+	e.store.AddLogonEvents(ctx, e.tenant, pc1, many, now)
+	_, body = get(t, c, e.console.URL+"/reports?tab=logons&logon_user=bulk")
+	if body = html.UnescapeString(body); !strings.Contains(body, "60 accessi.") || !strings.Contains(body, "Mostrati gli ultimi 50") || strings.Count(body, "bulk</td>") != 50 {
+		t.Fatalf("logons not limited to 50: %d rows", strings.Count(body, "bulk</td>"))
+	}
+	if _, body = get(t, c, e.console.URL+"/reports?tab=logons&logon_user=bulk&format=csv"); strings.Count(body, ",bulk,") != 60 {
+		t.Fatalf("csv not complete: %d", strings.Count(body, ",bulk,"))
 	}
 }
