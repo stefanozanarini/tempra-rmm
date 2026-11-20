@@ -114,4 +114,17 @@ func TestFailedLogonRanking(t *testing.T) {
 	if !strings.Contains(body, `href="/agents/`+dc+`?tab=logons"`) {
 		t.Fatalf("computer row not linked: %s", body)
 	}
+
+	// Filtered by computer name: its logons and its ranking only.
+	_, body = get(t, c, e.console.URL+"/reports?tab=logons&logon_computer=pc-0")
+	if body = html.UnescapeString(body); !strings.Contains(body, "2 accessi.") || strings.Contains(body, "DC-01") || strings.Contains(body, ">guest<") ||
+		!strings.Contains(body, `name="logon_computer" value="pc-0"`) {
+		t.Fatalf("computer filter: %s", body)
+	}
+	if _, body = get(t, c, e.console.URL+"/reports?tab=logons&logon_computer=nothing"); !strings.Contains(body, "0 accessi.") {
+		t.Fatalf("computer filter matching no computer: %s", body)
+	}
+	if _, body = get(t, c, e.console.URL+"/reports?tab=logons&logon_computer=DC&logon_user=guest&format=csv"); strings.Count(body, "DC-01") != 2 || strings.Contains(body, "mrossi") {
+		t.Fatalf("csv with both filters: %s", body)
+	}
 }

@@ -183,6 +183,7 @@
 <form method="get" action="/reports" class="inline">
   <input type="hidden" name="tab" value="logons">
   <label>{{t "Utente"}} <input name="logon_user" value="{{.LogonUser}}"></label>
+  <label>{{t "Computer"}} <input name="logon_computer" value="{{.LogonComputer}}"></label>
   <label>{{t "Ultimi giorni"}} <input name="days" type="number" min="1" max="365" value="{{.Days}}"></label>
   <button class="primary">{{t "Cerca"}}</button>
 </form>

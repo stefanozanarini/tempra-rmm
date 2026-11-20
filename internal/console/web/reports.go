@@ -65,10 +65,11 @@ type reportsData struct {
 	// Operating systems.
 	OS []osGroup
 	// Logons.
-	LogonUser string
-	Days      int
-	Logons    []logonRow
-	Truncated bool
+	// LogonComputer: the computers whose name contains it.
+	LogonUser, LogonComputer string
+	Days                     int
+	Logons                   []logonRow
+	Truncated                bool
 	// FailedByAgent, FailedByUser: ranking of the most failed logons, the
 	// same window as Logons.
 	FailedByAgent, FailedByUser []failedRank
@@ -146,7 +147,8 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	d := reportsData{Tab: q.Get("tab"), Software: strings.TrimSpace(q.Get("software")), Version: strings.TrimSpace(q.Get("version")),
 		OSFilter: strings.TrimSpace(q.Get("os")), User: strings.TrimSpace(q.Get("user")), Model: strings.TrimSpace(q.Get("model")),
-		Site: q.Get("site"), Group: q.Get("group"), Expr: strings.TrimSpace(q.Get("q")), LogonUser: strings.TrimSpace(q.Get("logon_user")), Days: reportLogonDays}
+		Site: q.Get("site"), Group: q.Get("group"), Expr: strings.TrimSpace(q.Get("q")), LogonUser: strings.TrimSpace(q.Get("logon_user")),
+		LogonComputer: strings.TrimSpace(q.Get("logon_computer")), Days: reportLogonDays}
 	if n, err := strconv.Atoi(q.Get("days")); err == nil && n > 0 && n <= 365 {
 		d.Days = n
 	}
@@ -229,10 +231,17 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		names := map[string]string{}
+		var only []string // nil: every computer
+		if d.LogonComputer != "" {
+			only = []string{}
+		}
 		for _, a := range agents {
 			names[a.ID] = a.Host.Hostname
+			if d.LogonComputer != "" && contains(a.Host.Hostname, d.LogonComputer) {
+				only = append(only, a.ID)
+			}
 		}
-		evs, err := s.store.SearchLogons(ctx, t, d.LogonUser, s.now().AddDate(0, 0, -d.Days), maxReportLogons+1)
+		evs, err := s.store.SearchLogons(ctx, t, d.LogonUser, only, s.now().AddDate(0, 0, -d.Days), maxReportLogons+1)
 		if err != nil {
 			s.fail(w, r, err)
 			return
@@ -243,7 +252,7 @@ func (s *Server) handleReports(w http.ResponseWriter, r *http.Request) {
 		for _, e := range evs {
 			d.Logons = append(d.Logons, logonRow{AgentLogon: e, Hostname: names[e.AgentID]})
 		}
-		byAgent, byUser, err := s.store.TopFailedLogons(ctx, t, s.now().AddDate(0, 0, -d.Days), maxFailedRank)
+		byAgent, byUser, err := s.store.TopFailedLogons(ctx, t, only, s.now().AddDate(0, 0, -d.Days), maxFailedRank)
 		if err != nil {
 			s.fail(w, r, err)
 			return
