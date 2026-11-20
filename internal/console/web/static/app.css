@@ -62,6 +62,15 @@ button.primary { background:var(--accent); border-color:var(--accent); color:#ff
 button.danger { color:var(--danger); border-color:#f2b8b5; }
 button.link { border:none; background:none; color:var(--accent); padding:0; }
 .actions { display:flex; gap:8px; margin:16px 0; }
+/* Agents list: the bar with the selection and the pages stays on top while
+   the list scrolls under it. */
+.listbar { position:sticky; top:0; z-index:4; display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px;
+  margin:0 0 8px; padding:8px 0; background:var(--bg); }
+.listbar.bottom { position:static; margin-top:8px; }
+.listbar .pager { margin-left:auto; display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; }
+.listbar .pager strong { color:var(--accent); }
+.listbar .pager a { text-decoration:none; padding:0 2px; }
+.listbar .pager > span.muted:not(:first-child) { margin-left:10px; }
 form.stack.wide { max-width:1000px; }
 a.button { display:inline-block; padding:6px 14px; border-radius:var(--radius-sm); background:var(--accent); color:#fff; text-decoration:none; }
 details summary { cursor:pointer; color:var(--accent); }

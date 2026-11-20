@@ -242,6 +242,38 @@
     lastBox = box;
   });
 
+  // Agents list: the bar counts the selected agents (this page's boxes and
+  // those of other pages, sent as hidden fields), and moving to another
+  // page carries the boxes ticked by hand along (sel=); "select all" is
+  // carried by the page links themselves.
+  var agentsList = document.querySelector("form.agents-list");
+  if (agentsList) {
+    var counter = agentsList.querySelector("[data-selected]");
+    var selectedIDs = function () {
+      var out = [];
+      agentsList.querySelectorAll('input[name="agent"]').forEach(function (i) {
+        if (i.type === "hidden" || i.checked) out.push(i.value);
+      });
+      return out;
+    };
+    var count = function () {
+      if (!counter) return;
+      var n = selectedIDs().length;
+      counter.textContent = n ? counter.dataset.selected.replace("%d", n) : "";
+    };
+    agentsList.addEventListener("change", count);
+    count();
+    agentsList.querySelectorAll(".pager a").forEach(function (a) {
+      a.addEventListener("click", function () {
+        var u = new URL(a.href);
+        if (u.searchParams.get("select") === "all") return;
+        u.searchParams.delete("sel");
+        selectedIDs().forEach(function (id) { u.searchParams.append("sel", id); });
+        a.href = u.toString();
+      });
+    });
+  }
+
   // Theme, style and language apply as soon as they are chosen; the Apply buttons
   // stay for browsers without scripts.
   document.querySelectorAll("header form.theme, header form.lang").forEach(function (f) {

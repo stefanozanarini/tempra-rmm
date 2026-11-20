@@ -123,13 +123,17 @@
 </section>
 {{end}}
 {{if .Active}}
-<form method="get" action="/agents/bulk">
-{{/* With an agent selected the list scrolls on its own, so the panel stays right below it. */}}
-<div class="list{{if .Selected}} scroll{{end}}">{{template "agentrows" (rowsCtx . .Active $.IsAdmin)}}</div>
-{{if $.IsAdmin}}<div class="actions">
-  <button class="primary">{{t "Azioni sui selezionati"}}</button>
-  <a href="{{.SelectAllURL}}">{{t "seleziona tutti"}}</a> · <a href="{{.ClearURL}}">{{t "nessuno"}}</a>
-</div>{{end}}
+<form method="get" action="/agents/bulk" class="agents-list">
+{{range .OffPage}}<input type="hidden" name="agent" value="{{.}}">{{end}}
+{{/* The bar stays on top while the list scrolls (app.css): selection, actions, pages. */}}
+<div class="listbar">
+  {{if $.IsAdmin}}<button class="primary">{{t "Azioni sui selezionati"}}</button>
+  <span class="muted" data-selected="{{t "%d selezionati"}}"></span>
+  <a href="{{.SelectAllURL}}">{{tf "seleziona tutti (%d)" .Total}}</a> · <a href="{{.ClearURL}}">{{t "nessuno"}}</a>{{end}}
+  {{template "pager" .}}
+</div>
+<div class="list">{{template "agentrows" (rowsCtx . .Active $.IsAdmin)}}</div>
+{{if gt .Pages 1}}<div class="listbar bottom">{{template "pager" .}}</div>{{end}}
 </form>
 {{else}}<p class="muted">{{if or .Query .Show}}{{t "Nessun agente attivo corrispondente alla ricerca."}}{{else}}{{t "Nessun agente attivo."}}{{end}}</p>{{end}}
 {{if .Revoked}}
@@ -165,3 +169,12 @@
 </div>
 {{end}}
 {{end}}
+
+{{define "pager"}}<span class="pager">
+  {{if gt .Pages 1}}<span class="muted">{{tf "%d–%d di %d" .From .To .Total}}</span>
+  {{if .PrevURL}}<a href="{{.PrevURL}}" rel="prev" title="{{t "pagina precedente"}}">‹</a>{{end}}
+  {{range .PageLinks}}{{if eq .N 0}}<span class="muted">…</span>{{else if .Current}}<strong>{{.N}}</strong>{{else}}<a href="{{.URL}}">{{.N}}</a>{{end}} {{end}}
+  {{if .NextURL}}<a href="{{.NextURL}}" rel="next" title="{{t "pagina successiva"}}">›</a>{{end}}{{end}}
+  <span class="muted">{{t "per pagina"}}</span>
+  {{range .PerChoices}}{{if .Current}}<strong>{{if .N}}{{.N}}{{else}}{{t "tutti"}}{{end}}</strong>{{else}}<a href="{{.URL}}">{{if .N}}{{.N}}{{else}}{{t "tutti"}}{{end}}</a>{{end}} {{end}}
+</span>{{end}}

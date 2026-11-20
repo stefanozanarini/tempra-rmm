@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -117,6 +119,62 @@ type agentsData struct {
 	Tabs      []panelTab
 	// Links keep the current filters.
 	SelectAllURL, ClearURL string
+	// The active agents are listed a page at a time: Page of Pages, Per
+	// rows each (0: all of them), Total in all. OffPage holds the selected
+	// agents of the other pages, sent along with the boxes of this one.
+	Page, Pages, Per, Total, From, To int
+	PageLinks                         []pageLink
+	PrevURL, NextURL                  string
+	PerChoices                        []pageLink
+	OffPage                           []string
+}
+
+// pageLink is one link of the pager: a page number (0: a gap, "…") or a
+// page size.
+type pageLink struct {
+	N       int
+	URL     string
+	Current bool
+}
+
+// agentPageSizes are the page sizes of the agents list (0: everything);
+// the operator's choice is kept in a cookie.
+var agentPageSizes = []int{50, 100, 200, 0}
+
+const agentsPerCookie = "agents_per"
+
+// agentsPer reads the page size from ?per= (remembering it) or the cookie.
+func agentsPer(w http.ResponseWriter, r *http.Request) int {
+	v := r.URL.Query().Get("per")
+	fromQuery := v != ""
+	if !fromQuery {
+		if c, err := r.Cookie(agentsPerCookie); err == nil {
+			v = c.Value
+		}
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || !slices.Contains(agentPageSizes, n) {
+		return agentPageSizes[0]
+	}
+	if fromQuery {
+		http.SetCookie(w, &http.Cookie{Name: agentsPerCookie, Value: v, Path: "/", Secure: true, HttpOnly: true,
+			SameSite: http.SameSiteLaxMode, MaxAge: 365 * 24 * 3600})
+	}
+	return n
+}
+
+// pageNumbers lists the pages to link: the first, the last and those
+// around the current one, 0 standing for a gap.
+func pageNumbers(cur, pages int) []int {
+	var out []int
+	for n := 1; n <= pages; n++ {
+		if n == 1 || n == pages || (n >= cur-2 && n <= cur+2) {
+			out = append(out, n)
+		} else if len(out) > 0 && out[len(out)-1] != 0 {
+			out = append(out, 0)
+		}
+	}
+	return out
 }
 
 // online tells whether the agent has a live session: one that has not
@@ -428,6 +486,39 @@ func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
 		d.Filters = append(d.Filters, filterView{Key: f.Key, Label: s.T(r, f.Label), Count: filterCount[f.Key]})
 	}
 	d.OUs = ouTree(allOUs, ouKeys)
+
+	// One page of the active agents: the requested one, or the one holding
+	// the agent open in the panel.
+	// Pages need a stable order: by name, as the database lists them.
+	slices.SortStableFunc(d.Active, func(a, b agentRow) int {
+		if c := strings.Compare(a.Host.Hostname, b.Host.Hostname); c != 0 {
+			return c
+		}
+		return strings.Compare(a.ID, b.ID)
+	})
+	d.Per, d.Total, d.Page, d.Pages = agentsPer(w, r), len(d.Active), 1, 1
+	if d.Per > 0 && d.Total > d.Per {
+		d.Pages = (d.Total + d.Per - 1) / d.Per
+		if n, err := strconv.Atoi(q.Get("page")); err == nil {
+			d.Page = min(max(n, 1), d.Pages)
+		} else if selected != "" {
+			for i, row := range d.Active {
+				if row.ID == selected {
+					d.Page = i/d.Per + 1
+				}
+			}
+		}
+		from, to := (d.Page-1)*d.Per, min(d.Page*d.Per, d.Total)
+		for i, row := range d.Active {
+			if row.Checked && (i < from || i >= to) {
+				d.OffPage = append(d.OffPage, row.ID)
+			}
+		}
+		d.Active = d.Active[from:to]
+	}
+	if d.Total > 0 {
+		d.From, d.To = (d.Page-1)*max(d.Per, 0)+1, (d.Page-1)*max(d.Per, 0)+len(d.Active)
+	}
 	base := url.Values{}
 	for _, k := range []string{"family", "q", "site", "ou"} {
 		if v := q.Get(k); v != "" {
@@ -439,6 +530,9 @@ func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
 	}
 	if d.Show != "" {
 		base.Set("show", d.Show)
+	}
+	if d.Page > 1 {
+		base.Set("page", strconv.Itoa(d.Page))
 	}
 	link := func(extra url.Values) string {
 		v := url.Values{}
@@ -454,6 +548,40 @@ func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
 		return "/agents?" + v.Encode()
 	}
 	d.SelectAllURL, d.ClearURL = link(url.Values{"select": {"all"}}), link(nil)
+	// Moving between pages keeps "select all"; boxes ticked by hand are
+	// carried by app.js (sel=).
+	pageURL := func(n int) string {
+		extra := url.Values{"page": {strconv.Itoa(n)}}
+		if all {
+			extra.Set("select", "all")
+		}
+		return link(extra)
+	}
+	if d.Pages > 1 {
+		for _, n := range pageNumbers(d.Page, d.Pages) {
+			pl := pageLink{N: n, Current: n == d.Page}
+			if n > 0 {
+				pl.URL = pageURL(n)
+			}
+			d.PageLinks = append(d.PageLinks, pl)
+		}
+		if d.Page > 1 {
+			d.PrevURL = pageURL(d.Page - 1)
+		}
+		if d.Page < d.Pages {
+			d.NextURL = pageURL(d.Page + 1)
+		}
+	}
+	for _, n := range agentPageSizes {
+		v := url.Values{}
+		for k, vs := range base {
+			if k != "page" {
+				v[k] = vs
+			}
+		}
+		v.Set("per", strconv.Itoa(n))
+		d.PerChoices = append(d.PerChoices, pageLink{N: n, URL: "/agents?" + v.Encode(), Current: n == d.Per})
+	}
 	if selected != "" && ids.IsUUID(selected) {
 		det, err := s.agentDetails(r, t, selected)
 		switch {
@@ -503,6 +631,9 @@ func rowLink(d agentsData, agentID string) string {
 	}
 	if d.Show != "" {
 		v.Set("show", d.Show)
+	}
+	if d.Page > 1 {
+		v.Set("page", strconv.Itoa(d.Page))
 	}
 	if d.Tab != "" {
 		v.Set("tab", d.Tab)
