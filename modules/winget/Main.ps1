@@ -13,6 +13,11 @@
 #          region) and the upgrade fails with 0x8A150014. An application
 #          not in the list (the console may ask before the scans show the
 #          new version) is looked up in the winget source.
+#          A listed application that still fails with 0x8A15002B was
+#          installed with another technology (MSI vs EXE, as often happens
+#          to Edge): winget cannot upgrade it in place. Browsers whose
+#          installer upgrades any existing copy ($reinstallable) are then
+#          installed over it (install --force); the others get a note.
 # install  { "ids": ["Google.Chrome"] }: for every user (machine scope); an
 #          installed application is upgraded. Replaces copies installed in
 #          a user's profile, which winget cannot see as the system account.
@@ -34,6 +39,10 @@ function Get-List($Object, [string]$Name) {
 }
 
 $idPattern = '^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$'
+# Applications whose installer upgrades any existing copy, whatever
+# technology installed it: when winget cannot upgrade them in place they
+# are installed over it.
+$reinstallable = @('Microsoft.Edge', 'Microsoft.EdgeWebView2Runtime', 'Google.Chrome')
 
 function Find-Winget {
     $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
@@ -143,6 +152,18 @@ Invoke-RmmModule @{
             $r = Invoke-Winget $exe @('upgrade', '--id', $id, '--exact', '--source', $source, '--silent', '--include-unknown',
                 '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity')
             $res = @{ id = $id; exit_code = ('0x{0:X8}' -f $r.code); ok = ($r.code -eq 0); output = (($r.lines | Select-Object -Last 5) -join "`n") }
+            if ($r.code -eq -1978335189 -and $sources.ContainsKey($id)) { # 0x8A15002B on a listed upgrade: another install technology
+                if ($reinstallable -contains $id) {
+                    $r = Invoke-Winget $exe @('install', '--id', $id, '--exact', '--source', $source, '--silent', '--force', '--scope', 'machine',
+                        '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity')
+                    $res = @{ id = $id; exit_code = ('0x{0:X8}' -f $r.code); ok = ($r.code -eq 0); output = (($r.lines | Select-Object -Last 5) -join "`n")
+                        note = 'Installed with another technology than the catalog''s: installed over the existing copy (winget install --force)' }
+                } else {
+                    $res.note = 'Installed with another technology than the catalog''s (e.g. MSI instead of EXE): winget cannot upgrade it in place; uninstall it and install the new version'
+                }
+                $results += $res
+                continue
+            }
             switch ($r.code) {
                 -1978335189 { $res.note = 'No newer version in the winget catalog: already up to date (e.g. updated by itself), or the catalog does not have the new version yet' } # 0x8A15002B
                 -1978335212 { $res.note = 'winget does not see this application as installed for the system account: it is probably installed in a user profile; install the machine-wide version instead (winget install)' } # 0x8A150014
