@@ -7,6 +7,12 @@
 #
 # scan     applications with an available upgrade
 # upgrade  { "ids": ["Mozilla.Firefox"] } or { "all": true, "exclude": ["Oracle.JavaRuntimeEnvironment"] }
+#          Each application is upgraded from the source the upgrade list
+#          shows (winget, msstore): without --source winget also queries
+#          msstore, which the system account cannot use (agreements,
+#          region) and the upgrade fails with 0x8A150014. An application
+#          not in the list (the console may ask before the scans show the
+#          new version) is looked up in the winget source.
 # install  { "ids": ["Google.Chrome"] }: for every user (machine scope); an
 #          installed application is upgraded. Replaces copies installed in
 #          a user's profile, which winget cannot see as the system account.
@@ -118,10 +124,13 @@ Invoke-RmmModule @{
         $exe = Find-Winget
         $ids = Get-List $Params 'ids'
         $exclude = Get-List $Params 'exclude'
+        $available = @(Get-Upgrades $exe)
         if (Get-Prop $Params 'all') {
-            $ids = @(Get-Upgrades $exe | ForEach-Object { $_.id } | Where-Object { $exclude -notcontains $_ })
+            $ids = @($available | ForEach-Object { $_.id } | Where-Object { $exclude -notcontains $_ })
         }
         if ($ids.Count -eq 0) { throw 'no applications to upgrade: give ids, or all' }
+        $sources = @{}
+        foreach ($app in $available) { $sources[$app.id] = $app.source }
         $results = @()
         $n = 0
         foreach ($id in $ids) {
@@ -129,9 +138,16 @@ Invoke-RmmModule @{
             if ($id -notmatch $idPattern) { throw "invalid package id: $id" }
             $n++
             Send-RmmProgress ([int](100 * $n / ($ids.Count + 1))) $id
-            $r = Invoke-Winget $exe @('upgrade', '--id', $id, '--exact', '--silent', '--include-unknown',
+            $source = [string]$sources[$id]
+            if ($source -notmatch '^[A-Za-z0-9._-]{1,40}$') { $source = 'winget' }
+            $r = Invoke-Winget $exe @('upgrade', '--id', $id, '--exact', '--source', $source, '--silent', '--include-unknown',
                 '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity')
-            $results += @{ id = $id; exit_code = ('0x{0:X8}' -f $r.code); ok = ($r.code -eq 0); output = (($r.lines | Select-Object -Last 5) -join "`n") }
+            $res = @{ id = $id; exit_code = ('0x{0:X8}' -f $r.code); ok = ($r.code -eq 0); output = (($r.lines | Select-Object -Last 5) -join "`n") }
+            switch ($r.code) {
+                -1978335189 { $res.note = 'No newer version in the winget catalog: already up to date (e.g. updated by itself), or the catalog does not have the new version yet' } # 0x8A15002B
+                -1978335212 { $res.note = 'winget does not see this application as installed for the system account: it is probably installed in a user profile; install the machine-wide version instead (winget install)' } # 0x8A150014
+            }
+            $results += $res
         }
         $report = New-Report $exe
         $report.upgraded = $results
