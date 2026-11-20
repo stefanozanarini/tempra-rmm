@@ -8,6 +8,7 @@ A 27-slide overview of Tempra RMM: features, security design, vulnerability mana
 | `deck.json` | Slide order, sections and fonts |
 | `deck.css` | Shared styles |
 | `slides/*.html` | One file per slide; speaker notes in each slide's `<aside>` |
+| `logo-dark.svg` | The console's logo for dark backgrounds, used on the cover and closing slides (copy of `internal/console/web/static/logo-dark.svg`) |
 | `screenshots/` | Console screenshots used by the screenshot slides (`-en` and `-it`), taken from a console with demo data |
 | `Tempra-RMM-presentazione-IT.pptx` | Italian PowerPoint version of the same deck, with speaker notes |
 
