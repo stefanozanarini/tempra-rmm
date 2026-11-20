@@ -1,6 +1,6 @@
 {
   "id": "microsoft365",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Microsoft 365 Apps and OneDrive: checks (Office updates, update channel, supported Office version, OneDrive known folders, personal accounts) and actions (update Office now, change the update channel, repair).",
   "protocol_version": 1,
   "entrypoints": {

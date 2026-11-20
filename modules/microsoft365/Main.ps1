@@ -393,7 +393,9 @@ Invoke-RmmModule @{
         param($Params, $Request)
         $maxAge = Get-Prop $Params 'max_update_age_days'
         if (-not $maxAge) { $maxAge = 45 }
-        $allowed = @(Get-Prop $Params 'channels')
+        # @($null) has Count 1 in PowerShell, not 0: filter nulls before
+        # checking, otherwise the default list below never applies.
+        $allowed = @(Get-Prop $Params 'channels') | Where-Object { $_ }
         if (-not $allowed.Count) { $allowed = @('Current', 'Monthly Enterprise', 'Semi-Annual Enterprise') }
         $backupOn = Get-Prop $Params 'onedrive_backup'
         $personalOn = Get-Prop $Params 'personal_accounts'
