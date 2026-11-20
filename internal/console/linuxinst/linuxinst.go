@@ -34,8 +34,8 @@ var archs = map[string]string{"linux/amd64": "x86_64", "linux/arm64": "aarch64"}
 func Platforms() []string { return []string{"linux/amd64", "linux/arm64"} }
 
 // FileName is the installer's name.
-func FileName(version, platform string) string {
-	return "openrmm-agent-" + version + "-" + strings.ReplaceAll(platform, "/", "-") + ".run"
+func FileName(customer, version, platform string) string {
+	return "temprarmm-agent-" + customer + "-" + version + "-" + strings.ReplaceAll(platform, "/", "-") + ".run"
 }
 
 var versionRe = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)

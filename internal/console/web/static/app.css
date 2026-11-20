@@ -335,6 +335,9 @@ details.help > summary:hover, details.help[open] > summary { color:var(--accent)
 details.help .help-pop { position:absolute; z-index:60; top:24px; left:-8px; width:min(360px, calc(100vw - 32px)); padding:10px 12px;
   background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 6px 24px rgba(0,0,0,.25);
   line-height:1.45; white-space:normal; text-transform:none; letter-spacing:normal; }
+/* A table clips overflow for its rounded corners (see "table" above), which
+   would otherwise cut off a help popover opened from inside a header cell. */
+table:has(details.help[open]) { overflow:visible; }
 
 /* Reporting → Inventory: extra columns */
 details.columns { margin:4px 0 8px; }

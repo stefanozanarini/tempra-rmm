@@ -656,9 +656,10 @@ func (s *Server) handleDownloadInstaller(w http.ResponseWriter, r *http.Request)
 	}
 	defer f.Close()
 	extendDeadlines(w, 30*time.Minute)
-	name, ctype := "temprarmm-agent-"+s.customerSlug(r.Context(), t)+"-"+inst.Version+".msi", "application/x-msi"
+	slug := s.customerSlug(r.Context(), t)
+	name, ctype := "temprarmm-agent-"+slug+"-"+inst.Version+".msi", "application/x-msi"
 	if strings.HasPrefix(inst.Platform, "linux/") {
-		name, ctype = linuxinst.FileName(inst.Version, inst.Platform), "application/octet-stream"
+		name, ctype = linuxinst.FileName(slug, inst.Version, inst.Platform), "application/octet-stream"
 	}
 	w.Header().Set("Content-Type", ctype)
 	w.Header().Set("Content-Length", strconv.FormatInt(inst.Size, 10))
