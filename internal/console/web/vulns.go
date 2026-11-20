@@ -583,6 +583,16 @@ func (s *Server) cveFix(ctx context.Context, lang, tenant string, f *vuln.Findin
 						strings.TrimSpace(tr(lang, "Nessun aggiornamento winget per questa applicazione: si usa il pacchetto della libreria Software.") + " " + userNote)
 				}
 			}
+			// A copy for the whole computer that the scans do not list: the
+			// winget catalog often gets the new version a day or two after
+			// the CVE, and the scan runs every 24 hours. The upgrade looks
+			// for it again.
+			if !userScope && app.Winget != "" {
+				q.Set("action", updates.WingetModule+".upgrade")
+				q.Set("p.ids", app.Winget)
+				return "/agents/bulk?" + q.Encode(), tr(lang, "Aggiorna l'applicazione con winget…"),
+					strings.TrimSpace(tr(lang, "Le ultime scansioni winget di questi computer non riportano ancora la nuova versione: il catalogo di winget di solito la riceve uno o due giorni dopo il rilascio e la scansione gira ogni 24 ore. L'aggiornamento la cerca di nuovo; se winget non la trova ancora, riprova più tardi.") + " " + userNote)
+			}
 			if userNote != "" {
 				return "", "", userNote
 			}

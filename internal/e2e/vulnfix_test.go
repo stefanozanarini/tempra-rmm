@@ -26,6 +26,7 @@ func TestConsoleVulnPendingAndLibrary(t *testing.T) {
 	}
 	feed("microsoft:edge_chromium", "CVE-2026-90001", "141.0")
 	feed("videolan:vlc_media_player", "CVE-2026-90002", "3.0.21")
+	feed("google:chrome", "CVE-2026-90003", "158.0.8127.36")
 
 	edge := e.addWindowsAgent(t, "PC-EDGE")
 	inv := inventory.Inventory{Schema: 1, CollectedAt: time.Now().UTC(),
@@ -48,5 +49,15 @@ func TestConsoleVulnPendingAndLibrary(t *testing.T) {
 	if body = html.UnescapeString(body); !strings.Contains(body, "/packages/"+sha+"/deploy?agent="+vlc) ||
 		!strings.Contains(body, "Distribuisci VLC media player 3.0.21 dalla libreria") {
 		t.Fatalf("library package: %s", body)
+	}
+
+	// Chrome for the whole computer, not in the winget scans yet (the
+	// catalog lags behind the CVE): the winget upgrade is prepared anyway.
+	chrome := e.addWindowsAgent(t, "PC-CHROME", inventory.Software{Name: "Google Chrome", Version: "157.0.8103.79", Scope: "machine"})
+	_, body = get(t, c, e.console.URL+"/security/vulnerabilities?id=CVE-2026-90003")
+	if body = html.UnescapeString(body); !strings.Contains(body, "action=winget.upgrade") ||
+		!strings.Contains(body, "agent="+chrome) || !strings.Contains(body, "p.ids=Google.Chrome") ||
+		!strings.Contains(body, "non riportano ancora la nuova versione") {
+		t.Fatalf("winget upgrade not in the scans: %s", body)
 	}
 }

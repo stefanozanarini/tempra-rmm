@@ -1304,10 +1304,13 @@ var catalogEN = map[string]string{ // #nosec G101 -- UI text, not credentials
 	"Installata nel profilo dell'utente: winget, che gira con l'account di sistema, non la può aggiornare. Aggiornala dall'applicazione stessa o distribuisci la versione per tutto il computer dalla pagina Software.": "Installed in the user's profile: winget, which runs as the system account, cannot update it. Update it from the application itself or deploy the whole-computer version from the Software page.",
 	"profilo utente": "user profile",
 	"Nessun aggiornamento winget disponibile per questa applicazione sui computer colpiti: distribuisci la nuova versione dalla pagina Software.": "No winget update available for this application on the affected computers: deploy the new version from the Software page.",
-	"Apre l'azione già preparata per i computer colpiti: la controlli e la approvi con MFA.":                                                      "Opens the action prepared for the affected computers: review it and approve it with MFA.",
-	"Azione preparata per correggere questa vulnerabilità: controlla agenti e parametri, poi approva.":                                            "Action prepared to fix this vulnerability: check agents and parameters, then approve.",
-	"Comando approvato: l'andamento è nel riquadro in basso a destra.":                                                                            "Command approved: follow it in the panel at the bottom right.",
-	"%d comandi approvati e in coda: l'andamento è nel riquadro in basso a destra.":                                                               "%d commands approved and queued: follow them in the panel at the bottom right.",
+
+	"Le ultime scansioni winget di questi computer non riportano ancora la nuova versione: il catalogo di winget di solito la riceve uno o due giorni dopo il rilascio e la scansione gira ogni 24 ore. L'aggiornamento la cerca di nuovo; se winget non la trova ancora, riprova più tardi.": "The latest winget scans of these computers do not list the new version yet: the winget catalog usually gets it a day or two after the release, and the scan runs every 24 hours. The upgrade looks for it again; if winget does not find it yet, try again later.",
+
+	"Apre l'azione già preparata per i computer colpiti: la controlli e la approvi con MFA.":           "Opens the action prepared for the affected computers: review it and approve it with MFA.",
+	"Azione preparata per correggere questa vulnerabilità: controlla agenti e parametri, poi approva.": "Action prepared to fix this vulnerability: check agents and parameters, then approve.",
+	"Comando approvato: l'andamento è nel riquadro in basso a destra.":                                 "Command approved: follow it in the panel at the bottom right.",
+	"%d comandi approvati e in coda: l'andamento è nel riquadro in basso a destra.":                    "%d commands approved and queued: follow them in the panel at the bottom right.",
 	"tutti i job":   "all jobs",
 	"Riduci":        "Minimise",
 	"Chiudi":        "Close",
