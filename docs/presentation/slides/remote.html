@@ -7,11 +7,11 @@
 <tr class="th"><th style="width:22%">Tool</th><th style="width:20%">Approval</th><th style="width:16%">Limit</th><th style="width:42%">Safeguards</th></tr>
 <tr><td>Script</td><td>MFA per command</td><td>15 min–48 h</td><td>Full text audited; AMSI and logging stay on</td></tr>
 <tr><td>Shell</td><td>MFA per session</td><td>60 min</td><td>Off unless GPO allows; every line audited</td></tr>
-<tr><td>Remote control</td><td>MFA per session</td><td>60 min</td><td>Off unless GPO allows; lock screen, UAC, Ctrl+Alt+Del</td></tr>
+<tr><td>Remote control</td><td>MFA per session</td><td>60 min</td><td>Off unless GPO allows; clipboard per GPO; transfers audited</td></tr>
 <tr><td>Files</td><td>MFA per session</td><td>240 min</td><td>Agent folders refused; SHA-256 audited</td></tr>
-<tr><td>Bulk action</td><td>One MFA</td><td>500 PCs</td><td>One signed job per computer</td></tr>
+<tr><td>Bulk action</td><td>One MFA, Admins only</td><td>500 PCs</td><td>One signed job per computer</td></tr>
 </table>
-<p class="small muted">Shell and remote control open in the browser (xterm.js and a JPEG stream over the agent’s own connection): no extra port, no third-party tool.</p>
-<div class="footer"><span>Tempra RMM</span><span>21</span></div>
-<aside>Remote-access IDs for Supremo, AnyDesk and TeamViewer are also collected by the inventory, so existing tools stay usable. Since agent 1.2.0 remote control works with nobody signed in: the operator sees and controls the sign-in and lock screens and UAC prompts, and can send Ctrl+Alt+Del. Sessions are usable only by the operator who approved them and end at the time limit.</aside>
+<p class="small muted">Shell and remote control open in the browser over the agent’s own connection: no extra port, no third-party tool. Remote control picks the monitor, sends only what changed, shares the clipboard, types whatever the keyboard layouts and moves files to and from the user’s Desktop.</p>
+<div class="footer"><span>Tempra RMM</span><span>22</span></div>
+<aside>Remote-access IDs for Supremo, AnyDesk and TeamViewer are also collected by the inventory, so existing tools stay usable. Since agent 1.2.0 remote control works with nobody signed in: the operator sees and controls the sign-in and lock screens and UAC prompts, and can send Ctrl+Alt+Del. Since 1.2.4–1.2.6: monitor choice, only changed screen tiles sent (nothing while the screen is still), shared text clipboard (local policy AllowRemoteClipboard, each paste audited by length), Unicode typing independent of keyboard layouts, a Keys menu and full screen with keyboard capture, and file send and fetch within the session, audited. Sessions are usable only by the operator who approved them and end at the time limit.</aside>
 </section>

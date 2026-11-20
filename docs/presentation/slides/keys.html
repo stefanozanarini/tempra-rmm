@@ -10,6 +10,7 @@
 <tr><td>Job signing</td><td>Signer container only</td><td>Jobs, policies</td></tr>
 <tr><td>Module / release</td><td>Builder, passphrase-encrypted; or offline</td><td>Modules, agent updates</td></tr>
 <tr><td>Code signing</td><td>Builder: dedicated CA, AD CS or PFX</td><td>EXE and MSI</td></tr>
+<tr><td>BitLocker escrow</td><td>Builder only (agents get the public part)</td><td>Encrypts recovery keys</td></tr>
 </table>
 <div class="grid3">
 <p class="small muted">Agent keys are generated <b>on the PC</b>; certificates last 90 days and renew with a new key.</p>
@@ -17,5 +18,5 @@
 <p class="small muted">Revocation disconnects an agent <b>immediately</b>, even mid-session.</p>
 </div>
 <div class="footer"><span>Tempra RMM</span><span>9</span></div>
-<aside>Consoles that want the strictest model keep module and release keys offline: then even a fully compromised console cannot publish code to agents. With keys in the builder, an attacker would also need the passphrase, which is entered per operation.</aside>
+<aside>Consoles that want the strictest model keep module and release keys offline: then even a fully compromised console cannot publish code to agents. With keys in the builder, an attacker would also need the passphrase, which is entered per operation. The BitLocker escrow pair is RSA-OAEP, separate from every signing key: agents encrypt recovery keys on the PC, and reading one needs a fresh MFA plus the passphrase, decrypts only in the builder and is always audited.</aside>
 </section>

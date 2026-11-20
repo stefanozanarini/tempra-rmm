@@ -1,6 +1,6 @@
 # Tempra RMM — product presentation
 
-A 26-slide overview of Tempra RMM: features, security design, vulnerability management, reporting and operations.
+A 27-slide overview of Tempra RMM: features, security design, vulnerability management, reporting and operations.
 
 | File | Content |
 | --- | --- |

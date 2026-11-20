@@ -1,0 +1,26 @@
+<section id="m365">
+<div class="head">
+<p class="eyebrow">Microsoft 365 and BitLocker</p>
+<h2>Identity, Office and recovery keys, without new credentials</h2>
+</div>
+<div class="grid3" style="flex:1">
+<div class="card fadeup" style="--i:0">
+<x-icon name="Users" class="icon"></x-icon>
+<h3>Entra ID and Intune</h3>
+<p class="body">Join type, tenant, Intune, Autopilot and Defender onboarding, read on the PC: no Graph, no secrets on the console.</p>
+</div>
+<div class="card fadeup" style="--i:1">
+<x-icon name="Verified" class="icon"></x-icon>
+<h3>Microsoft 365 Apps</h3>
+<p class="body">Version, channel, license, OneDrive backup and personal accounts per user. Checks every 6 hours; update, change channel or repair with one MFA.</p>
+</div>
+<div class="card accent fadeup" style="--i:2">
+<x-icon name="Lock" class="icon"></x-icon>
+<h3>BitLocker key backup</h3>
+<p class="body">Every recovery key is encrypted <b>on the PC</b> before it leaves. Reading one takes a fresh MFA plus the builder passphrase, and is always audited.</p>
+</div>
+</div>
+<p class="small muted">All of it is searchable: <span class="mono">entra_join:hybrid AND intune:no</span>, <span class="mono">office_license:perpetual</span>, <span class="mono">personal_account:yes</span>.</p>
+<div class="footer"><span>Tempra RMM</span><span>19</span></div>
+<aside>The inventory reads dsregcmd and the Click-to-Run configuration locally, and per user the Office and OneDrive accounts of loaded profiles; users not logged on keep their last values for 90 days. The microsoft365 module checks Office updates, channel, end of support of perpetual and MSI Office, OneDrive known-folder backup and personal Microsoft accounts. BitLocker backup starts once an Admin creates the dedicated key pair on the Installer page and publishes the bitlocker module; the console only ever stores ciphertext.</aside>
+</section>

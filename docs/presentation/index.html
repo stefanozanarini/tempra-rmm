@@ -66,10 +66,10 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <h2>Everything an RMM does, in one console</h2>
 </div>
 <div class="grid4">
-<div class="card fadeup" style="--i:0"><div class="row" style="gap:16px;align-items:center"><x-icon name="Search" class="icon"></x-icon><h3>Inventory</h3></div><p class="body">Hardware, disks, BitLocker, battery, TPM, software, change history.</p></div>
-<div class="card fadeup" style="--i:1"><div class="row" style="gap:16px;align-items:center"><x-icon name="Wrench" class="icon"></x-icon><h3>Patching</h3></div><p class="body">Windows, Linux, winget apps, BIOS and firmware; blockers explained.</p></div>
+<div class="card fadeup" style="--i:0"><div class="row" style="gap:16px;align-items:center"><x-icon name="Search" class="icon"></x-icon><h3>Inventory</h3></div><p class="body">Hardware, BitLocker with key backup, Entra ID, Microsoft 365, software, history.</p></div>
+<div class="card fadeup" style="--i:1"><div class="row" style="gap:16px;align-items:center"><x-icon name="Wrench" class="icon"></x-icon><h3>Patching</h3></div><p class="body">Windows and its releases, Linux, winget apps, firmware; blockers explained.</p></div>
 <div class="card fadeup" style="--i:2"><div class="row" style="gap:16px;align-items:center"><x-icon name="PaperPlane" class="icon"></x-icon><h3>Software</h3></div><p class="body">Package library, distribution, silent uninstall, workflows.</p></div>
-<div class="card fadeup" style="--i:3"><div class="row" style="gap:16px;align-items:center"><x-icon name="Code" class="icon"></x-icon><h3>Remote ops</h3></div><p class="body">Scripts, shell, remote control even at the lock screen, files.</p></div>
+<div class="card fadeup" style="--i:3"><div class="row" style="gap:16px;align-items:center"><x-icon name="Code" class="icon"></x-icon><h3>Remote ops</h3></div><p class="body">Ready-made scripts, shell, remote control on any monitor, files.</p></div>
 <div class="card fadeup" style="--i:4"><div class="row" style="gap:16px;align-items:center"><x-icon name="Warning" class="icon"></x-icon><h3>CVEs</h3></div><p class="body">Matched per computer, exploited first, fix prepared in one click.</p></div>
 <div class="card fadeup" style="--i:5"><div class="row" style="gap:16px;align-items:center"><x-icon name="Activity" class="icon"></x-icon><h3>Alerts</h3></div><p class="body">Antivirus, firewall, Trend Micro, unusual RDP, password spraying.</p></div>
 <div class="card fadeup" style="--i:6"><div class="row" style="gap:16px;align-items:center"><x-icon name="Chart" class="icon"></x-icon><h3>Reporting</h3></div><p class="body">Dashboards, inventory search, CSV export, CVE trends.</p></div>
@@ -155,7 +155,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <div class="step fadeup" style="--i:4"><p class="n">5</p><p class="t">Agent verifies</p><p class="d">Signature, addressee, expiry, replay cache, then runs.</p></div>
 </div>
 <div class="grid3">
-<div class="card"><h3>Bulk approval</h3><p class="body">Up to 500 PCs per approval, one signed job each.</p></div>
+<div class="card"><h3>Bulk approval</h3><p class="body">Admins only: up to 500 PCs per approval, one signed job each.</p></div>
 <div class="card"><h3>Session approval</h3><p class="body">Shell, screen and files: one MFA per timed session.</p></div>
 <div class="card"><h3>Collections</h3><p class="body">Read-only inventory and scans need no new sign-in.</p></div>
 </div>
@@ -193,6 +193,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <tr><td>Job signing</td><td>Signer container only</td><td>Jobs, policies</td></tr>
 <tr><td>Module / release</td><td>Builder, passphrase-encrypted; or offline</td><td>Modules, agent updates</td></tr>
 <tr><td>Code signing</td><td>Builder: dedicated CA, AD CS or PFX</td><td>EXE and MSI</td></tr>
+<tr><td>BitLocker escrow</td><td>Builder only (agents get the public part)</td><td>Encrypts recovery keys</td></tr>
 </table>
 <div class="grid3">
 <p class="small muted">Agent keys are generated <b>on the PC</b>; certificates last 90 days and renew with a new key.</p>
@@ -200,7 +201,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <p class="small muted">Revocation disconnects an agent <b>immediately</b>, even mid-session.</p>
 </div>
 <div class="footer"><span>Tempra RMM</span><span>9</span></div>
-<aside>Consoles that want the strictest model keep module and release keys offline: then even a fully compromised console cannot publish code to agents. With keys in the builder, an attacker would also need the passphrase, which is entered per operation.</aside>
+<aside>Consoles that want the strictest model keep module and release keys offline: then even a fully compromised console cannot publish code to agents. With keys in the builder, an attacker would also need the passphrase, which is entered per operation. The BitLocker escrow pair is RSA-OAEP, separate from every signing key: agents encrypt recovery keys on the PC, and reading one needs a fresh MFA plus the passphrase, decrypts only in the builder and is always audited.</aside>
 </section>
 <section id="access">
 <div class="head">
@@ -213,11 +214,11 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <tr class="th"><th style="width:44%">Entra app role</th><th style="width:56%">Reaches</th></tr>
 <tr><td>OpenRMM.Admin</td><td>Everything, including settings</td></tr>
 <tr><td>Admin.Clients / .Servers</td><td>Administers PCs only, or servers only</td></tr>
-<tr><td>OpenRMM.Operator</td><td>Commands on every computer</td></tr>
+<tr><td>OpenRMM.Operator</td><td>Commands on every computer, one at a time</td></tr>
 <tr><td>Operator.Clients / .Servers</td><td>Commands on PCs only, or servers only</td></tr>
 <tr><td>OpenRMM.Reader</td><td>Read only</td></tr>
 </table>
-<p class="small muted">Roles add up. The signer copies the OS family into every job, and the agent refuses a job meant for the other family.</p>
+<p class="small muted">Roles add up. Acting on <b>several computers at once</b> (bulk actions, a whole group) needs an Admin role. The signer copies the OS family into every job, and the agent refuses a job meant for the other family.</p>
 </div>
 <div class="card accent" style="width:620px">
 <p class="tag">Scopes</p>
@@ -389,7 +390,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <h2>One dashboard ranks the computers that most need updates</h2>
 </div>
 <div class="grid4">
-<div class="card"><h3>Windows Update</h3><p class="body">Missing updates by age and Patch Tuesday. WSUS and Intune PCs are observed, not touched.</p></div>
+<div class="card"><h3>Windows Update</h3><p class="body">Missing updates by age; Windows 11 moved to a newer release. WSUS and Intune PCs are observed.</p></div>
 <div class="card"><h3>Blockers</h3><p class="body">Pinned release, dead WSUS, disabled services, pauses, low disk — found and explained.</p></div>
 <div class="card"><h3>Applications</h3><p class="body">winget, plus a console catalog that also covers Server 2019 and hand-installed apps.</p></div>
 <div class="card"><h3>Firmware</h3><p class="body">Dell, Lenovo, HP vendor tools. BIOS only on request, BitLocker suspended once.</p></div>
@@ -399,7 +400,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <div class="card" style="flex:1"><h3>One approval, the whole fleet</h3><p class="body">An outdated app on many PCs → <b>Update…</b> → review → one MFA.</p></div>
 </div>
 <div class="footer"><span>Tempra RMM</span><span>17</span></div>
-<aside>The update score combines missing security updates and their age, other updates, how long a reboot has been pending and outdated third-party applications. Linux: apt, dnf/yum and zypper.</aside>
+<aside>The update score combines missing security updates and their age, other updates, how long a reboot has been pending and outdated third-party applications. Linux: apt, dnf/yum and zypper. The Windows release upgrade (for example 25H2 to 26H2) pins the target release only while it installs the offered feature update or enablement package, proposes the releases Windows Update offers, and never reboots by itself.</aside>
 </section>
 <section id="shot-patches" class="alt">
 <div class="head">
@@ -419,6 +420,32 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 </div>
 <div class="footer"><span>Tempra RMM</span><span>18</span></div>
 <aside>The Patch dashboard ranks computers by how far behind they are: missing security updates, the age of the oldest one in Patch Tuesdays, other updates, pending reboot, applications to update and firmware. The screenshots come from a console with demo data, not from a customer.</aside>
+</section>
+<section id="m365">
+<div class="head">
+<p class="eyebrow">Microsoft 365 and BitLocker</p>
+<h2>Identity, Office and recovery keys, without new credentials</h2>
+</div>
+<div class="grid3" style="flex:1">
+<div class="card fadeup" style="--i:0">
+<x-icon name="Users" class="icon"></x-icon>
+<h3>Entra ID and Intune</h3>
+<p class="body">Join type, tenant, Intune, Autopilot and Defender onboarding, read on the PC: no Graph, no secrets on the console.</p>
+</div>
+<div class="card fadeup" style="--i:1">
+<x-icon name="Verified" class="icon"></x-icon>
+<h3>Microsoft 365 Apps</h3>
+<p class="body">Version, channel, license, OneDrive backup and personal accounts per user. Checks every 6 hours; update, change channel or repair with one MFA.</p>
+</div>
+<div class="card accent fadeup" style="--i:2">
+<x-icon name="Lock" class="icon"></x-icon>
+<h3>BitLocker key backup</h3>
+<p class="body">Every recovery key is encrypted <b>on the PC</b> before it leaves. Reading one takes a fresh MFA plus the builder passphrase, and is always audited.</p>
+</div>
+</div>
+<p class="small muted">All of it is searchable: <span class="mono">entra_join:hybrid AND intune:no</span>, <span class="mono">office_license:perpetual</span>, <span class="mono">personal_account:yes</span>.</p>
+<div class="footer"><span>Tempra RMM</span><span>19</span></div>
+<aside>The inventory reads dsregcmd and the Click-to-Run configuration locally, and per user the Office and OneDrive accounts of loaded profiles; users not logged on keep their last values for 90 days. The microsoft365 module checks Office updates, channel, end of support of perpetual and MSI Office, OneDrive known-folder backup and personal Microsoft accounts. BitLocker backup starts once an Admin creates the dedicated key pair on the Installer page and publishes the bitlocker module; the console only ever stores ciphertext.</aside>
 </section>
 <section id="reports">
 <div class="head">
@@ -450,7 +477,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <p class="small muted">Not rebooted for over 30 days</p>
 </div>
 </div>
-<div class="footer"><span>Tempra RMM</span><span>19</span></div>
+<div class="footer"><span>Tempra RMM</span><span>20</span></div>
 <aside>More than 50 fields from the latest inventory: hardware, BIOS, disks, BitLocker, TPM, battery, network, users, software with versions, remote-access IDs, last seen. Numbers, versions and dates support greater-than and less-than, like last_seen less than 30 days.</aside>
 </section>
 <section id="shot-reports" class="alt">
@@ -469,7 +496,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <p class="small muted">Console with demo data.</p>
 </div>
 </div>
-<div class="footer"><span>Tempra RMM</span><span>20</span></div>
+<div class="footer"><span>Tempra RMM</span><span>21</span></div>
 <aside>The Reporting dashboard. Every chart is computed from the latest inventory and checks of each computer. The screenshots come from a console with demo data, not from a customer.</aside>
 </section>
 <section id="remote" class="alt">
@@ -481,13 +508,13 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <tr class="th"><th style="width:22%">Tool</th><th style="width:20%">Approval</th><th style="width:16%">Limit</th><th style="width:42%">Safeguards</th></tr>
 <tr><td>Script</td><td>MFA per command</td><td>15 min–48 h</td><td>Full text audited; AMSI and logging stay on</td></tr>
 <tr><td>Shell</td><td>MFA per session</td><td>60 min</td><td>Off unless GPO allows; every line audited</td></tr>
-<tr><td>Remote control</td><td>MFA per session</td><td>60 min</td><td>Off unless GPO allows; lock screen, UAC, Ctrl+Alt+Del</td></tr>
+<tr><td>Remote control</td><td>MFA per session</td><td>60 min</td><td>Off unless GPO allows; clipboard per GPO; transfers audited</td></tr>
 <tr><td>Files</td><td>MFA per session</td><td>240 min</td><td>Agent folders refused; SHA-256 audited</td></tr>
-<tr><td>Bulk action</td><td>One MFA</td><td>500 PCs</td><td>One signed job per computer</td></tr>
+<tr><td>Bulk action</td><td>One MFA, Admins only</td><td>500 PCs</td><td>One signed job per computer</td></tr>
 </table>
-<p class="small muted">Shell and remote control open in the browser (xterm.js and a JPEG stream over the agent’s own connection): no extra port, no third-party tool.</p>
-<div class="footer"><span>Tempra RMM</span><span>21</span></div>
-<aside>Remote-access IDs for Supremo, AnyDesk and TeamViewer are also collected by the inventory, so existing tools stay usable. Since agent 1.2.0 remote control works with nobody signed in: the operator sees and controls the sign-in and lock screens and UAC prompts, and can send Ctrl+Alt+Del. Sessions are usable only by the operator who approved them and end at the time limit.</aside>
+<p class="small muted">Shell and remote control open in the browser over the agent’s own connection: no extra port, no third-party tool. Remote control picks the monitor, sends only what changed, shares the clipboard, types whatever the keyboard layouts and moves files to and from the user’s Desktop.</p>
+<div class="footer"><span>Tempra RMM</span><span>22</span></div>
+<aside>Remote-access IDs for Supremo, AnyDesk and TeamViewer are also collected by the inventory, so existing tools stay usable. Since agent 1.2.0 remote control works with nobody signed in: the operator sees and controls the sign-in and lock screens and UAC prompts, and can send Ctrl+Alt+Del. Since 1.2.4–1.2.6: monitor choice, only changed screen tiles sent (nothing while the screen is still), shared text clipboard (local policy AllowRemoteClipboard, each paste audited by length), Unicode typing independent of keyboard layouts, a Keys menu and full screen with keyboard capture, and file send and fetch within the session, audited. Sessions are usable only by the operator who approved them and end at the time limit.</aside>
 </section>
 <section id="software">
 <div class="head">
@@ -501,8 +528,8 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <div style="display:flex;align-items:center"><x-shape kind="arrow-right" style="width:64px;height:32px;background:#0E7C6B"></x-shape></div>
 <div class="card accent" style="flex:1"><p class="tag">Provisioning</p><h3>Profiles</h3><p class="body">Up to 30 workflow and reboot steps. Admin approves a version once; operators run it on new clients.</p></div>
 </div>
-<p class="small muted">Silent uninstall from the console too: the right method per installer type, verified afterwards. Provisioning refuses servers and asks to confirm data loss.</p>
-<div class="footer"><span>Tempra RMM</span><span>22</span></div>
+<p class="small muted">Silent uninstall too, on one computer or many: the right method per installer type, verified afterwards. The winget catalog refreshes every 8 hours. Provisioning refuses servers and asks to confirm data loss.</p>
+<div class="footer"><span>Tempra RMM</span><span>23</span></div>
 <aside>Coming next for provisioning: automatic start at enrollment with a dedicated token, offline domain join without AD credentials on the console, ready-made Microsoft 365 Apps workflows.</aside>
 </section>
 <section id="scale" class="dark">
@@ -516,7 +543,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <div class="card fadeup" style="--i:2"><x-icon name="Verified" class="icon"></x-icon><h3>Customer in charge</h3><p class="body">Commands still signed by the customer’s signer with the operator’s MFA. Role cap, suspend, local audit.</p></div>
 </div>
 <p class="small muted">Two levels at most. Each link keeps a set number of tunnels; shell and remote-control sessions take one each. The customer console stays autonomous when the link is down.</p>
-<div class="footer"><span>Tempra RMM</span><span>23</span></div>
+<div class="footer"><span>Tempra RMM</span><span>24</span></div>
 <aside>Only a summary syncs every 5 minutes; pages are fetched live. The tunnel count, default 6, is set on both sides and the Linked consoles page warns when a link is busy. The central console never holds customer signing keys and cannot create commands or policies by itself. Every action appears in the customer's audit log as operator so-and-so via central console.</aside>
 </section>
 <section id="tech">
@@ -535,7 +562,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <tr><td>Packaging</td><td>Signed MSI and ADMX for Group Policy; self-extracting Linux installer</td></tr>
 <tr><td>Licence</td><td>GNU AGPL-3.0</td></tr>
 </table>
-<div class="footer"><span>Tempra RMM</span><span>24</span></div>
+<div class="footer"><span>Tempra RMM</span><span>25</span></div>
 <aside>Three levels of self-healing on the endpoint: service recovery, a watchdog that restarts a hung agent, and a scheduled task every 15 minutes. Features ship as modules, so the agent itself is updated only for protocol or security fixes.</aside>
 </section>
 <section id="status" class="alt">
@@ -554,6 +581,7 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <li>Shell, remote control, files, bulk actions</li>
 <li>Library, workflows, provisioning, federation, MSP mode</li>
 <li>Roles by OS family, scopes by site or group</li>
+<li>Microsoft 365 checks, BitLocker key backup</li>
 </ul>
 </div>
 <div class="card accent">
@@ -563,19 +591,19 @@ table.t td, table.t th { padding: 0.35em 0.6em; border-bottom: 1px solid #D6D3C8
 <li>Provisioning at enrollment, offline domain join</li>
 <li>Four-eyes approval for mass actions</li>
 <li>Key in TPM / HSM; SBOM, reproducible builds</li>
-<li>Plugins: BitLocker escrow, local admins, disk health</li>
+<li>Plugins: local admins, disk health</li>
 <li>macOS agent</li>
 </ul>
 </div>
 </div>
-<div class="footer"><span>Tempra RMM</span><span>25</span></div>
+<div class="footer"><span>Tempra RMM</span><span>26</span></div>
 <aside>Phases 0 to 12 of the roadmap are implemented. Several modules, notably firmware, Trend Micro and Vision One, still need validation on real customer endpoints.</aside>
 </section>
 <section id="close" class="dark" style="justify-content:center">
 <p class="eyebrow">In one sentence</p>
 <p class="statement">Every command a person approved, every key in its place, every action on the record.</p>
 <p class="lead">Tempra RMM — open source, hosted at the customer, secure by design.</p>
-<div class="footer"><span>Tempra RMM</span><span>26</span></div>
+<div class="footer"><span>Tempra RMM</span><span>27</span></div>
 <aside>Close with questions. The operator manual covers day-to-day use: enrolling computers, remote actions, patches, vulnerabilities, reports and provisioning.</aside>
 </section>
 <script>

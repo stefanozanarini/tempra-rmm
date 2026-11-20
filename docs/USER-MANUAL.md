@@ -26,8 +26,8 @@ Your role comes from Microsoft Entra ID and decides what you can do.
 | Role | Can do |
 | --- | --- |
 | Reader | See every page, report and dashboard. Cannot run anything. |
-| Operator | Everything a Reader can, plus run commands, scripts, shell, remote control, file transfers, installations and updates (each approved with MFA); approve new agents; edit workflows, groups and provisioning profiles; acknowledge alerts; start provisioning. |
-| Admin | Everything an Operator can, plus revoke agents; upload packages; approve policies, modules, permanent workflow assignments and provisioning profiles; manage sites, tokens, settings, agent versions and installers. |
+| Operator | Everything a Reader can, plus run commands, scripts, shell, remote control, file transfers, installations and updates on one computer at a time (each approved with MFA); view BitLocker recovery keys (with the signing passphrase); approve new agents; edit workflows, groups and provisioning profiles; acknowledge alerts; start provisioning. |
+| Admin | Everything an Operator can, plus run an action on several computers at once (bulk actions, a whole group, a package deployed to many); revoke agents; upload packages; approve policies, modules, permanent workflow assignments and provisioning profiles; manage sites, tokens, settings, agent versions and installers. |
 
 ### The golden rule: every action is approved with MFA
 
@@ -120,7 +120,9 @@ The agent list is the home page: every computer, its status at a glance, and the
 - **Search** finds by name, IP, logged-on user, model, serial, agent version or remote-access ID (Supremo, AnyDesk, TeamViewer). Use `*` as a wildcard.
 - **Status icons** show online/offline, open alerts, failing checks, missing patches, pending reboot and outdated applications. Drag a column's header edge to resize it (double click resets); widths are remembered per browser.
 - **Click** a computer to open the bottom panel; **right-click** for the quick menu (commands, shell, remote control, files, workflows).
-- **Tick several computers** to run one action on all of them with a single MFA approval (see section 5).
+- **Tick several computers** to run one action on all of them with a single MFA approval (Admin, see section 5).
+- **Summary cards** above the list (total agents, online now, serious issues, missing patches) open the list already filtered; **chips** above the table filter by site or group, and **☰** hides the left column when the table needs the width.
+- The panel of the selected computer opens as a floating window over the list; **close** brings the list back.
 
 ### The agent panel and page
 
@@ -132,12 +134,28 @@ The bottom panel and the full agent page show the same tabs:
 | Checks | Every check with its status (ok, warning, failing) and summary |
 | Patches | Missing Windows/Linux updates, blockers, winget upgrades, firmware, logs of failed updates |
 | Software | Installed applications, with **Uninstall…** where a silent removal is possible |
-| Inventory | Hardware, BIOS, disks and their health, BitLocker, battery, TPM, network, monitors |
+| Inventory | Hardware, BIOS, disks and their health, BitLocker and the recovery key backup, battery, TPM, network, monitors, mapped network drives of the logged-on users, Entra ID and Microsoft 365 |
 | Logons | Local and RDP logons, failures and lockouts, kept 90 days |
 | Policies | Results of the policy rules on this computer |
 | History | Changes over time: software installed/removed/updated, memory, disks, BIOS, OS build, BitLocker |
 | Notes | Free notes, with author and date (audited) |
 | Commands | Run a command or script, open shell, remote control or file management |
+
+### BitLocker recovery keys
+
+When an Admin has created the BitLocker encryption key (**Deployment → Installer**) and published the `bitlocker` module, every agent backs up the recovery key of each volume with BitLocker on, at the automatic collection. The agent encrypts the key on the computer itself, so the console never holds it in clear.
+
+To read one: **Inventory** tab → volume → **View key**, approve with MFA, then type the signing key's passphrase and choose **Read**. The key is shown once, on its own page, and never stored or logged; every read is in the activity log.
+
+### Entra ID and Microsoft 365
+
+The **Inventory** tab of a Windows computer shows, without Graph or any credential:
+
+- the join type (Entra, hybrid, domain, workgroup), tenant and device ID, Intune enrollment, Autopilot and Defender for Endpoint onboarding;
+- Microsoft 365 Apps: version, update channel, products, subscription or perpetual license, updates disabled, shared computer activation;
+- per user: work and personal accounts signed in to Office and OneDrive, and the folders moved into OneDrive. Users who are not logged on keep their last values, with the date, for 90 days.
+
+With the `microsoft365` module published, the automatic collection adds checks every 6 hours: Office updates, update channel, end of support (perpetual and MSI Office), OneDrive backup of Desktop and Documents, personal accounts. From a failing check you can **update** Office, **change the channel** (refused when a policy sets it) or **repair** it (quick or online), each approved with MFA.
 
 ### Sites
 
@@ -149,7 +167,7 @@ A computer goes automatically into the first site whose subnets contain one of i
 
 - A **personal** group is visible only to you; a **public** one to every operator.
 - A **user group** targets the computers where those users are logged on, or were last seen within the days you set.
-- From a group page you can launch commands, scripts, installations and workflows on all its members with one MFA approval. Only approved computers receive them.
+- From a group page an Admin can launch commands, scripts, installations and workflows on all its members with one MFA approval. Only approved computers receive them.
 
 ## 5. Remote actions
 
@@ -164,7 +182,7 @@ Every remote action is approved with MFA and recorded in the Activity log with y
 
 ### Running a command or script
 
-1. On the agent page (Commands tab) or in the bulk form, pick the module and action, e.g. *script · run*, and fill the parameters.
+1. On the agent page (Commands tab) or in the bulk form, pick the module and action, e.g. *script · run*, and fill the parameters. For a script, **Ready-made script** offers common tasks (clear the print spooler, flush DNS, clean temporary files, restart a service, pending reboot check, disk space report, stop a process, SFC, DISM, reset Windows Update components): it fills the script box, which you can still edit.
 2. Choose the validity: a computer that is off for longer never runs the job and it ends as *expired*.
 3. Click run and approve with MFA. The full script text is stored in the audit log.
 4. Follow it in the bottom-right box or in **Jobs**.
@@ -196,7 +214,7 @@ More with agent 1.2.5:
 
 ### Bulk actions
 
-Tick computers in the agent list (or open a group) and choose an action: command, script, package installation, application removal, workflow, file management, site or update ring. One MFA approval covers up to 500 computers; each receives its own signed job. Only actions available on every selected platform are offered.
+Bulk actions are for **Admins**: an Operator acts on one computer at a time, and does not see the checkboxes or the group-wide buttons. Tick computers in the agent list (or open a group) and choose an action: command, script, package installation, application removal, workflow, file management, site or update ring. One MFA approval covers up to 500 computers; each receives its own signed job. Only actions available on every selected platform are offered.
 
 ### Jobs
 
@@ -227,14 +245,14 @@ To upgrade many computers at once, select them in the agents list (or open a gro
 
 ### Firmware, BIOS and drivers
 
-On Dell, Lenovo and HP the `firmware` module uses Dell Command Update, Lenovo System Update or HP Image Assistant. **Install tool…** installs the vendor tool if missing. When installing, pick the types and importance; the **BIOS is installed only if ticked**, on mains power with at least 50% battery, and BitLocker is suspended for one reboot.
+On Dell, Lenovo and HP the `firmware` module uses Dell Command Update, Lenovo System Update or HP Image Assistant. **Install tool…** installs the vendor tool if missing. A virtual machine is shown as such, even when it reports its host's maker and model (VMware with the host's hardware), and gets no vendor tool. When installing, pick the types and importance; the **BIOS is installed only if ticked**, on mains power with at least 50% battery, and BitLocker is suspended for one reboot.
 
 ### Software library
 
-**Software → Library** holds the installers (MSI, EXE with silent switches) that an Admin uploads or imports from the winget catalog.
+**Software → Library** holds the installers (MSI, EXE with silent switches) that an Admin uploads or imports from the winget catalog. The console checks the catalog for new versions of the followed applications every 8 hours.
 
 1. Open a package and choose **Deploy**.
-2. Pick the computers: those with an older version are preselected.
+2. Pick the computers: those with an older version are preselected. Deploying to more than one computer needs an Admin.
 3. Approve once with MFA. Each agent downloads the package from the console and checks its SHA-256 and Authenticode signature before installing. Unsigned packages must be explicitly allowed by an Admin.
 
 Computers that are off receive the job when they reconnect, within its validity (24 h by default for deployments).
@@ -349,7 +367,7 @@ Alerts tell you when something needs attention; the red badge in the header coun
 1. Open **Reporting → Alerts**. Repeated alerts with the same cause are merged (count and last time).
 2. Investigate from the agent page (Checks, Logons, Patches).
 3. **Acknowledge** the alert when you have handled it. It reopens if the problem comes back.
-4. Alerts raised by a check close by themselves when the check is no longer failing.
+4. Alerts raised by a check close by themselves when the check is no longer failing, or when the module stops reporting it (the problem was fixed or no longer applies, e.g. a battery removed).
 
 The subnets RDP is allowed from are set by an Admin in **Settings**; without them, private ranges are allowed.
 
@@ -383,6 +401,8 @@ In **Computer inventory**, the advanced search combines any inventory field with
 | `software:"7-Zip" AND NOT software:"7-Zip@24*"` | 7-Zip installed but not version 24 |
 | `free_pct<10 OR free_gb<5` | Low free space on the system disk |
 | `battery<70` | Laptops with battery below 70% of original capacity |
+| `office_license:perpetual OR personal_account:yes` | Perpetual Office, or a personal Microsoft account in Office or OneDrive |
+| `entra_join:hybrid AND intune:no` | Hybrid-joined computers not enrolled in Intune |
 | `uptime_days>30` | Computers not rebooted for over 30 days |
 | `NOT software:"Trend Micro*"` | Computers without Trend Micro |
 
@@ -446,6 +466,8 @@ When the `adinventory` module runs on a domain controller, the AD page lists **a
 
 On a customer console linked to a central console, a banner reminds you when you are operating through the central console. Every action is recorded at the customer under your name "via central console"; your MFA is still required and commands are still signed by the customer's own signer. The customer can cap the role of central operators, suspend or remove the link.
 
+On the central console, the tenant selector in the header lists the active linked consoles under **Linked consoles**: choosing one opens it, choosing a local tenant closes it.
+
 ## 13. Troubleshooting and FAQ
 
 | Symptom | Likely cause and what to do |
@@ -460,6 +482,8 @@ On a customer console linked to a central console, a banner reminds you when you
 | A Windows version upgrade says "no feature update offered" | The release may not be published yet or not to that hardware: the job lists the reasons Windows gives (TPM, Secure Boot, compatibility hold, free space). Check the **Blockers** too. |
 | An outdated app is not updated by winget | It is installed in the user's profile (badge *user profile*): see section 8, Special cases. |
 | The MFA window keeps asking | Sign in with the same account you use in the console, and complete MFA. |
+| No checkboxes in the agent list, no group-wide buttons | Bulk actions need an Admin role: as an Operator, act on one computer at a time. |
+| "No recovery key registered for this volume" | The `bitlocker` module is not published, the BitLocker encryption key was not created, or the computer has not run the automatic collection since. |
 | Vulnerability pages say data not yet downloaded | The console downloads the sources a few minutes after start, then every 6 hours. |
 | Charts on the Security dashboard are almost empty | History is recorded one day at a time from the console update. |
 
@@ -467,6 +491,6 @@ On a customer console linked to a central console, a banner reminds you when you
 
 - Approve only computers you recognize; revoke tokens that leak.
 - Read the summary before approving with MFA: you are signing exactly that.
-- Prefer groups and bulk actions over repeating the same command by hand.
+- Admins: prefer groups and bulk actions over repeating the same command by hand.
 - Close shell, remote control and file sessions when done.
 - Use the pilot ring for new agent versions and test workflows on one computer first.
