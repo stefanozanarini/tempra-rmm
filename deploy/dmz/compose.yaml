@@ -21,6 +21,9 @@ services:
       OPENRMM_TLS_CERT: /run/openrmm/pki/gateway.crt
       OPENRMM_TLS_KEY: /run/openrmm/pki/gateway.key
       OPENRMM_AGENTS_CA_CERT: /run/openrmm/pki/agents-ca.crt
+      # Many agents downloading a package at once (1 MiB chunks each) need
+      # room: the Go heap stays under GOMEMLIMIT, below the container limit.
+      GOMEMLIMIT: 600MiB
     volumes:
       - ./pki/gateway:/run/openrmm/pki:ro
     ports:
@@ -31,4 +34,4 @@ services:
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     pids_limit: 256
-    mem_limit: 256m
+    mem_limit: 768m
